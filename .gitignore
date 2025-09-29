@@ -434,3 +434,5 @@ site/
 # package-lock.json
 # yarn.lock
 # poetry.lock
+
+.docs
