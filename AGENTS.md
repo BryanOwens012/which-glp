@@ -483,7 +483,7 @@ See ./README.md for tech stack and more info.
 - Always consult the documentation, which you can fetch and follow, to make sure you understand how to use the libraries and tools available.
 - If in doubt, conduct web searches to find additional relevant information. Fetch documentation and review it to ensure you understand how to use libraries and tools correctly.
 - Work in this repo/directory (and its subdirectories) only. Never touch any files outside this repo/directory/subdirectories unless explicitly instructed to do so.
-- It is your responsibility to manage the environment (using 'uv' if Python), prepare it for working, updating dependencies, and installing any new dependencies you may need.
+- It is your responsibility to manage the environment (using 'uv' if Python), prepare it for working, updating dependencies, and installing any new dependencies you may need. E.g., whenever you need to install a new Python package, you should install it in the virtual environment using pip (`$ pip3 install --upgrade <package_name>`) and then update the requirements.txt file accordingly using `$ pip3 freeze > requirements.txt`.
 - Always test your changes before moving on to the next checkpoint/milestone. Make sure everything works as expected.
 
 ## Coding
