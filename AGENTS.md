@@ -499,7 +499,7 @@ Style
 
 ## Living Documentation (this file - AGENTS.md)
 
-- This document ('AGENTS.md') serves as the primary instruction for you. If you learn new information or receive importan t guidance, update this document.
+- This document ('AGENTS.md') serves as the primary instruction for you. If you learn new information or receive important guidance, update this document.
 - Append only, do not remove or modify existing content unless it is incorrect or outdated. If you find documentation (for example about libraries, tools, or techniques) from external sources, add links to it here, so that you can get back to it later.
 - Keep notes about your development process, decisions made, the current architecture of the project.
 
