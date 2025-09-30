@@ -20,7 +20,7 @@ class PrawClient:
 
         # Load .env file from project root (`~/.env`)
         # Clean pathlib approach
-        env_path = Path(__file__).parent.parent.parent.parent.parent / ".env"
+        env_path = Path(__file__).resolve().parents[4] / ".env"
         load_dotenv(env_path)
 
         needed_vars = [
