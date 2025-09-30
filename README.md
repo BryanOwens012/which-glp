@@ -3,43 +3,4 @@ Real-world dataset for GLP-1 weight-loss drug outcomes by aggregating Reddit/Twi
 
 ## Tech Stack
 
-### Backend
-
-- **Runtime:** Node.js 20+
-- **Framework:** Express.js
-- **API Layer:** tRPC (end-to-end type safety with frontend)
-- **Database ORM:** Prisma
-- **Caching/Rate Limiting:** Redis
-- **Data Ingestion:** Reddit API (PRAW/custom HTTP client), Twitter API (via twitterapi.io)
-- **Scraping Backup:** Playwright (when APIs rate-limited/unavailable)
-- **AI Processing:** Claude Sonnet 4 API (extract structured data from posts)
-- **Optional:** FastAPI + Python microservice (heavy NLP/data processing if needed)
-
-### Frontend
-
-- **Framework:** Next.js 15 (App Router)
-- **Language:** TypeScript (strict mode)
-- **UI Library:** React.js
-- **Styling:** Tailwind CSS
-- **Components:** Radix UI + Shadcn/ui
-- **Package Manager:** Yarn
-
-### Infrastructure
-
-- **Database:** PostgreSQL via Supabase (free tier: 500MB, upgrade to Pro: 8GB @ $25/month)
-- **Auth:** Supabase Auth
-- **Backend Hosting:** Railway (Express + tRPC + Redis + Playwright)
-- **Frontend Hosting:** Vercel
-- **Containerization:** Not present initially, Docker added later for production
-
-### Architecture Notes
-
-- **Primary ingestion:** Reddit API + Twitter API (twitterapi.io proxy)
-- **Backup ingestion:** Playwright scraping (fallback when API limits exceeded)
-- **Type safety:** tRPC ensures frontend/backend contract enforcement
-- **Supabase benefits:** PostgreSQL + Auth + Storage + Realtime in single platform
-- **Railway deployment:** Single service for Node.js backend, Redis, and Playwright dependencies
-
-## Getting Started
-
-[Add installation/setup instructions here]
+[See AGENTS.md for now. This README will be updated later when things come closer to finalization.]
