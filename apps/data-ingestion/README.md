@@ -248,21 +248,28 @@ Normal if ingestion runs frequently. Posts are deduplicated automatically.
 
 ```
 apps/data-ingestion/
-├── migrations/
+├── README.md                     # This file
+├── pytest.ini                    # Pytest configuration
+├── migrations/                   # Database migrations
 │   ├── 001_create_reddit_tables.up.sql
 │   ├── 001_create_reddit_tables.down.sql
 │   ├── run_migration.py
-│   └── verify_schema.py
-└── src/ingestion/
-    ├── scheduler.py          # Main orchestrator
-    ├── reddit_client.py      # Reddit API wrapper
-    ├── parsers.py            # Data parsing
-    ├── database.py           # Database operations
-    ├── logger.py             # Logging config
-    ├── test_parsers.py       # 50+ unit tests
-    ├── test_mocks.py         # Mock PRAW objects
-    ├── README.md             # This file
-    └── ingestion.log         # Log file (generated)
+│   ├── verify_schema.py
+│   └── README.md
+├── reddit_ingestion/             # Main package
+│   ├── __init__.py
+│   ├── scheduler.py              # Main orchestrator
+│   ├── client.py                 # Reddit API wrapper (was reddit_client.py)
+│   ├── parser.py                 # Data parsing (was parsers.py)
+│   ├── database.py               # Database operations
+│   └── config.py                 # Logging configuration (was logger.py)
+├── tests/                        # All tests
+│   ├── test_parser.py            # 45 parser unit tests
+│   ├── test_mocks.py             # Mock PRAW objects
+│   ├── test_migrations.py        # Migration unit tests
+│   └── test_integration.py       # Integration tests (require DB)
+└── scripts/                      # Utility scripts
+    └── praw_test.py              # PRAW testing script
 ```
 
 ## Future Enhancements

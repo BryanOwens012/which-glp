@@ -18,9 +18,9 @@ from pathlib import Path
 from datetime import datetime, timezone
 
 # Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from parsers import (
+from reddit_ingestion.parser import (
     parse_post, parse_comment,
     safe_get_author, safe_get_text, safe_get_numeric, safe_get_bool,
     calculate_comment_depth, extract_parent_comment_id,
@@ -28,8 +28,8 @@ from parsers import (
     timestamp_to_datetime, serialize_to_json,
     DELETED_AUTHOR_PLACEHOLDER
 )
-from test_mocks import (
-    create_mock_post, create_mock_comment, create_nested_comment_chain,
+from tests.test_mocks import (
+    create_mock_post, create_mock_comment,
     get_deleted_author_post, get_link_post_no_selftext, get_nsfw_post,
     get_new_post_no_upvote_ratio, get_post_no_flair,
     get_deleted_author_comment, get_comment_no_over18,
@@ -42,7 +42,7 @@ class TestSafeGetters:
 
     def test_safe_get_author_normal(self):
         """Test extracting normal author"""
-        from test_mocks import MockAuthor
+        from tests.test_mocks import MockAuthor
         post = create_mock_post(author=MockAuthor("test_user"))
         assert safe_get_author(post) == "test_user"
 

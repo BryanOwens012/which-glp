@@ -5,9 +5,7 @@ Provides factory functions to create mock Reddit posts and comments
 with all possible combinations of valid attributes for comprehensive testing.
 """
 
-from unittest.mock import Mock, MagicMock
-from datetime import datetime
-from typing import Optional, List, Any
+from typing import Optional, List
 
 
 class MockSubreddit:
@@ -57,7 +55,7 @@ def create_mock_post(
 
     # Additional attributes for testing
     extra_attributes: Optional[dict] = None
-) -> Mock:
+) -> SimpleObject:
     """
     Create a mock Reddit post (Submission) object
 
@@ -144,7 +142,7 @@ def create_mock_comment(
 
     # Additional attributes
     extra_attributes: Optional[dict] = None
-) -> Mock:
+) -> SimpleObject:
     """
     Create a mock Reddit comment object
 
@@ -220,7 +218,7 @@ def create_mock_comment(
     return comment
 
 
-def create_nested_comment_chain(depth: int, base_post_id: str = "test_post") -> List[Mock]:
+def create_nested_comment_chain(depth: int, base_post_id: str = "test_post") -> List[SimpleObject]:
     """
     Create a chain of nested comments for depth testing
 
@@ -257,12 +255,12 @@ def create_nested_comment_chain(depth: int, base_post_id: str = "test_post") -> 
 
 
 # Predefined edge case scenarios
-def get_deleted_author_post() -> Mock:
+def get_deleted_author_post() -> SimpleObject:
     """Post with deleted author"""
     return create_mock_post(author=False)  # False means explicitly None
 
 
-def get_link_post_no_selftext() -> Mock:
+def get_link_post_no_selftext() -> SimpleObject:
     """Link post with no body text"""
     return create_mock_post(
         selftext="",
@@ -271,27 +269,27 @@ def get_link_post_no_selftext() -> Mock:
     )
 
 
-def get_nsfw_post() -> Mock:
+def get_nsfw_post() -> SimpleObject:
     """NSFW post"""
     return create_mock_post(over_18=True)
 
 
-def get_new_post_no_upvote_ratio() -> Mock:
+def get_new_post_no_upvote_ratio() -> SimpleObject:
     """Very new post without upvote_ratio"""
     return create_mock_post(upvote_ratio=None)
 
 
-def get_post_no_flair() -> Mock:
+def get_post_no_flair() -> SimpleObject:
     """Post with no author flair"""
     return create_mock_post(author_flair_text=None)
 
 
-def get_deleted_author_comment() -> Mock:
+def get_deleted_author_comment() -> SimpleObject:
     """Comment with deleted author"""
     return create_mock_comment(author=False)  # False means explicitly None
 
 
-def get_comment_no_over18() -> Mock:
+def get_comment_no_over18() -> SimpleObject:
     """Comment without over_18 attribute"""
     comment = create_mock_comment(over_18=None)
     # Don't set the over_18 attribute at all
@@ -300,7 +298,7 @@ def get_comment_no_over18() -> Mock:
     return comment
 
 
-def get_nested_reply_comment() -> Mock:
+def get_nested_reply_comment() -> SimpleObject:
     """Comment that's a reply to another comment"""
     return create_mock_comment(
         parent_id="t1_parent_comment",
@@ -308,6 +306,6 @@ def get_nested_reply_comment() -> Mock:
     )
 
 
-def get_deeply_nested_comments(depth: int = 10) -> List[Mock]:
+def get_deeply_nested_comments(depth: int = 10) -> List[SimpleObject]:
     """Chain of deeply nested comments"""
     return create_nested_comment_chain(depth)

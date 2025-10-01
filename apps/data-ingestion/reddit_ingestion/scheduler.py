@@ -25,14 +25,14 @@ Usage:
 import argparse
 import time
 from datetime import datetime
-from typing import List, Dict, Any
+from typing import Dict
 from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 
-from logger import setup_logger
-from reddit_client import RedditClient
-from database import Database
-from parsers import parse_post, parse_comment, validate_post_data, validate_comment_data
+from reddit_ingestion.config import setup_logger
+from reddit_ingestion.client import RedditClient
+from reddit_ingestion.database import Database
+from reddit_ingestion.parser import parse_post, parse_comment, validate_post_data, validate_comment_data
 
 # Initialize logger
 logger = setup_logger()

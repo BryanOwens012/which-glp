@@ -138,13 +138,19 @@ def calculate_comment_depth(comment: Any) -> int:
     Returns:
         Integer depth (1 = top-level, 2+ = nested)
     """
-    depth = 1
+    # If this comment is top-level (parent is post), depth is 1
+    if comment.is_root:
+        return 1
+
+    # Start at depth 2 since we know parent is another comment (not the post)
+    depth = 2
     iterations = 0
 
     try:
         parent = comment.parent()
 
-        while hasattr(parent, 'parent') and not parent.is_root:
+        # Walk up the parent chain until we hit the top-level comment
+        while hasattr(parent, 'parent') and hasattr(parent, 'is_root') and not parent.is_root:
             depth += 1
             iterations += 1
 
@@ -159,8 +165,9 @@ def calculate_comment_depth(comment: Any) -> int:
 
     except Exception as e:
         logger.error(f"Error calculating depth for comment {comment.id}: {e}")
-        # Default to depth 1 if calculation fails
-        depth = 1
+        # If error and not top-level, default to depth 2 (reply to top-level)
+        if not comment.is_root:
+            depth = 2
 
     return depth
 

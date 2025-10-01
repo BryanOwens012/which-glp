@@ -5,10 +5,14 @@ Run with: pytest test_migrations.py -v
 """
 
 import os
+import sys
 import pytest
 from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
 import psycopg2
+
+# Add migrations directory to path
+sys.path.insert(0, str(Path(__file__).parent.parent / 'migrations'))
 from run_migration import load_env, get_db_connection, run_migration
 
 

@@ -15,11 +15,10 @@ https://www.psycopg.org/docs/extras.html#fast-execution-helpers
 import os
 import logging
 from pathlib import Path
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any
 from dotenv import load_dotenv
 import psycopg2
 from psycopg2.extras import execute_batch
-from psycopg2 import sql
 
 logger = logging.getLogger(__name__)
 
@@ -68,6 +67,7 @@ class Database:
             DatabaseConnectionError: If connection to database fails
         """
         # Load environment variables
+        # From reddit_ingestion, go up 3 levels: reddit_ingestion -> data-ingestion -> apps -> repo root
         env_path = Path(__file__).resolve().parents[3] / ".env"
         if not env_path.exists():
             raise DatabaseConfigurationError(
@@ -93,7 +93,7 @@ class Database:
 
         # Extract database connection details from Supabase URL
         supabase_url = os.getenv("SUPABASE_URL")
-        if not supabase_url.startswith("https://") or ".supabase.co" not in supabase_url:
+        if not supabase_url or not supabase_url.startswith("https://") or ".supabase.co" not in supabase_url:
             raise DatabaseConfigurationError(
                 f"Invalid SUPABASE_URL format: {supabase_url}\n"
                 f"Expected format: https://your-project.supabase.co\n"

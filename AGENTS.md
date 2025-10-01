@@ -506,7 +506,8 @@ Style
 - Always prefer clarity over brevity.
 - Use docstrings, multiline comments, etc. (as the convention may be with the particular framework/library/language) to document all functions, classes, and modules. Include descriptions of parameters, return values, and any exceptions raised.
 - Include links to any online docs or references you used to learn how to use a library, tool, or API, if applicable.
-
+- Remove any unused imports, variables, functions, or code blocks.
+- Avoid hardcoding values; use constants or configuration files instead.
 
 ## Living Documentation (the file ./AGENTS_APPENDLOG.md)
 

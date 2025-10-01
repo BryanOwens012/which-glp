@@ -60,6 +60,7 @@ class RedditClient:
             RedditAPIError: If PRAW initialization or authentication fails
         """
         # Load environment variables
+        # From reddit_ingestion, go up 3 levels: reddit_ingestion -> data-ingestion -> apps -> repo root
         env_path = Path(__file__).resolve().parents[3] / ".env"
         if not env_path.exists():
             raise RedditClientConfigurationError(

@@ -9,7 +9,6 @@ import sys
 from pathlib import Path
 from dotenv import load_dotenv
 import psycopg2
-from psycopg2 import sql
 
 
 def load_env():

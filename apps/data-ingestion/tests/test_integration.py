@@ -11,11 +11,14 @@ pytest -m "not integration" test_*.py  # Skip integration tests
 pytest -m integration test_*.py        # Run only integration tests
 """
 
+import sys
 import pytest
 import psycopg2
 from pathlib import Path
+
+# Add migrations directory to path
+sys.path.insert(0, str(Path(__file__).parent.parent / 'migrations'))
 from run_migration import load_env, get_db_connection, run_migration
-from verify_schema import verify_tables
 
 
 # Mark all tests in this module as integration tests
@@ -27,7 +30,7 @@ class TestDatabaseIntegration:
 
     def test_env_file_exists(self):
         """Verify .env file exists before running integration tests"""
-        env_path = Path(__file__).resolve().parents[3] / ".env"
+        env_path = Path(__file__).resolve().parents[2] / ".env"
         assert env_path.exists(), ".env file not found - cannot run integration tests"
 
     def test_load_env_integration(self):

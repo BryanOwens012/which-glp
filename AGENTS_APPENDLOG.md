@@ -539,3 +539,309 @@ except PRAWException as e:
 
 **Status:** ✓ COMPLETED - All error handling improved with descriptive exception classes and actionable error messages
 
+---
+
+### 2025-10-01 at 07:11 UTC: First Reddit Post Ingestion with Bug Fixes
+
+**Task:** Parse and ingest a single Reddit post with all comments to test the full pipeline
+
+**Test Post:** https://www.reddit.com/r/Zepbound/comments/1n5o5md/134_lbs_gone_still_the_same_me/
+- Post ID: `1n5o5md`
+- Subreddit: r/Zepbound
+- Title: "134 lbs Gone, Still the Same Me"
+- Comments: 156 comments across 5 levels of nesting
+
+**Issues Discovered:**
+
+1. **Issue: Incorrect .env Path Calculation**
+   - **Problem:** `Path(__file__).resolve().parents[3]` was going to `/Users/bryan/Github/which-glp/apps/` instead of repo root
+   - **Root Cause:** File is at `apps/data-ingestion/src/ingestion/*.py`, so need 4 parent levels not 3
+   - **Fix:** Changed to `parents[4]` in both `reddit_client.py` and `database.py`
+   - **Location:** `reddit_client.py:64`, `database.py:72`
+
+2. **Issue: Database Constraint Violation**
+   - **Error:** `new row for relation "reddit_comments" violates check constraint "top_level_has_no_parent"`
+   - **Constraint:** `(depth = 1 AND parent_comment_id IS NULL) OR (depth > 1 AND parent_comment_id IS NOT NULL)`
+   - **Problem:** Comment `nbx7he8` had `depth=1` but `parent_comment_id='nbumlvf'` (should be NULL for depth 1)
+   - **Root Cause:** `calculate_comment_depth()` function was incorrectly calculating depth
+
+   **Original Logic:**
+   ```python
+   depth = 1
+   parent = comment.parent()
+   while hasattr(parent, 'parent') and not parent.is_root:
+       depth += 1
+       parent = parent.parent()
+   ```
+
+   This stopped when hitting a parent with `is_root=True`, but at that point depth was still 1. For a reply to a top-level comment:
+   - Comment has `is_root=False`
+   - Parent has `is_root=True` (it's top-level)
+   - Loop never executed → depth remained 1 (WRONG!)
+
+   **Fixed Logic:**
+   ```python
+   if comment.is_root:
+       return 1  # Top-level comment
+
+   depth = 2  # Start at 2 since we know parent is a comment
+   parent = comment.parent()
+   while hasattr(parent, 'parent') and hasattr(parent, 'is_root') and not parent.is_root:
+       depth += 1
+       parent = parent.parent()
+   ```
+
+   Now correctly handles:
+   - Top-level comment (parent = post): depth 1, parent_comment_id = NULL
+   - Reply to top-level (parent is top-level comment): depth 2, parent_comment_id = parent's ID
+   - Reply to reply: depth 3+, parent_comment_id = parent's ID
+
+**Testing Results:**
+
+1. **Post Parsing:**
+   - ✓ Post fetched successfully
+   - ✓ Post data parsed with all 16 fields
+   - ✓ Post data validation passed
+   - ✓ Post inserted into database (or skipped as duplicate)
+
+2. **Comment Parsing:**
+   - ✓ 156 comments fetched
+   - ✓ All comments parsed successfully
+   - ✓ All comments validated successfully
+   - ✓ All comments inserted into database (or skipped as duplicates)
+
+3. **Depth Distribution:**
+   - Depth 1: 122 comments (top-level, parent_comment_id = NULL)
+   - Depth 2: 22 comments (replies to top-level)
+   - Depth 3: 7 comments (replies to depth 2)
+   - Depth 4: 3 comments (replies to depth 3)
+   - Depth 5: 2 comments (replies to depth 4)
+
+4. **Database Constraints:**
+   - ✓ All 156 comments satisfy `top_level_has_no_parent` constraint
+   - ✓ Comment `nbx7he8` now has correct depth=2, parent_comment_id='nbumlvf'
+   - ✓ Foreign key relationships maintained
+
+**Database Verification:**
+```sql
+SELECT post_id, title, subreddit, num_comments FROM reddit_posts WHERE post_id = '1n5o5md';
+-- Result: 1 post found with 160 comments
+
+SELECT COUNT(*), MIN(depth), MAX(depth) FROM reddit_comments WHERE post_id = '1n5o5md';
+-- Result: 156 comments, depth range 1-5
+```
+
+**Files Modified:**
+- `apps/data-ingestion/src/ingestion/reddit_client.py` - Fixed .env path (line 64)
+- `apps/data-ingestion/src/ingestion/database.py` - Fixed .env path (line 72)
+- `apps/data-ingestion/src/ingestion/parsers.py` - Fixed `calculate_comment_depth()` logic (lines 127-172)
+
+**Lessons Learned:**
+
+1. **Path Calculation:** Always verify relative paths by counting directory levels from file location
+2. **Constraint Logic:** When designing depth calculations, consider all edge cases:
+   - Top-level comments (is_root=True)
+   - Direct replies to top-level (parent.is_root=True but self.is_root=False)
+   - Deeper nesting
+3. **Testing with Real Data:** Mock tests passed but real PRAW objects exposed the depth calculation bug
+4. **Database Constraints:** Check constraints are valuable for catching data quality issues early
+
+**Status:** ✓ COMPLETED - Successfully ingested first Reddit post with 156 comments, all constraints satisfied
+
+---
+
+### 2025-10-01 at 07:19 UTC: Project Reorganization into Conventional Python Structure
+
+**Task:** Reorganize data-ingestion directory into a more conventional and intuitive Python project structure
+
+**Problem:**
+- Files scattered across `src/ingestion/`, `src/collectors/`, `migrations/` with unclear organization
+- Test files mixed with source files
+- Non-standard directory naming (`src/ingestion` instead of package name)
+- Difficult to navigate and understand project structure
+
+**Solution:**
+Reorganized into conventional Python package structure following best practices.
+
+**New Directory Structure:**
+
+```
+apps/data-ingestion/
+├── README.md                     # Main documentation (moved from src/ingestion/)
+├── pytest.ini                    # Pytest config (moved from migrations/)
+├── migrations/                   # Database migrations (unchanged)
+│   ├── *.sql files
+│   ├── run_migration.py
+│   └── verify_schema.py
+├── reddit_ingestion/             # Main Python package (NEW - was src/ingestion/)
+│   ├── __init__.py
+│   ├── scheduler.py              # Main orchestrator
+│   ├── client.py                 # Was reddit_client.py
+│   ├── parser.py                 # Was parsers.py (singular)
+│   ├── database.py               # Database operations
+│   └── config.py                 # Was logger.py
+├── tests/                        # All tests together (NEW)
+│   ├── __init__.py
+│   ├── test_parser.py            # Was test_parsers.py
+│   ├── test_mocks.py             # Mock factories
+│   ├── test_migrations.py        # Moved from migrations/
+│   └── test_integration.py       # Moved from migrations/
+└── scripts/                      # Utility scripts (NEW)
+    └── praw_test.py              # Saved from src/collectors/
+```
+
+**Changes Made:**
+
+1. **Created Main Package** (`reddit_ingestion/`)
+   - Renamed from `src/ingestion/` to proper package name
+   - Follows PEP 8 naming conventions (lowercase with underscores)
+   - Makes imports clearer: `from reddit_ingestion.client import RedditClient`
+
+2. **Renamed Files for Clarity:**
+   - `reddit_client.py` → `client.py` (context is clear from package name)
+   - `parsers.py` → `parser.py` (singular, standard convention)
+   - `logger.py` → `config.py` (more accurate - it's configuration, not just logging)
+
+3. **Consolidated Tests** (`tests/`)
+   - Moved all test files to single `tests/` directory
+   - Moved migration tests from `migrations/` to `tests/`
+   - Moved `pytest.ini` to project root
+   - Better separation of source code from tests
+
+4. **Created Scripts Directory** (`scripts/`)
+   - Saved `praw_test.py` from old `src/collectors/` directory
+   - Place for ad-hoc utility scripts
+
+5. **Removed Empty Directories:**
+   - Deleted `src/collectors/`, `src/processors/`, `src/schedulers/`, `src/utils/`
+   - Removed entire `src/` directory
+
+**Import Path Updates:**
+
+Fixed all import statements to use new package structure:
+
+```python
+# Old imports
+from logger import setup_logger
+from reddit_client import RedditClient
+from parsers import parse_post
+
+# New imports
+from reddit_ingestion.config import setup_logger
+from reddit_ingestion.client import RedditClient
+from reddit_ingestion.parser import parse_post
+```
+
+**Path Calculation Updates:**
+
+Updated `.env` path calculations due to new directory depth:
+- **Old:** `Path(__file__).resolve().parents[4]` (from `src/ingestion/*.py`)
+- **New:** `Path(__file__).resolve().parents[3]` (from `reddit_ingestion/*.py`)
+
+Updated test paths:
+- `sys.path.insert(0, str(Path(__file__).parent))` → `sys.path.insert(0, str(Path(__file__).parent.parent))`
+- `from test_mocks import` → `from tests.test_mocks import`
+
+**Type/Lint Fixes:**
+
+Fixed Optional type warning:
+```python
+# Before (type error - getenv returns Optional[str])
+supabase_url = os.getenv("SUPABASE_URL")
+if not supabase_url.startswith("https://"):  # Lint error: supabase_url might be None
+
+# After
+supabase_url = os.getenv("SUPABASE_URL")
+if not supabase_url or not supabase_url.startswith("https://"):  # Checks for None first
+```
+
+**Testing:**
+
+✓ All 45 parser tests passing
+✓ Imports work correctly with new structure
+✓ Path calculations correct for `.env` location
+✓ Migration scripts still functional
+
+**Dependencies:**
+
+Updated requirements.txt with `pip3 freeze`:
+- Added `APScheduler==3.11.0` (was missing from venv)
+- Removed outdated packages
+
+**Files Modified:**
+- `reddit_ingestion/client.py` - Updated paths and imports
+- `reddit_ingestion/database.py` - Updated paths and type checking
+- `reddit_ingestion/scheduler.py` - Updated imports
+- `tests/test_parser.py` - Updated imports and paths
+- `tests/test_migrations.py` - Added path setup for migrations/
+- `tests/test_integration.py` - Added path setup, updated .env path
+- `README.md` - Updated file structure diagram
+- `requirements.txt` - Updated with pip3 freeze
+
+**Benefits:**
+
+1. **Standard Convention** - Follows Python packaging best practices
+2. **Clear Structure** - Package name indicates purpose, easier navigation
+3. **Better Imports** - `reddit_ingestion.client` is self-documenting
+4. **Test Organization** - All tests in one place, easier to run
+5. **Maintainability** - Conventional structure familiar to Python developers
+6. **Scalability** - Easy to add new modules to package
+
+**Status:** ✓ COMPLETED - Project reorganized into conventional Python structure, all tests passing
+
+---
+
+### 2025-10-01 at 07:25 UTC: Removed Unused Imports
+
+**Task:** Clean up unused imports across all Python files
+
+**Tool Used:** `autoflake --remove-all-unused-imports`
+
+**Imports Removed:**
+
+1. **reddit_ingestion/database.py:**
+   - Removed `Tuple` from typing (not used)
+   - Removed `from psycopg2 import sql` (not used)
+
+2. **reddit_ingestion/scheduler.py:**
+   - Removed `List, Any` from typing (only `Dict` is used)
+
+3. **tests/test_parser.py:**
+   - Removed `create_nested_comment_chain` from imports (not used in tests)
+
+4. **tests/test_mocks.py:**
+   - Removed `Mock, MagicMock` from unittest.mock (using `SimpleObject` instead)
+   - Removed `datetime` (not used)
+   - Removed `Any` from typing (not used)
+   - Updated all type hints from `Mock` → `SimpleObject` for consistency
+
+5. **tests/test_integration.py:**
+   - Removed `verify_tables` import (not used)
+
+6. **migrations/run_migration.py:**
+   - Removed `from psycopg2 import sql` (not used)
+
+**Type Hint Corrections:**
+
+Fixed all function signatures in `test_mocks.py` to use correct return type:
+```python
+# Before
+def create_mock_post(...) -> Mock:
+def get_deleted_author_post() -> Mock:
+
+# After
+def create_mock_post(...) -> SimpleObject:
+def get_deleted_author_post() -> SimpleObject:
+```
+
+This is more accurate since we're using `SimpleObject` instead of `Mock` objects.
+
+**Verification:**
+
+✓ All 45 parser tests still passing
+✓ No import errors
+✓ All modules importable
+✓ Cleaner codebase with only necessary imports
+
+**Status:** ✓ COMPLETED - All unused imports removed, tests passing
+
