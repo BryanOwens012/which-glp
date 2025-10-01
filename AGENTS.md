@@ -388,6 +388,45 @@ The value is in the exclusive, structured, continuously-updated dataset that get
 
 ---
 
+## Tech Stack
+
+### Backend
+
+- **Runtime:** Node.js 20+
+- **Framework:** Express.js
+- **API Layer:** tRPC (end-to-end type safety with frontend)
+- **Database ORM:** Prisma
+- **Caching/Rate Limiting:** Redis
+- **Data Ingestion:** Reddit API (PRAW/custom HTTP client), Twitter API (via twitterapi.io)
+- **Scraping Backup:** Playwright (when APIs rate-limited/unavailable)
+- **AI Processing:** Claude Sonnet 4 API (extract structured data from posts)
+- **Optional:** FastAPI + Python microservice (heavy NLP/data processing if needed)
+
+### Frontend
+
+- **Framework:** Next.js 15 (App Router)
+- **Language:** TypeScript (strict mode)
+- **UI Library:** React.js
+- **Styling:** Tailwind CSS
+- **Components:** Radix UI + Shadcn/ui
+- **Package Manager:** Yarn
+
+### Infrastructure
+
+- **Database:** PostgreSQL via Supabase (free tier: 500MB, upgrade to Pro: 8GB @ $25/month)
+- **Auth:** Supabase Auth
+- **Backend Hosting:** Railway (Express + tRPC + Redis + Playwright)
+- **Frontend Hosting:** Vercel
+- **Containerization:** Not present initially, Docker added later for production
+
+### Architecture Notes
+
+- **Primary ingestion:** Reddit API + Twitter API (twitterapi.io proxy)
+- **Backup ingestion:** Playwright scraping (fallback when API limits exceeded)
+- **Type safety:** tRPC ensures frontend/backend contract enforcement
+- **Supabase benefits:** PostgreSQL + Auth + Storage + Realtime in single platform
+- **Railway deployment:** Single service for Node.js backend, Redis, and Playwright dependencies
+
 ## Data Extraction & Processing Pipeline
 
 ### Ingestion Architecture
@@ -435,6 +474,33 @@ The value is in the exclusive, structured, continuously-updated dataset that get
 
 **Extraction Model:** Claude Sonnet 4 (primary), consider cheaper alternatives like GLM-4.5 (https://docs.z.ai/scenario-example/develop-tools/claude) for cost optimization if volume scales
 
-## More info
+## More Info On This Project
 
-See ./README.md for more info.
+See ./README.md for tech stack and more info.
+
+## Development Process
+
+- Always consult the documentation, which you can fetch and follow, to make sure you understand how to use the libraries and tools available.
+- If in doubt, conduct web searches to find additional relevant information. Fetch documentation and review it to ensure you understand how to use libraries and tools correctly.
+- Work in this repo/directory (and its subdirectories) only. Never touch any files outside this repo/directory/subdirectories unless explicitly instructed to do so.
+- It is your responsibility to manage the environment (using 'uv' if Python), prepare it for working, updating dependencies, and installing any new dependencies you may need. E.g., whenever you need to install a new Python package, you should install it in the virtual environment using pip (`$ pip3 install --upgrade <package_name>`) and then update the requirements.txt file accordingly using `$ pip3 freeze > requirements.txt`.
+- Always test your changes before moving on to the next checkpoint/milestone. Make sure everything works as expected.
+
+## Coding
+
+Style
+- If Python code, then use Python 3 and follow PEP8 style guidelines.
+- Prioritise readability - make code easy to read and understand by using small functions, avoiding unnecessary complexity (including sophisticated safety mechanisms, typing, complex patterns, etc. ... when they are not strictly necessary).
+- Write modular code - break down large functions into smaller, reusable functions.
+- Concise but clear explanatory comments to all code paths. The code you generated is being read by humans to learn and understand how the program works, so make it easy for them to follow. Add comments to every function, every if and else block, everywhere where commentary can help the reader understand how the code works.
+- Always prefer clarity over brevity.
+- Use docstrings, multiline comments, etc. (as the convention may be with the particular framework/library/language) to document all functions, classes, and modules. Include descriptions of parameters, return values, and any exceptions raised.
+
+
+## Living Documentation (this file - AGENTS.md)
+
+- This document ('AGENTS.md') serves as the primary instruction for you. If you learn new information or receive important guidance, update this document.
+- Append only, do not remove or modify existing content unless it is incorrect or outdated. If you find documentation (for example about libraries, tools, or techniques) from external sources, add links to it here, so that you can get back to it later.
+- Keep notes about your development process, decisions made, the current architecture of the project.
+
+## ----- Append Starting Here -----
