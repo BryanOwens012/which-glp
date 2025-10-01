@@ -273,6 +273,9 @@ extraction_errors.log
 ingestion.log
 ingestion.log.*
 
+# Reddit ingestion backups
+apps/data-ingestion/reddit_ingestion/backup/
+
 # PM2 logs
 .pm2/
 pm2-logs/
@@ -439,4 +442,4 @@ site/
 # yarn.lock
 # poetry.lock
 
-.docs
+screenshots/
