@@ -50,14 +50,27 @@ class PrawClient:
         return self.reddit.submission(id=post_id)
 
     @staticmethod
+    def format_timestamp(timestamp: float) -> str:
+        """Convert a UTC timestamp to a formatted local datetime string."""
+        local_timezone = tzlocal.get_localzone()
+        utc_aware_dt = datetime.fromtimestamp(timestamp).replace(tzinfo=pytz.utc)
+        local_dt = utc_aware_dt.astimezone(local_timezone)
+
+        # Use cross-platform formatting (without platform-specific -)
+        day = local_dt.day
+        hour = local_dt.hour % 12 or 12
+        month = local_dt.strftime("%b")
+        year = local_dt.year
+        minute = local_dt.strftime("%M")
+        am_pm = local_dt.strftime("%p")
+
+        formatted = f"{month} {day}, {year} at {hour}:{minute}{am_pm}"
+        return formatted.lower().capitalize()
+
+    @staticmethod
     def print_posts(posts: Iterable):
         for post in posts:
-            local_timezone = tzlocal.get_localzone()
-            utc_aware_dt = datetime.fromtimestamp(post.created_utc).replace(
-                tzinfo=pytz.utc
-            )
-            local_dt = utc_aware_dt.astimezone(local_timezone)
-            formatted = local_dt.strftime("%b %-d, %Y at %-I:%M%p").lower().capitalize()
+            formatted = PrawClient.format_timestamp(post.created_utc)
 
             print(
                 f"## {post.title}  \n\n {post.author} on {formatted} ({post.url})  \n\n"
@@ -73,10 +86,7 @@ class PrawClient:
         for author, created_utc, body in [
             (comment.author, comment.created_utc, comment.body) for comment in comments
         ][start:stop]:
-            local_timezone = tzlocal.get_localzone()
-            utc_aware_dt = datetime.fromtimestamp(created_utc).replace(tzinfo=pytz.utc)
-            local_dt = utc_aware_dt.astimezone(local_timezone)
-            formatted = local_dt.strftime("%b %-d, %Y at %-I:%M%p").lower().capitalize()
+            formatted = PrawClient.format_timestamp(created_utc)
 
             print(f"> ### Comment by {author} on {formatted}  \n > \n > {body}  \n\n")
 
