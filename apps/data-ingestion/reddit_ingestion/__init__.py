@@ -1,0 +1,1 @@
+"""Reddit data ingestion module"""

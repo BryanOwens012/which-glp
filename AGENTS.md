@@ -474,9 +474,14 @@ The value is in the exclusive, structured, continuously-updated dataset that get
 
 **Extraction Model:** Claude Sonnet 4 (primary), consider cheaper alternatives like GLM-4.5 (https://docs.z.ai/scenario-example/develop-tools/claude) for cost optimization if volume scales
 
-## More Info On This Project
 
-See ./README.md for tech stack and more info.
+## Root of this monorepo
+
+This monorepo is rooted at this file's enclosing directory. That is, this file is (root)/AGENTS.md.
+
+All git operations are to be run from this root directory.
+
+All Python dependencies are to be installed from this root directory (with its venv activated), and all dependencies are to be listed in requirements.txt in this root directory via `$ pip3 freeze > requirements.txt`.
 
 ## Development Process
 
@@ -491,11 +496,18 @@ See ./README.md for tech stack and more info.
 Style
 - If Python code, then use Python 3 and follow PEP8 style guidelines.
 - Prioritise readability - make code easy to read and understand by using small functions, avoiding unnecessary complexity (including sophisticated safety mechanisms, typing, complex patterns, etc. ... when they are not strictly necessary).
+- Add type hints whenever possible. Make sure the type hints are correct; watch out especially for complex types (e.g., lists of dictionaries, optional types, etc.).
+- Use linters/formatters (e.g., black, flake8 for Python; eslint, prettier for JavaScript/TypeScript) to ensure consistent code style.
+- Write unit tests and integration tests for critical functions and components. Use testing frameworks like pytest (Python), or Jest or React Testing Library (JavaScript/TypeScript).
+- Follow best practices for error handling and logging. Use try-except blocks in Python, and proper error handling in JavaScript/TypeScript (e.g., Promises with .catch). Use descriptive error messages and error class names.
+- Use consistent naming conventions for variables, functions, classes, and modules. Prefer descriptive names over abbreviations.
 - Write modular code - break down large functions into smaller, reusable functions.
 - Concise but clear explanatory comments to all code paths. The code you generated is being read by humans to learn and understand how the program works, so make it easy for them to follow. Add comments to every function, every if and else block, everywhere where commentary can help the reader understand how the code works.
 - Always prefer clarity over brevity.
 - Use docstrings, multiline comments, etc. (as the convention may be with the particular framework/library/language) to document all functions, classes, and modules. Include descriptions of parameters, return values, and any exceptions raised.
-
+- Include links to any online docs or references you used to learn how to use a library, tool, or API, if applicable.
+- Remove any unused imports, variables, functions, or code blocks.
+- Avoid hardcoding values; use constants or configuration files instead.
 
 ## Living Documentation (the file ./AGENTS_APPENDLOG.md)
 
