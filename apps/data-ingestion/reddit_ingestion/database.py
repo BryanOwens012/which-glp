@@ -173,7 +173,7 @@ class Database:
                 p['post_id'], p['created_at'], p['subreddit'], p['subreddit_id'],
                 p['author'], p['author_flair_text'], p['title'], p['body'], p['body_html'],
                 p['is_nsfw'], p['score'], p['upvote_ratio'], p['num_comments'],
-                p['permalink'], p['url'], psycopg2.extras.Json(p['raw_json'])
+                p['permalink'], p['url'], psycopg2.extras.Json(p.get('raw_json') or {})
             )
             for p in posts_data
         ]
@@ -241,7 +241,7 @@ class Database:
                 c['comment_id'], c['created_at'], c['post_id'], c['parent_comment_id'], c['depth'],
                 c['subreddit'], c['subreddit_id'], c['author'], c['author_flair_text'],
                 c['body'], c['body_html'], c['is_nsfw'], c['score'], c['permalink'],
-                psycopg2.extras.Json(c['raw_json'])
+                psycopg2.extras.Json(c.get('raw_json') or {})
             )
             for c in comments_data
         ]

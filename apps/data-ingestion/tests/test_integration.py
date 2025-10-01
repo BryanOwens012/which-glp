@@ -16,7 +16,7 @@ import pytest
 import psycopg2
 from pathlib import Path
 
-# Add migrations directory to path
+# Add migrations directory to path (migrations are standalone scripts, not a package)
 sys.path.insert(0, str(Path(__file__).parent.parent / 'migrations'))
 from run_migration import load_env, get_db_connection, run_migration
 

@@ -13,12 +13,7 @@ Tests cover 50+ edge cases including:
 """
 
 import pytest
-import sys
-from pathlib import Path
 from datetime import datetime, timezone
-
-# Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from reddit_ingestion.parser import (
     parse_post, parse_comment,

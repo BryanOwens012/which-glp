@@ -845,3 +845,65 @@ This is more accurate since we're using `SimpleObject` instead of `Mock` objects
 
 **Status:** ✓ COMPLETED - All unused imports removed, tests passing
 
+---
+
+## 2025-10-01 at 07:31 UTC - Package Installation and Import Path Fixes
+
+**Task:** Fix sys.path manipulation in test files by using proper Python package structure
+
+**Changes Made:**
+
+1. **Created setup.py** to make reddit-ingestion a proper installable package:
+   - Configured with setuptools and find_packages()
+   - Specified dependencies: praw, psycopg2-binary, python-dotenv, APScheduler
+   - Installed package in development mode with `pip3 install -e .`
+
+2. **tests/test_parser.py** - Removed sys.path manipulation:
+   ```python
+   # Before
+   import sys
+   from pathlib import Path
+   sys.path.insert(0, str(Path(__file__).parent.parent))
+   from reddit_ingestion.parser import (...)
+
+   # After
+   from reddit_ingestion.parser import (...)
+   ```
+   Now uses proper package imports since reddit-ingestion is installed
+
+3. **tests/test_migrations.py** and **tests/test_integration.py** - Added clarifying comments:
+   ```python
+   # Add migrations directory to path (migrations are standalone scripts, not a package)
+   sys.path.insert(0, str(Path(__file__).parent.parent / 'migrations'))
+   from run_migration import load_env, get_db_connection, run_migration
+   ```
+   Kept sys.path for migrations directory since it contains standalone scripts, not a Python package
+
+4. **reddit_ingestion/database.py** - Added raw_json validation:
+   ```python
+   # Before
+   psycopg2.extras.Json(p['raw_json'])
+   psycopg2.extras.Json(c['raw_json'])
+
+   # After
+   psycopg2.extras.Json(p.get('raw_json') or {})
+   psycopg2.extras.Json(c.get('raw_json') or {})
+   ```
+   Prevents psycopg2.extras.Json() failures if raw_json is None or missing
+
+**Rationale:**
+
+- **Package imports vs sys.path:** The reddit_ingestion package is now properly installable, eliminating the need for sys.path manipulation in test_parser.py
+- **Migrations exception:** The migrations directory contains standalone scripts meant to be run directly, not imported as a package, so sys.path manipulation is appropriate there
+- **Data validation:** Defensive programming to handle edge cases where raw_json might be None
+
+**Verification:**
+
+✓ All 45 parser tests passing
+✓ All 16 migration tests passing
+✓ Total: 61 tests passing
+✓ Package successfully installed in development mode
+✓ No import errors or module not found errors
+
+**Status:** ✓ COMPLETED - Proper package structure implemented, tests passing
+
