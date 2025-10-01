@@ -1,0 +1,17 @@
+# Reddit Data Ingestion Dependencies
+
+# Reddit API
+praw>=7.7.0                 # Python Reddit API Wrapper
+
+# Database
+psycopg2-binary>=2.9.9      # PostgreSQL adapter (binary for easier install)
+
+# Scheduling
+apscheduler>=3.10.4         # Job scheduling for periodic ingestion
+
+# Configuration
+python-dotenv>=1.0.0        # Environment variable management
+
+# Testing
+pytest>=7.4.0               # Testing framework
+pytest-cov>=4.1.0           # Test coverage reporting

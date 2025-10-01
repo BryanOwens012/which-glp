@@ -269,6 +269,10 @@ scraping_errors.log
 api_errors.log
 extraction_errors.log
 
+# Data ingestion logs
+ingestion.log
+ingestion.log.*
+
 # PM2 logs
 .pm2/
 pm2-logs/
