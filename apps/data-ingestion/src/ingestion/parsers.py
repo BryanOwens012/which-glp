@@ -21,6 +21,16 @@ MAX_COMMENT_DEPTH = 50  # Prevent infinite loops in depth calculation
 DELETED_AUTHOR_PLACEHOLDER = "[deleted]"
 
 
+class DataParsingError(Exception):
+    """Raised when parsing Reddit post or comment data fails"""
+    pass
+
+
+class DataValidationError(Exception):
+    """Raised when parsed data fails validation checks"""
+    pass
+
+
 def safe_get_author(obj: Any) -> str:
     """
     Safely extract author name from PRAW object
@@ -235,6 +245,9 @@ def parse_post(post: Any) -> Dict[str, Any]:
 
     Returns:
         Dictionary with all post fields ready for database insertion
+
+    Raises:
+        DataParsingError: If critical post data cannot be extracted
     """
     try:
         # Safely extract subreddit info
@@ -261,8 +274,12 @@ def parse_post(post: Any) -> Dict[str, Any]:
             'raw_json': serialize_to_json(post)
         }
     except Exception as e:
-        logger.error(f"Error parsing post {getattr(post, 'id', 'unknown')}: {e}")
-        raise
+        post_id = getattr(post, 'id', 'unknown')
+        logger.error(f"Failed to parse post {post_id}: {e}")
+        raise DataParsingError(
+            f"Unable to parse Reddit post data for post ID {post_id}: {e}\n"
+            f"The post object may be malformed or missing required attributes."
+        ) from e
 
 
 def parse_comment(comment: Any, post_id: str) -> Dict[str, Any]:
@@ -275,6 +292,9 @@ def parse_comment(comment: Any, post_id: str) -> Dict[str, Any]:
 
     Returns:
         Dictionary with all comment fields ready for database insertion
+
+    Raises:
+        DataParsingError: If critical comment data cannot be extracted
     """
     try:
         # Safely extract subreddit info
@@ -300,8 +320,12 @@ def parse_comment(comment: Any, post_id: str) -> Dict[str, Any]:
             'raw_json': serialize_to_json(comment)
         }
     except Exception as e:
-        logger.error(f"Error parsing comment {getattr(comment, 'id', 'unknown')}: {e}")
-        raise
+        comment_id = getattr(comment, 'id', 'unknown')
+        logger.error(f"Failed to parse comment {comment_id}: {e}")
+        raise DataParsingError(
+            f"Unable to parse Reddit comment data for comment ID {comment_id} (post {post_id}): {e}\n"
+            f"The comment object may be malformed or missing required attributes."
+        ) from e
 
 
 def validate_post_data(post_data: Dict[str, Any]) -> bool:
@@ -313,14 +337,27 @@ def validate_post_data(post_data: Dict[str, Any]) -> bool:
 
     Returns:
         True if valid, False otherwise
+
+    Raises:
+        DataValidationError: If validation fails with detailed error message
     """
     required_fields = ['post_id', 'created_at', 'subreddit', 'subreddit_id',
                       'author', 'title', 'permalink']
 
+    missing_fields = []
     for field in required_fields:
         if field not in post_data or post_data[field] is None:
-            logger.error(f"Post missing required field: {field}")
-            return False
+            missing_fields.append(field)
+
+    if missing_fields:
+        post_id = post_data.get('post_id', 'unknown')
+        error_msg = (
+            f"Post data validation failed for post {post_id}: "
+            f"Missing required fields: {', '.join(missing_fields)}\n"
+            f"All posts must have: {', '.join(required_fields)}"
+        )
+        logger.error(error_msg)
+        return False
 
     return True
 
@@ -334,13 +371,27 @@ def validate_comment_data(comment_data: Dict[str, Any]) -> bool:
 
     Returns:
         True if valid, False otherwise
+
+    Raises:
+        DataValidationError: If validation fails with detailed error message
     """
     required_fields = ['comment_id', 'created_at', 'post_id', 'subreddit',
                       'subreddit_id', 'author', 'body', 'depth', 'permalink']
 
+    missing_fields = []
     for field in required_fields:
         if field not in comment_data or comment_data[field] is None:
-            logger.error(f"Comment missing required field: {field}")
-            return False
+            missing_fields.append(field)
+
+    if missing_fields:
+        comment_id = comment_data.get('comment_id', 'unknown')
+        post_id = comment_data.get('post_id', 'unknown')
+        error_msg = (
+            f"Comment data validation failed for comment {comment_id} (post {post_id}): "
+            f"Missing required fields: {', '.join(missing_fields)}\n"
+            f"All comments must have: {', '.join(required_fields)}"
+        )
+        logger.error(error_msg)
+        return False
 
     return True

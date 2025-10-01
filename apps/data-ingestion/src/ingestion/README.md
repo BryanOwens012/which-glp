@@ -51,14 +51,15 @@ SUPABASE_DB_PASSWORD=your_database_password
 ### 2. Install Dependencies
 
 ```bash
+# From repository root
 pip install -r requirements.txt
 ```
 
-Dependencies:
+Key dependencies for ingestion:
 - `praw` - Python Reddit API Wrapper
 - `psycopg2-binary` - PostgreSQL adapter
 - `python-dotenv` - Environment variable management
-- `apscheduler` - Job scheduling
+- `APScheduler` - Job scheduling
 - `pytest` - Testing framework
 
 ### 3. Database Setup

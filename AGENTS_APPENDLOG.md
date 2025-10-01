@@ -7,11 +7,11 @@
 - Whenever you make code changes, remember to append your proposed changes to this file (append-only; don't delete its existing content), and then append to this file again to state that you've completed the changes when you've completed the changes
 - Keep this document well organized -- with clear headings, sections, spacing, bullet points, and indentation, as appropriate -- so that it is easy to navigate and find information.
 - Use markdown formatting (headings, lists, code blocks, links, etc.) to enhance readability and structure.
-- Whenever you give timestamps, use this format: YYYY-MM-DD at HH:MM (24-hour time, zero-padded). Use UTC time.
+- Whenever you give timestamps, use this format: YYYY-MM-DD at HH:MM UTC (24-hour time, zero-padded). Use UTC time.
 
 ## ------ Append Starting Here ------
 
-### 2025-09-30: Database Schema Design & Migration Setup
+### 2025-09-30 at 18:30 UTC: Database Schema Design & Migration Setup
 
 **Task:** Design and implement PostgreSQL schema for Reddit data ingestion
 
@@ -47,7 +47,7 @@
 
 ---
 
-### 2025-09-30: Database Migration Completed Successfully
+### 2025-09-30 at 19:45 UTC: Database Migration Completed Successfully
 
 **Task Status:** ✓ COMPLETED
 
@@ -79,7 +79,7 @@
 
 ---
 
-### 2025-09-30: Testing & Error Handling Implementation
+### 2025-09-30 at 21:15 UTC: Testing & Error Handling Implementation
 
 **Task:** Add comprehensive tests and edge case handling for migration scripts
 
@@ -178,7 +178,7 @@ pytest -m "not integration" -v
 
 ---
 
-### 2025-09-30: Reddit Data Ingestion Pipeline Complete
+### 2025-10-01 at 02:30 UTC: Reddit Data Ingestion Pipeline Complete
 
 **Task:** Build complete local Reddit ingestion system with batch operations, comprehensive null handling, and 50+ test cases
 
@@ -435,4 +435,107 @@ pytest -m "not integration" -v
    ```
 
 **Status:** ✓ COMPLETED - Full ingestion pipeline ready for production use
+
+---
+
+### 2025-10-01 at 07:00 UTC: Enhanced Error Handling with Custom Exception Classes
+
+**Task:** Improve error handling with descriptive exception classes and error messages across all ingestion modules
+
+**Problem:**
+- Generic exceptions (EnvironmentError, ConnectionError, etc.) were not descriptive enough
+- Error messages lacked actionable guidance for troubleshooting
+- No clear distinction between configuration errors, connection errors, and operation errors
+
+**Solution:**
+Created custom exception classes for each module with descriptive names and comprehensive error messages.
+
+**Changes Made:**
+
+1. **reddit_client.py - Custom Exceptions:**
+   - `RedditClientConfigurationError` - Raised when .env file missing or Reddit API credentials incomplete
+   - `RedditAPIError` - Raised when Reddit API requests fail (subreddit not found, rate limits, etc.)
+
+   Enhanced error messages include:
+   - Exact location of missing .env file
+   - List of missing environment variables
+   - Link to Reddit API credentials page (https://www.reddit.com/prefs/apps)
+   - Possible causes (subreddit private/banned, rate limit exceeded, API unavailable)
+   - Reference to README.md for setup instructions
+
+2. **database.py - Custom Exceptions:**
+   - `DatabaseConfigurationError` - Raised when .env missing, Supabase credentials incomplete, or URL format invalid
+   - `DatabaseConnectionError` - Raised when unable to connect to Supabase database
+   - `DatabaseOperationError` - Raised when batch insert or query operations fail
+
+   Enhanced error messages include:
+   - Connection details (host, port, database, user) for debugging
+   - List of missing environment variables
+   - Link to Supabase settings page for credentials
+   - Possible causes (wrong password, network issues, migrations not run, schema mismatch, FK violations)
+   - Transaction rollback confirmation
+   - Detailed context (number of records in failed batch)
+
+3. **parsers.py - Custom Exceptions:**
+   - `DataParsingError` - Raised when parsing Reddit post/comment data fails
+   - `DataValidationError` - Raised when parsed data missing required fields
+
+   Enhanced error messages include:
+   - Post ID or comment ID for tracing
+   - List of missing required fields
+   - Full list of required fields for reference
+   - Context about malformed objects
+
+**Error Message Structure:**
+All error messages now follow this pattern:
+1. **What failed** - Clear description of the error
+2. **Context** - IDs, counts, connection details
+3. **Root cause** - Original exception message
+4. **Possible causes** - Bullet list of why it might have failed
+5. **How to fix** - Actionable steps and documentation links
+
+**Example Before:**
+```python
+raise EnvironmentError(
+    f"Missing or empty environment variable(s): {', '.join(missing_vars)}\n"
+    f"Please set these in your .env file"
+)
+```
+
+**Example After:**
+```python
+raise RedditClientConfigurationError(
+    f"Reddit API configuration incomplete: Missing or empty required environment variables: "
+    f"{', '.join(missing_vars)}\n"
+    f"Please add these credentials to your .env file.\n"
+    f"To get Reddit API credentials, visit: https://www.reddit.com/prefs/apps\n"
+    f"See README.md for detailed setup instructions."
+)
+```
+
+**Exception Chaining:**
+All exceptions properly use `from e` to preserve original traceback:
+```python
+except PRAWException as e:
+    raise RedditAPIError(...) from e
+```
+
+**Benefits:**
+1. **Better debugging** - Specific exception names make it easy to identify error source
+2. **Self-documenting** - Error messages explain what went wrong and how to fix it
+3. **Reduced support burden** - Users can troubleshoot issues without asking for help
+4. **Proper error propagation** - Exception chaining preserves full stack trace
+5. **Professional UX** - Clear, helpful error messages instead of cryptic exceptions
+
+**Files Modified:**
+- `apps/data-ingestion/src/ingestion/reddit_client.py` - Added 2 custom exception classes, enhanced 5 error messages
+- `apps/data-ingestion/src/ingestion/database.py` - Added 3 custom exception classes, enhanced 4 error messages
+- `apps/data-ingestion/src/ingestion/parsers.py` - Added 2 custom exception classes, enhanced 4 error messages
+
+**Additional Improvements:**
+- Consolidated requirements.txt to monorepo root (removed apps/data-ingestion/requirements.txt)
+- Updated requirements.txt with `pip3 freeze` output to include all dependencies with exact versions
+- Updated README.md to reference root requirements.txt
+
+**Status:** ✓ COMPLETED - All error handling improved with descriptive exception classes and actionable error messages
 

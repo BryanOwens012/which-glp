@@ -27,11 +27,32 @@ logger = logging.getLogger(__name__)
 BATCH_SIZE = 100
 
 
+class DatabaseConfigurationError(Exception):
+    """Raised when database configuration is invalid or incomplete"""
+    pass
+
+
+class DatabaseConnectionError(Exception):
+    """Raised when unable to connect to the database"""
+    pass
+
+
+class DatabaseOperationError(Exception):
+    """Raised when database operations (insert, query, etc.) fail"""
+    pass
+
+
 class Database:
     """Database connection and operations handler for Supabase Postgres"""
 
     def __init__(self):
-        """Initialize database connection"""
+        """
+        Initialize database connection
+
+        Raises:
+            DatabaseConfigurationError: If configuration is invalid
+            DatabaseConnectionError: If unable to connect to database
+        """
         self.conn = self._get_connection()
         logger.info("Database connection established")
 
@@ -43,13 +64,17 @@ class Database:
             Active database connection
 
         Raises:
-            EnvironmentError: If required environment variables are missing
-            ConnectionError: If connection to database fails
+            DatabaseConfigurationError: If required environment variables are missing or invalid
+            DatabaseConnectionError: If connection to database fails
         """
         # Load environment variables
         env_path = Path(__file__).resolve().parents[3] / ".env"
         if not env_path.exists():
-            raise FileNotFoundError(f".env file not found at: {env_path}")
+            raise DatabaseConfigurationError(
+                f"Database configuration error: .env file not found at expected location: {env_path}\n"
+                f"Please create a .env file in the repository root with your Supabase credentials.\n"
+                f"See README.md for setup instructions."
+            )
 
         load_dotenv(env_path)
 
@@ -58,14 +83,22 @@ class Database:
         missing_vars = [var for var in required_vars if var not in os.environ or not os.environ[var]]
 
         if missing_vars:
-            raise EnvironmentError(
-                f"Missing or empty environment variable(s): {', '.join(missing_vars)}"
+            raise DatabaseConfigurationError(
+                f"Supabase configuration incomplete: Missing or empty required environment variables: "
+                f"{', '.join(missing_vars)}\n"
+                f"Please add these credentials to your .env file.\n"
+                f"Get your Supabase credentials from: https://app.supabase.com/project/_/settings/database\n"
+                f"See README.md for detailed setup instructions."
             )
 
         # Extract database connection details from Supabase URL
         supabase_url = os.getenv("SUPABASE_URL")
         if not supabase_url.startswith("https://") or ".supabase.co" not in supabase_url:
-            raise ValueError(f"Invalid SUPABASE_URL format: {supabase_url}")
+            raise DatabaseConfigurationError(
+                f"Invalid SUPABASE_URL format: {supabase_url}\n"
+                f"Expected format: https://your-project.supabase.co\n"
+                f"Check your SUPABASE_URL in .env matches your project URL from Supabase dashboard."
+            )
 
         project_ref = supabase_url.replace("https://", "").replace(".supabase.co", "")
 
@@ -87,10 +120,19 @@ class Database:
             )
             return conn
         except psycopg2.OperationalError as e:
-            raise ConnectionError(
-                f"Failed to connect to database: {e}\n"
-                f"Attempted connection to: {host}:{port}"
-            )
+            raise DatabaseConnectionError(
+                f"Failed to establish connection to Supabase database: {e}\n"
+                f"Connection details:\n"
+                f"  Host: {host}\n"
+                f"  Port: {port}\n"
+                f"  Database: {database}\n"
+                f"  User: {user}\n"
+                f"Possible causes:\n"
+                f"- Incorrect SUPABASE_DB_PASSWORD in .env\n"
+                f"- Database not accessible (check Supabase dashboard)\n"
+                f"- Network connectivity issues\n"
+                f"- Database migration not yet run"
+            ) from e
 
     def insert_posts_batch(self, posts_data: List[Dict[str, Any]]) -> int:
         """
@@ -106,7 +148,7 @@ class Database:
             Number of posts actually inserted (excluding duplicates)
 
         Raises:
-            psycopg2.Error: If database operation fails
+            DatabaseOperationError: If batch insert operation fails
         """
         if not posts_data:
             logger.info("No posts to insert")
@@ -150,8 +192,16 @@ class Database:
 
         except psycopg2.Error as e:
             self.conn.rollback()
-            logger.error(f"Error inserting posts batch: {e}")
-            raise
+            logger.error(f"Batch insert operation failed for {len(posts_data)} posts: {e}")
+            raise DatabaseOperationError(
+                f"Failed to insert batch of {len(posts_data)} posts into database: {e}\n"
+                f"The transaction has been rolled back. No data was inserted.\n"
+                f"Possible causes:\n"
+                f"- Database schema mismatch (check migrations are up to date)\n"
+                f"- Invalid data format in posts\n"
+                f"- Database connection lost\n"
+                f"- Constraint violation"
+            ) from e
 
     def insert_comments_batch(self, comments_data: List[Dict[str, Any]]) -> int:
         """
@@ -167,7 +217,7 @@ class Database:
             Number of comments actually inserted (excluding duplicates)
 
         Raises:
-            psycopg2.Error: If database operation fails
+            DatabaseOperationError: If batch insert operation fails
         """
         if not comments_data:
             logger.info("No comments to insert")
@@ -210,8 +260,16 @@ class Database:
 
         except psycopg2.Error as e:
             self.conn.rollback()
-            logger.error(f"Error inserting comments batch: {e}")
-            raise
+            logger.error(f"Batch insert operation failed for {len(comments_data)} comments: {e}")
+            raise DatabaseOperationError(
+                f"Failed to insert batch of {len(comments_data)} comments into database: {e}\n"
+                f"The transaction has been rolled back. No data was inserted.\n"
+                f"Possible causes:\n"
+                f"- Database schema mismatch (check migrations are up to date)\n"
+                f"- Invalid data format in comments\n"
+                f"- Foreign key constraint violation (post_id does not exist)\n"
+                f"- Database connection lost"
+            ) from e
 
     def get_post_count(self, subreddit: str = None) -> int:
         """

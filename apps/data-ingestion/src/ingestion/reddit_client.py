@@ -19,6 +19,16 @@ from praw.exceptions import PRAWException
 logger = logging.getLogger(__name__)
 
 
+class RedditClientConfigurationError(Exception):
+    """Raised when Reddit client configuration is invalid or incomplete"""
+    pass
+
+
+class RedditAPIError(Exception):
+    """Raised when Reddit API requests fail"""
+    pass
+
+
 class RedditClient:
     """
     Wrapper around PRAW for Reddit API operations
@@ -32,8 +42,8 @@ class RedditClient:
         Initialize Reddit client with credentials from environment
 
         Raises:
-            EnvironmentError: If required Reddit API credentials are missing
-            PRAWException: If PRAW initialization fails
+            RedditClientConfigurationError: If required Reddit API credentials are missing or invalid
+            RedditAPIError: If PRAW initialization or authentication fails
         """
         self.reddit = self._init_praw()
         logger.info("Reddit client initialized successfully")
@@ -46,12 +56,17 @@ class RedditClient:
             Authenticated PRAW Reddit instance
 
         Raises:
-            EnvironmentError: If required environment variables not found
+            RedditClientConfigurationError: If .env file or required credentials are missing
+            RedditAPIError: If PRAW initialization or authentication fails
         """
         # Load environment variables
         env_path = Path(__file__).resolve().parents[3] / ".env"
         if not env_path.exists():
-            raise FileNotFoundError(f".env file not found at: {env_path}")
+            raise RedditClientConfigurationError(
+                f"Configuration error: .env file not found at expected location: {env_path}\n"
+                f"Please create a .env file in the repository root with your Reddit API credentials.\n"
+                f"See README.md for setup instructions."
+            )
 
         load_dotenv(env_path)
 
@@ -65,9 +80,12 @@ class RedditClient:
         missing_vars = [var for var in needed_vars if var not in os.environ or not os.environ[var]]
 
         if missing_vars:
-            raise EnvironmentError(
-                f"Missing or empty environment variable(s): {', '.join(missing_vars)}\n"
-                f"Please set these in your .env file"
+            raise RedditClientConfigurationError(
+                f"Reddit API configuration incomplete: Missing or empty required environment variables: "
+                f"{', '.join(missing_vars)}\n"
+                f"Please add these credentials to your .env file.\n"
+                f"To get Reddit API credentials, visit: https://www.reddit.com/prefs/apps\n"
+                f"See README.md for detailed setup instructions."
             )
 
         try:
@@ -85,8 +103,13 @@ class RedditClient:
             return reddit
 
         except PRAWException as e:
-            logger.error(f"Failed to initialize PRAW: {e}")
-            raise
+            logger.error(f"Reddit API authentication failed: {e}")
+            raise RedditAPIError(
+                f"Failed to authenticate with Reddit API: {e}\n"
+                f"Please verify your Reddit API credentials in .env are correct.\n"
+                f"Check that REDDIT_API_APP_ID and REDDIT_API_APP_SECRET match your app at "
+                f"https://www.reddit.com/prefs/apps"
+            ) from e
 
     def get_recent_posts(self, subreddit_name: str, limit: int = 100) -> Iterator:
         """
@@ -100,7 +123,7 @@ class RedditClient:
             Iterator of PRAW Submission objects
 
         Raises:
-            PRAWException: If subreddit doesn't exist or API error occurs
+            RedditAPIError: If subreddit doesn't exist, is private, or API error occurs
         """
         try:
             subreddit = self.reddit.subreddit(subreddit_name)
@@ -112,8 +135,15 @@ class RedditClient:
             return posts
 
         except PRAWException as e:
-            logger.error(f"Error fetching posts from r/{subreddit_name}: {e}")
-            raise
+            logger.error(f"Failed to fetch posts from r/{subreddit_name}: {e}")
+            raise RedditAPIError(
+                f"Unable to fetch posts from r/{subreddit_name}: {e}\n"
+                f"Possible causes:\n"
+                f"- Subreddit does not exist\n"
+                f"- Subreddit is private or banned\n"
+                f"- Rate limit exceeded (60 requests/minute)\n"
+                f"- Reddit API is temporarily unavailable"
+            ) from e
 
     def get_post_comments(self, post_id: str, limit: int = None) -> List:
         """
@@ -127,7 +157,7 @@ class RedditClient:
             List of PRAW Comment objects (flattened comment tree)
 
         Raises:
-            PRAWException: If post doesn't exist or API error occurs
+            RedditAPIError: If post doesn't exist or API error occurs
         """
         try:
             submission = self.reddit.submission(id=post_id)
@@ -150,8 +180,11 @@ class RedditClient:
             return all_comments
 
         except PRAWException as e:
-            logger.error(f"Error fetching comments for post {post_id}: {e}")
-            raise
+            logger.error(f"Failed to fetch comments for post {post_id}: {e}")
+            raise RedditAPIError(
+                f"Unable to fetch comments for post {post_id}: {e}\n"
+                f"The post may have been deleted, or the Reddit API may be unavailable."
+            ) from e
 
     def get_post(self, post_id: str):
         """
@@ -164,7 +197,7 @@ class RedditClient:
             PRAW Submission object
 
         Raises:
-            PRAWException: If post doesn't exist or API error occurs
+            RedditAPIError: If post doesn't exist or API error occurs
         """
         try:
             submission = self.reddit.submission(id=post_id)
@@ -174,8 +207,11 @@ class RedditClient:
             return submission
 
         except PRAWException as e:
-            logger.error(f"Error fetching post {post_id}: {e}")
-            raise
+            logger.error(f"Failed to fetch post {post_id}: {e}")
+            raise RedditAPIError(
+                f"Unable to fetch post {post_id}: {e}\n"
+                f"The post may have been deleted or does not exist."
+            ) from e
 
     def check_subreddit_exists(self, subreddit_name: str) -> bool:
         """

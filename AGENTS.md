@@ -474,9 +474,14 @@ The value is in the exclusive, structured, continuously-updated dataset that get
 
 **Extraction Model:** Claude Sonnet 4 (primary), consider cheaper alternatives like GLM-4.5 (https://docs.z.ai/scenario-example/develop-tools/claude) for cost optimization if volume scales
 
-## More Info On This Project
 
-See ./README.md for tech stack and more info.
+## Root of this monorepo
+
+This monorepo is rooted at this file's enclosing directory. That is, this file is (root)/AGENTS.md.
+
+All git operations are to be run from this root directory.
+
+All Python dependencies are to be installed from this root directory (with its venv activated), and all dependencies are to be listed in requirements.txt in this root directory via `$ pip3 freeze > requirements.txt`.
 
 ## Development Process
 
@@ -494,7 +499,7 @@ Style
 - Add type hints whenever possible. Make sure the type hints are correct; watch out especially for complex types (e.g., lists of dictionaries, optional types, etc.).
 - Use linters/formatters (e.g., black, flake8 for Python; eslint, prettier for JavaScript/TypeScript) to ensure consistent code style.
 - Write unit tests and integration tests for critical functions and components. Use testing frameworks like pytest (Python), or Jest or React Testing Library (JavaScript/TypeScript).
-- Follow best practices for error handling and logging. Use try-except blocks in Python, and proper error handling in JavaScript/TypeScript (e.g., Promises with .catch).
+- Follow best practices for error handling and logging. Use try-except blocks in Python, and proper error handling in JavaScript/TypeScript (e.g., Promises with .catch). Use descriptive error messages and error class names.
 - Use consistent naming conventions for variables, functions, classes, and modules. Prefer descriptive names over abbreviations.
 - Write modular code - break down large functions into smaller, reusable functions.
 - Concise but clear explanatory comments to all code paths. The code you generated is being read by humans to learn and understand how the program works, so make it easy for them to follow. Add comments to every function, every if and else block, everywhere where commentary can help the reader understand how the code works.
