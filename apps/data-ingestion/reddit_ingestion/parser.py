@@ -319,7 +319,7 @@ def parse_comment(comment: Any, post_id: str) -> Dict[str, Any]:
             'subreddit_id': subreddit_id,
             'author': safe_get_author(comment),
             'author_flair_text': safe_get_text(comment, 'author_flair_text'),
-            'body': comment.body,
+            'body': safe_get_text(comment, 'body'),
             'body_html': safe_get_text(comment, 'body_html'),
             'is_nsfw': safe_get_bool(comment, 'over_18', False),
             'score': safe_get_numeric(comment, 'score', 0),

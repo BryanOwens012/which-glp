@@ -16,19 +16,32 @@ import pytest
 from datetime import datetime, timezone
 
 from reddit_ingestion.parser import (
-    parse_post, parse_comment,
-    safe_get_author, safe_get_text, safe_get_numeric, safe_get_bool,
-    calculate_comment_depth, extract_parent_comment_id,
-    validate_post_data, validate_comment_data,
-    timestamp_to_datetime, serialize_to_json,
-    DELETED_AUTHOR_PLACEHOLDER
+    calculate_comment_depth,
+    DELETED_AUTHOR_PLACEHOLDER,
+    extract_parent_comment_id,
+    parse_comment,
+    parse_post,
+    safe_get_author,
+    safe_get_bool,
+    safe_get_numeric,
+    safe_get_text,
+    serialize_to_json,
+    timestamp_to_datetime,
+    validate_comment_data,
+    validate_post_data,
 )
 from tests.test_mocks import (
-    create_mock_post, create_mock_comment,
-    get_deleted_author_post, get_link_post_no_selftext, get_nsfw_post,
-    get_new_post_no_upvote_ratio, get_post_no_flair,
-    get_deleted_author_comment, get_comment_no_over18,
-    get_nested_reply_comment, get_deeply_nested_comments
+    create_mock_comment,
+    create_mock_post,
+    get_comment_no_over18,
+    get_deeply_nested_comments,
+    get_deleted_author_comment,
+    get_deleted_author_post,
+    get_link_post_no_selftext,
+    get_nested_reply_comment,
+    get_new_post_no_upvote_ratio,
+    get_nsfw_post,
+    get_post_no_flair,
 )
 
 

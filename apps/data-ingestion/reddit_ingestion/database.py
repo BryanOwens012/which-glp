@@ -67,7 +67,8 @@ class Database:
             DatabaseConnectionError: If connection to database fails
         """
         # Load environment variables
-        # From reddit_ingestion, go up 3 levels: reddit_ingestion -> data-ingestion -> apps -> repo root
+        # Path traversal: reddit_ingestion (module) -> data-ingestion (app) -> apps (dir) -> repo root
+        # parents[3] navigates up 3 directory levels from this file
         env_path = Path(__file__).resolve().parents[3] / ".env"
         if not env_path.exists():
             raise DatabaseConfigurationError(
