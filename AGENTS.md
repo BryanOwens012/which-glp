@@ -497,10 +497,9 @@ Style
 - Use docstrings, multiline comments, etc. (as the convention may be with the particular framework/library/language) to document all functions, classes, and modules. Include descriptions of parameters, return values, and any exceptions raised.
 
 
-## Living Documentation (this file - AGENTS.md)
+## Living Documentation (the file ./AGENTS_APPENDLOG.md)
 
-- This document ('AGENTS.md') serves as the primary instruction for you. If you learn new information or receive important guidance, update this document.
-- Append only, do not remove or modify existing content unless it is incorrect or outdated. If you find documentation (for example about libraries, tools, or techniques) from external sources, add links to it here, so that you can get back to it later.
-- Keep notes about your development process, decisions made, the current architecture of the project.
-
-## ----- Append Starting Here -----
+- That document (AGENTS_APPENDLOG.md) serves as the secondary instruction for you, after this primary AGENTS.md.
+- Append to that document only. Do not remove or modify existing content, even if it is incorrect or outdated. That document is meant to be an append-only log.
+- Keep notes there about your development process, decisions made, the current architecture of the project.
+- Whenever you make code changes, remember to append your proposed changes to that file (append-only; don't delete its existing content), and then append to that file again to state that you've completed the changes when you've completed the changes
