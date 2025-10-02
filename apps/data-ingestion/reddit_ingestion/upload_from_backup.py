@@ -14,6 +14,7 @@ Example:
 import json
 import sys
 import argparse
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any
 import logging
@@ -46,7 +47,6 @@ def load_posts_from_backup(backup_dir: Path, subreddit: str) -> list:
         posts = json.load(f)
 
     # Convert ISO format timestamps back to datetime objects
-    from datetime import datetime
     for post in posts:
         if 'created_at' in post and isinstance(post['created_at'], str):
             post['created_at'] = datetime.fromisoformat(post['created_at'])
@@ -76,7 +76,6 @@ def load_comments_from_backup(backup_dir: Path, subreddit: str) -> list:
         comments = json.load(f)
 
     # Convert ISO format timestamps back to datetime objects
-    from datetime import datetime
     for comment in comments:
         if 'created_at' in comment and isinstance(comment['created_at'], str):
             comment['created_at'] = datetime.fromisoformat(comment['created_at'])

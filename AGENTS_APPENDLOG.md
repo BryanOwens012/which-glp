@@ -1351,3 +1351,26 @@ The high duplicate count indicates that the tirzepatidecompound data was already
 
 ---
 
+## 2025-10-01 at 09:30 UTC: Code Cleanup - Remove Duplicate Imports
+
+**Context:**
+Addressed code review feedback about duplicate imports in the codebase.
+
+**Issue:**
+The `upload_from_backup.py` file had duplicate `from datetime import datetime` statements inside function bodies (lines 49 and 79) instead of consolidating them at the top of the file with other imports.
+
+**Changes Made:**
+1. **upload_from_backup.py:**
+   - Added `from datetime import datetime` to top-level imports (line 17)
+   - Removed duplicate import from `load_posts_from_backup()` function (previously line 49)
+   - Removed duplicate import from `load_comments_from_backup()` function (previously line 79)
+
+**Verification:**
+- Scanned all Python files in `reddit_ingestion/` directory for duplicate imports
+- Confirmed no other files have duplicate import statements
+- All imports now follow Python best practices (all imports at top of file)
+
+**Status:** ✅ COMPLETED
+
+---
+
