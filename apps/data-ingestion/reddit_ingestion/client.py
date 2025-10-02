@@ -147,13 +147,50 @@ class RedditClient:
                 f"- Reddit API is temporarily unavailable"
             ) from e
 
-    def get_post_comments(self, post_id: str, limit: int = None) -> List:
+    def get_top_posts(self, subreddit_name: str, time_filter: str = "year", limit: int = 100) -> Iterator:
         """
-        Fetch all comments for a specific post
+        Fetch top posts from a subreddit by score within a time period
+
+        Args:
+            subreddit_name: Name of subreddit (without r/ prefix)
+            time_filter: Time period filter - one of: "hour", "day", "week", "month", "year", "all"
+            limit: Maximum number of posts to fetch (default 100, max 1000)
+
+        Returns:
+            Iterator of PRAW Submission objects sorted by score (descending)
+
+        Raises:
+            RedditAPIError: If subreddit doesn't exist, is private, or API error occurs
+        """
+        try:
+            subreddit = self.reddit.subreddit(subreddit_name)
+            logger.info(f"Fetching top {limit} posts from past {time_filter} from r/{subreddit_name}")
+
+            # Fetch top posts by score within time period
+            posts = subreddit.top(time_filter=time_filter, limit=limit)
+
+            return posts
+
+        except PRAWException as e:
+            logger.error(f"Failed to fetch top posts from r/{subreddit_name}: {e}")
+            raise RedditAPIError(
+                f"Unable to fetch top posts from r/{subreddit_name}: {e}\n"
+                f"Possible causes:\n"
+                f"- Subreddit does not exist\n"
+                f"- Subreddit is private or banned\n"
+                f"- Invalid time_filter parameter\n"
+                f"- Rate limit exceeded (60 requests/minute)\n"
+                f"- Reddit API is temporarily unavailable"
+            ) from e
+
+    def get_post_comments(self, post_id: str, limit: int = None, sort_by_score: bool = False) -> List:
+        """
+        Fetch comments for a specific post
 
         Args:
             post_id: Reddit post ID (without t3_ prefix)
             limit: Maximum comments to fetch (None = all comments)
+            sort_by_score: If True and limit is set, return top N comments by score (default: False)
 
         Returns:
             List of PRAW Comment objects (flattened comment tree)
@@ -173,11 +210,17 @@ class RedditClient:
             # Flatten comment tree to list
             all_comments = submission.comments.list()
 
-            logger.info(f"Fetched {len(all_comments)} comments for post {post_id}")
+            # Sort by score if requested
+            if sort_by_score and limit:
+                # Sort comments by score (descending)
+                all_comments = sorted(all_comments, key=lambda c: c.score, reverse=True)
+                logger.debug(f"Sorted {len(all_comments)} comments by score for post {post_id}")
 
             # Apply limit if specified
             if limit:
                 all_comments = all_comments[:limit]
+
+            logger.info(f"Fetched {len(all_comments)} comments for post {post_id}")
 
             return all_comments
 
@@ -186,6 +229,54 @@ class RedditClient:
             raise RedditAPIError(
                 f"Unable to fetch comments for post {post_id}: {e}\n"
                 f"The post may have been deleted, or the Reddit API may be unavailable."
+            ) from e
+
+    def extract_comments_from_submission(self, submission, limit: int = None, sort_by_score: bool = False) -> List:
+        """
+        Extract comments directly from a submission object (no additional API call)
+
+        This is more efficient than get_post_comments() when you already have the submission object,
+        as it avoids an extra API call to fetch the submission.
+
+        Args:
+            submission: PRAW Submission object (already fetched)
+            limit: Maximum comments to extract (None = all comments)
+            sort_by_score: If True and limit is set, return top N comments by score (default: False)
+
+        Returns:
+            List of PRAW Comment objects (flattened comment tree)
+
+        Raises:
+            RedditAPIError: If comment extraction fails
+        """
+        try:
+            # Replace MoreComments objects with actual comments
+            # limit=0 means "replace all MoreComments" (fetches all comments)
+            logger.debug(f"Extracting comments from submission {submission.id}")
+            submission.comments.replace_more(limit=0)
+
+            # Flatten comment tree to list
+            all_comments = submission.comments.list()
+
+            # Sort by score if requested
+            if sort_by_score and limit:
+                # Sort comments by score (descending)
+                all_comments = sorted(all_comments, key=lambda c: c.score, reverse=True)
+                logger.debug(f"Sorted {len(all_comments)} comments by score")
+
+            # Apply limit if specified
+            if limit:
+                all_comments = all_comments[:limit]
+
+            logger.debug(f"Extracted {len(all_comments)} comments from submission {submission.id}")
+
+            return all_comments
+
+        except PRAWException as e:
+            logger.error(f"Failed to extract comments from submission {submission.id}: {e}")
+            raise RedditAPIError(
+                f"Unable to extract comments from submission {submission.id}: {e}\n"
+                f"The submission object may be incomplete or comments may be unavailable."
             ) from e
 
     def get_post(self, post_id: str):

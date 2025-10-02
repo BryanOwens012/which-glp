@@ -147,7 +147,7 @@ The value is in the exclusive, structured, continuously-updated dataset that get
    - **Efficacy:** Up to 22.5% average weight loss at 72 weeks (SURMOUNT trials)
    - **Cost:** ~$1,000-1,200/month retail, LillyDirect offers $550-650/month cash pay
    - **FDA Approvals:** Diabetes (2022), obesity (2023), obstructive sleep apnea (Dec 2024)
-   - **Reddit Presence:** r/Mounjaro (85K members), r/zepbound (62K members), r/tirzepatide (28K members)
+   - **Reddit Presence:** r/Mounjaro (85K members), r/zepbound (62K members), r/tirzepatidecompound (28K members)
 
 3. **Liraglutide**
    - **Brand Names:** Victoza (diabetes), Saxenda (weight loss)
@@ -257,7 +257,7 @@ The value is in the exclusive, structured, continuously-updated dataset that get
 3. **r/Wegovy** (80K members) - Semaglutide specifically for weight loss
 4. **r/zepbound** (62K members) - Tirzepatide specifically for weight loss
 5. **r/semaglutide** (45K members) - Generic semaglutide discussions
-6. **r/tirzepatide** (28K members) - Generic tirzepatide discussions
+6. **r/tirzepatidecompound** (28K members) - Generic tirzepatide discussions
 
 **Tier 2 - General GLP-1 Discussions:**
 7. **r/GLP1Agonists** (35K members) - Cross-drug comparisons, general questions
