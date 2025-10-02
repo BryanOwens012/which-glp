@@ -5,7 +5,7 @@ Local Reddit data ingestion pipeline for GLP-1 medication subreddits. Fetches po
 ## Overview
 
 This ingestion system:
-- Fetches posts from 6 Tier 1 GLP-1 subreddits (Ozempic, Mounjaro, Wegovy, zepbound, semaglutide, tirzepatide)
+- Fetches posts from 6 Tier 1 GLP-1 subreddits (Ozempic, Mounjaro, Wegovy, zepbound, semaglutide, tirzepatidecompound)
 - Retrieves all comments for each post
 - Parses data with 50+ edge case tests covering deleted authors, missing fields, NSFW content, etc.
 - Batch inserts to Supabase (100 records per batch for optimal performance)

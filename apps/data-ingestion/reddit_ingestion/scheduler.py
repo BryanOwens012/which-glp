@@ -15,7 +15,7 @@ Tier 1 Subreddits:
 - Wegovy
 - zepbound
 - semaglutide
-- tirzepatide
+- tirzepatidecompound
 
 Usage:
     python scheduler.py              # Run once
@@ -44,7 +44,7 @@ TIER_1_SUBREDDITS = [
     "Wegovy",
     "zepbound",
     "semaglutide",
-    "tirzepatide"
+    "tirzepatidecompound"
 ]
 
 # Number of posts to fetch per subreddit

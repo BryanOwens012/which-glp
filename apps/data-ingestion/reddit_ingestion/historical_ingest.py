@@ -36,7 +36,7 @@ TIER_1_SUBREDDITS = [
     "Wegovy",
     "zepbound",
     "semaglutide",
-    "tirzepatide"
+    "tirzepatidecompound"
 ]
 
 # Default limits
