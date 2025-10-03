@@ -13,7 +13,7 @@ I'm currently running this stack locally and non-containerized, to seed the Supa
 - **Data Ingestion:** Reddit API (PRAW/custom HTTP client) with Python
 - **Database:** PostgreSQL via Supabase (free tier: 500MB, upgrade to Pro: 8GB @ $25/month)
 
-I'll progressive add more stack as necessary. No need to prematurely optimize.
+I'll progressively add more stack as necessary. No need to prematurely optimize.
 
 ## Full Tech Stack Vision
 
