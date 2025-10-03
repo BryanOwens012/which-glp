@@ -1,6 +1,6 @@
 # WhichGLP
 
-Real-world dataset for GLP-1 weight-loss drug outcomes by aggregating Reddit/Twitter posts and user-submitted reviews.
+Real-world dashboard for GLP-1 weight-loss drug outcomes by aggregating Reddit/Twitter posts and user-submitted reviews. Mission is to help people make educated decisions when choosing their weight-loss drug.
 
 I've accelerated development by prompting Claude Code to generate code. More details at AGENTS.md and AGENTS_APPENDLOG.md. 
 
