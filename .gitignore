@@ -2,6 +2,13 @@
 # Comprehensive ignore file for full-stack TypeScript/Python project
 
 # ============================================
+# BUSINESS STRATEGY & PRIVATE DOCS (CRITICAL)
+# ============================================
+# Keep business strategy and revenue projections private
+MONETIZATION.md
+AGENTS_APPENDLOG.md
+
+# ============================================
 # SECRETS & CREDENTIALS (CRITICAL)
 # ============================================
 .env
