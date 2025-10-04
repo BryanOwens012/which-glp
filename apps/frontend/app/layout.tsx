@@ -80,12 +80,12 @@ const Scrim = ({ children }: { children: React.ReactNode }) => (
   <div className="w-full h-full relative">
     <div className="pointer-events-none fixed inset-0 z-[9999] h-screen w-screen backdrop-blur-[2px] flex items-center justify-center">
       <div className="pointer-events-auto">
-        <div className="relative overflow-hidden rounded-2xl border border-border/40 bg-card/98 px-8 py-6 shadow-2xl">
+        <div className="relative overflow-hidden rounded-2xl border border-border/40 px-8 py-6 shadow-2xl" style={{background: 'linear-gradient(135deg, oklch(0.65 0.15 150 / 0.98), oklch(0.55 0.18 240 / 0.98))'}}>
           <div className="flex items-center gap-3">
-            <div className="h-2 w-2 animate-pulse rounded-full bg-primary"></div>
+            <div className="h-2 w-2 animate-pulse rounded-full bg-white"></div>
             <span className="relative inline-block text-lg font-semibold tracking-tight">
-              <span className="text-foreground">Coming soon!</span>
-              <span className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/40 to-transparent bg-[length:200%_100%] animate-[shimmer_2s_ease-in-out_infinite] bg-clip-text"></span>
+              <span className="text-white">Coming soon!</span>
+              <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent bg-[length:200%_100%] animate-[shimmer_2s_ease-in-out_infinite] bg-clip-text"></span>
             </span>
           </div>
         </div>
