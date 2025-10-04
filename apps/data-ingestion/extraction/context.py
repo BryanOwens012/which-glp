@@ -6,7 +6,7 @@ which is essential for accurate AI extraction from nested comments.
 """
 
 from typing import Optional, List, Dict, Any
-from .config import get_logger
+from shared.config import get_logger
 
 logger = get_logger(__name__)
 

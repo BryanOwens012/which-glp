@@ -19,8 +19,8 @@ from pathlib import Path
 from typing import Dict, Any
 import logging
 
-from reddit_ingestion.config import setup_logger
-from reddit_ingestion.database import Database
+from shared.config import setup_logger
+from shared.database import Database
 
 # Initialize logger
 logger = setup_logger()

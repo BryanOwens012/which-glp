@@ -29,10 +29,10 @@ from typing import Dict
 from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 
-from reddit_ingestion.config import setup_logger
-from reddit_ingestion.client import RedditClient
-from reddit_ingestion.database import Database
-from reddit_ingestion.parser import parse_post, parse_comment, validate_post_data, validate_comment_data
+from shared.config import setup_logger
+from shared.database import Database
+from ingestion.client import RedditClient
+from ingestion.parser import parse_post, parse_comment, validate_post_data, validate_comment_data
 
 # Initialize logger
 logger = setup_logger()

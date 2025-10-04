@@ -19,12 +19,12 @@ from pathlib import Path
 from datetime import datetime
 import psycopg2.extras
 
-from .database import DatabaseManager
-from .context import build_context_from_db_rows, ContextBuilder
-from .ai_client import get_client
-from .prompts import build_post_prompt, build_comment_prompt
-from .schema import ExtractionResult, ProcessingStats
-from .config import get_logger
+from shared.database import DatabaseManager
+from shared.config import get_logger
+from extraction.context import build_context_from_db_rows, ContextBuilder
+from extraction.ai_client import get_client
+from extraction.prompts import build_post_prompt, build_comment_prompt
+from extraction.schema import ExtractionResult, ProcessingStats
 
 logger = get_logger(__name__)
 

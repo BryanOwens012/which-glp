@@ -15,7 +15,7 @@ Tests cover 50+ edge cases including:
 import pytest
 from datetime import datetime, timezone
 
-from reddit_ingestion.parser import (
+from ingestion.parser import (
     calculate_comment_depth,
     DELETED_AUTHOR_PLACEHOLDER,
     extract_parent_comment_id,

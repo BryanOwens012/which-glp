@@ -17,9 +17,9 @@ from dotenv import load_dotenv
 from anthropic import Anthropic, APIError, RateLimitError
 from pydantic import ValidationError
 
-from .schema import ExtractedFeatures
-from .prompts import SYSTEM_PROMPT
-from .config import get_logger
+from extraction.schema import ExtractedFeatures
+from extraction.prompts import SYSTEM_PROMPT
+from shared.config import get_logger
 
 # Load environment variables
 env_path = Path(__file__).resolve().parents[3] / ".env"
