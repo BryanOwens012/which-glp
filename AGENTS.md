@@ -281,6 +281,21 @@ The value is in the exclusive, structured, continuously-updated dataset that get
 23. **r/SuperMorbidlyObese** (90K members) - Higher BMI users, often discuss GLP-1s
 24. **r/diabetes_t2** (49K members) - Type 2 diabetes, GLP-1s commonly prescribed
 
+**Tier 4 - Counter-Cultural & Critical Perspectives (Future Consideration):**
+*Note: Not actively monitored yet, but identified for bias mitigation and representativeness*
+
+25. **r/medicine** - Medical professionals discussing pros/cons, clinical concerns, professional skepticism
+26. **r/AskDocs** - Pre-medication concerns, side effect questions, medical advice seeking
+27. **r/antidiet** - Anti-diet culture movement, philosophical opposition to medicalized weight loss
+28. **r/chronicillness** - Long-term side effect discussions, quality of life impact
+29. **r/povertyfinance** or **r/personalfinance** - Cost/access barriers, financial burden discussions
+
+**Rationale for Tier 4:**
+- **Selection Bias Mitigation:** Drug-specific subreddits may over-represent positive experiences (though 65-75% discontinuation rate suggests negative experiences ARE captured)
+- **Broader Context:** Capture financial concerns, philosophical opposition, and long-term health impacts not discussed in drug-enthusiast communities
+- **Professional Perspective:** Medical community discussions provide clinical reality checks
+- **Not Actively Ingested:** Dataset size is sufficient for now; revisit when expanding to 100K+ data points or when bias analysis shows gaps
+
 **Content Types to Extract:**
 - **Original Posts:** Personal experiences, progress updates, questions
 - **Comments:** Answers to cost/side effect/efficacy questions
