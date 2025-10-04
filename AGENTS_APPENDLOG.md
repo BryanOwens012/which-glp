@@ -3086,3 +3086,51 @@ CRITICAL JSON FORMATTING RULES:
 4. **Cost tracking**: Monitor total API costs for large-scale extractions
 
 ---
+
+## 2025-10-03 - Feature Extraction for Ozempic, Wegovy, and Mounjaro
+
+### Completed Feature Extractions
+
+Successfully ran feature extraction pipeline on 3 tier-1 drug subreddits:
+
+**r/Ozempic:**
+- Command: `python -m reddit_ingestion.ai_extraction --subreddit Ozempic --posts-only`
+- Processed: 100 posts
+- Success rate: 96/100 (96%)
+- Cost: ~$0.55 USD
+- Tokens: ~465K
+- Backup: `apps/data-ingestion/extraction_backups/extraction_backup_Ozempic_20251003_233528.json` (193K)
+
+**r/Wegovy:**
+- Command: `python -m reddit_ingestion.ai_extraction --subreddit Wegovy --posts-only`
+- Processed: 100 posts
+- Success rate: 96/100 (96%) 
+- Backup: `apps/data-ingestion/extraction_backups/extraction_backup_Wegovy_20251003_233439.json` (174K)
+
+**r/Mounjaro:**
+- Command: `python -m reddit_ingestion.ai_extraction --subreddit Mounjaro --posts-only`
+- Processed: 100 posts
+- Success rate: 96/100 (96%)
+- Backup: `apps/data-ingestion/extraction_backups/extraction_backup_Mounjaro_20251003_233613.json` (197K)
+
+### Directory Consolidation
+
+**Issue:** Extraction backups were being created in `/Users/bryan/Github/which-glp/extraction_backups/` instead of the intended `apps/data-ingestion/extraction_backups/`.
+
+**Resolution:**
+1. Moved all extraction backup files from root `extraction_backups/` to `apps/data-ingestion/extraction_backups/`
+2. Removed empty `extraction_backups/` directory from root
+3. Updated `ai_extraction.py` to use correct relative path
+
+**Files Modified:**
+- `apps/data-ingestion/reddit_ingestion/ai_extraction.py`:
+  - Line 359: Changed `backup_dir = Path("extraction_backups")` to `backup_dir = Path("apps/data-ingestion/extraction_backups")`
+
+### Results
+
+All extraction results successfully:
+- Saved to local backup JSON files in `apps/data-ingestion/extraction_backups/`
+- Batch-inserted to Supabase `extracted_features` table
+- Ready for dashboard visualization
+
+---
