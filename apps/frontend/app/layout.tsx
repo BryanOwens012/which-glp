@@ -84,7 +84,7 @@ const Scrim = ({ children }: { children: React.ReactNode }) => (
           <div className="flex items-center gap-3">
             <div className="h-2 w-2 animate-pulse rounded-full bg-primary"></div>
             <span className="relative inline-block text-lg font-semibold tracking-tight">
-              <span className="text-foreground">Available soon</span>
+              <span className="text-foreground">Coming soon!</span>
               <span className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/40 to-transparent bg-[length:200%_100%] animate-[shimmer_2s_ease-in-out_infinite] bg-clip-text"></span>
             </span>
           </div>
