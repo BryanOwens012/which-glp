@@ -3751,3 +3751,178 @@ COMMENT ON COLUMN extracted_features.drug_source IS
 
 ---
 
+### 2025-10-04 at 22:00 UTC: Code Quality Improvements from GitHub Copilot PR Review
+
+**Context:** Pull Request #14 for tier 2-3 subreddit extraction received Copilot AI review with 3 nitpick suggestions for code quality improvements.
+
+**Task:** Address all Copilot suggestions to improve maintainability and performance before merging PR #14.
+
+---
+
+#### Copilot Suggestion 1: Pre-compile Regex Patterns
+
+**File:** `apps/data-ingestion/extraction/filters.py:105-107`
+
+**Issue:** Compiling regex patterns inside a loop is inefficient when processing large volumes of content.
+
+**Original Code:**
+```python
+# Check if any drug keyword appears in content
+for keyword in DRUG_KEYWORDS:
+    if re.search(r'\b' + re.escape(keyword) + r'\b', content_lower, re.IGNORECASE):
+        return True
+```
+
+**Fix Applied:**
+1. Added `Pattern` type to imports (line 9):
+```python
+from typing import Set, Pattern
+```
+
+2. Created module-level constant with pre-compiled patterns (lines 77-82):
+```python
+# Pre-compiled regex patterns for efficient keyword matching
+# Compiled at module level to avoid re-compilation in loops
+_COMPILED_PATTERNS: Set[Pattern] = {
+    re.compile(r'\b' + re.escape(keyword) + r'\b', re.IGNORECASE)
+    for keyword in DRUG_KEYWORDS
+}
+```
+
+3. Updated `should_process_content()` to use pre-compiled patterns (lines 103-109):
+```python
+# Non-drug subreddits: check for keywords using pre-compiled patterns
+# Check if any drug keyword appears in content
+for pattern in _COMPILED_PATTERNS:
+    if pattern.search(content):
+        return True
+
+return False
+```
+
+**Performance Impact:** Eliminates regex compilation overhead on every content check, especially beneficial for tier 2-3 subreddits with heavy filtering.
+
+---
+
+#### Copilot Suggestion 2: Extract Telehealth Companies to Constant
+
+**File:** `apps/data-ingestion/extraction/schema.py:361-362`
+
+**Issue:** Hardcoded list of telehealth companies makes it difficult to maintain and update as new companies emerge.
+
+**Original Code:**
+```python
+# Known company/telehealth platforms -> 'other'
+if v_lower in ['hims', 'hers', 'emerge', 'empower', 'hallendale',
+              'zappy health', 'ro', 'calibrate', 'found', 'sequence']:
+    return "other"
+```
+
+**Fix Applied:**
+1. Added `Set` to typing imports and created module-level constant (lines 8-16):
+```python
+from typing import Optional, List, Literal, Dict, Any, Set
+
+# Telehealth/compound pharmacy providers that map to 'other' drug_source
+TELEHEALTH_PROVIDERS: Set[str] = {
+    'hims', 'hers', 'emerge', 'empower', 'hallendale',
+    'zappy health', 'ro', 'calibrate', 'found', 'sequence'
+}
+```
+
+2. Updated `normalize_drug_source()` validator to use constant (lines 366-368):
+```python
+# Known company/telehealth platforms -> 'other'
+if v_lower in TELEHEALTH_PROVIDERS:
+    return "other"
+```
+
+**Maintainability Impact:** Adding new telehealth providers now requires updating a single, clearly-documented constant rather than finding the validator code.
+
+---
+
+#### Copilot Suggestion 3: Make Backup Directory Configurable
+
+**File:** `apps/data-ingestion/extraction/ai_extraction.py:361`
+
+**Issue:** Hardcoded backup directory path reduces flexibility for different deployment environments.
+
+**Original Code:**
+```python
+# Create extraction_backups directory if it doesn't exist
+# Use absolute path to avoid issues with working directory
+backup_dir = Path(__file__).parent.parent / "extraction_backups"
+backup_dir.mkdir(exist_ok=True, parents=True)
+```
+
+**Fix Applied:**
+1. Added `os` import (line 14):
+```python
+import os
+```
+
+2. Updated backup directory logic to support environment variable (lines 360-368):
+```python
+# Create extraction_backups directory if it doesn't exist
+# Use environment variable if set, otherwise use default location
+backup_path = os.getenv('EXTRACTION_BACKUP_DIR')
+if backup_path:
+    backup_dir = Path(backup_path)
+else:
+    # Default: use absolute path to avoid issues with working directory
+    backup_dir = Path(__file__).parent.parent / "extraction_backups"
+backup_dir.mkdir(exist_ok=True, parents=True)
+```
+
+**Configuration Impact:** 
+- Default behavior unchanged (maintains backward compatibility)
+- Production deployments can now set `EXTRACTION_BACKUP_DIR=/custom/path` environment variable
+- Enables centralized backup storage across multiple extraction workers
+
+---
+
+#### Files Modified
+
+1. **`apps/data-ingestion/extraction/filters.py`** (filters.py:9, 77-82, 103-109)
+   - Added Pattern type import
+   - Created `_COMPILED_PATTERNS` constant
+   - Refactored `should_process_content()` to use pre-compiled patterns
+
+2. **`apps/data-ingestion/extraction/schema.py`** (schema.py:8-16, 367-368)
+   - Added Set type import  
+   - Created `TELEHEALTH_PROVIDERS` constant
+   - Updated `normalize_drug_source()` validator
+
+3. **`apps/data-ingestion/extraction/ai_extraction.py`** (ai_extraction.py:14, 360-368)
+   - Added os import
+   - Made backup directory configurable via `EXTRACTION_BACKUP_DIR` env var
+
+---
+
+#### Testing & Verification
+
+**No breaking changes:** All changes are backward compatible
+- Pre-compiled patterns produce identical matching behavior
+- Telehealth constant contains identical provider list
+- Default backup directory path unchanged
+
+**Environment Variable Usage:**
+```bash
+# Optional: Override backup directory
+export EXTRACTION_BACKUP_DIR=/path/to/backups
+
+# Run extraction (falls back to default if env var not set)
+python -m extraction.ai_extraction --subreddit Ozempic --posts-only
+```
+
+---
+
+#### Next Steps for PR #14
+
+1. ✅ All Copilot suggestions addressed
+2. ⏳ Merge PR #14 to main branch
+3. ⏳ Monitor production extractions for any regressions
+4. ⏳ Consider adding `EXTRACTION_BACKUP_DIR` to deployment documentation
+
+---
+

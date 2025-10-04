@@ -11,6 +11,7 @@ Hybrid approach: minimize DB queries, maximize in-memory processing.
 """
 
 import sys
+import os
 import time
 import argparse
 import json
@@ -357,8 +358,13 @@ class AIExtractionPipeline:
             return
 
         # Create extraction_backups directory if it doesn't exist
-        # Use absolute path to avoid issues with working directory
-        backup_dir = Path(__file__).parent.parent / "extraction_backups"
+        # Use environment variable if set, otherwise use default location
+        backup_path = os.getenv('EXTRACTION_BACKUP_DIR')
+        if backup_path:
+            backup_dir = Path(backup_path)
+        else:
+            # Default: use absolute path to avoid issues with working directory
+            backup_dir = Path(__file__).parent.parent / "extraction_backups"
         backup_dir.mkdir(exist_ok=True, parents=True)
 
         # Generate filename with timestamp and subreddit

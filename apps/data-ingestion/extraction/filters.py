@@ -6,7 +6,7 @@ irrelevant content in non-drug-specific subreddits.
 """
 
 import re
-from typing import Set
+from typing import Set, Pattern
 
 # Drug brand names and generic names
 DRUG_KEYWORDS: Set[str] = {
@@ -74,6 +74,13 @@ NON_DRUG_SUBREDDITS: Set[str] = {
     "SuperMorbidlyObese", "diabetes_t2",
 }
 
+# Pre-compiled regex patterns for efficient keyword matching
+# Compiled at module level to avoid re-compilation in loops
+_COMPILED_PATTERNS: Set[Pattern] = {
+    re.compile(r'\b' + re.escape(keyword) + r'\b', re.IGNORECASE)
+    for keyword in DRUG_KEYWORDS
+}
+
 
 def should_process_content(content: str, subreddit: str) -> bool:
     """
@@ -93,12 +100,10 @@ def should_process_content(content: str, subreddit: str) -> bool:
     if subreddit.lower() not in NON_DRUG_SUBREDDITS:
         return True
 
-    # Non-drug subreddits: check for keywords
-    content_lower = content.lower()
-
+    # Non-drug subreddits: check for keywords using pre-compiled patterns
     # Check if any drug keyword appears in content
-    for keyword in DRUG_KEYWORDS:
-        if re.search(r'\b' + re.escape(keyword) + r'\b', content_lower, re.IGNORECASE):
+    for pattern in _COMPILED_PATTERNS:
+        if pattern.search(content):
             return True
 
     return False

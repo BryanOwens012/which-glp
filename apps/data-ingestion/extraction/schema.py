@@ -5,9 +5,15 @@ These schemas define the structure of data extracted by Claude AI,
 ensuring type safety and validation before database insertion.
 """
 
-from typing import Optional, List, Literal, Dict, Any
+from typing import Optional, List, Literal, Dict, Any, Set
 from pydantic import BaseModel, Field, field_validator
 from datetime import datetime, timezone
+
+# Telehealth/compound pharmacy providers that map to 'other' drug_source
+TELEHEALTH_PROVIDERS: Set[str] = {
+    'hims', 'hers', 'emerge', 'empower', 'hallendale',
+    'zappy health', 'ro', 'calibrate', 'found', 'sequence'
+}
 
 
 class WeightData(BaseModel):
@@ -358,8 +364,7 @@ class ExtractedFeatures(BaseModel):
                 return v_lower
 
             # Known company/telehealth platforms -> 'other'
-            if v_lower in ['hims', 'hers', 'emerge', 'empower', 'hallendale',
-                          'zappy health', 'ro', 'calibrate', 'found', 'sequence']:
+            if v_lower in TELEHEALTH_PROVIDERS:
                 return "other"
 
             # Anything else that's not empty -> 'other'
