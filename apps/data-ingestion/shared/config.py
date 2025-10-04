@@ -9,9 +9,55 @@ Provides a centralized logging setup with:
 """
 
 import logging
+import os
 import sys
 from pathlib import Path
 from logging.handlers import RotatingFileHandler
+
+
+def get_monorepo_root() -> Path:
+    """
+    Find the monorepo root directory by looking for marker files
+
+    This function walks up the directory tree from the current file until it finds
+    a directory containing .git, which indicates the monorepo root.
+
+    Returns:
+        Path to monorepo root
+
+    Raises:
+        RuntimeError: If monorepo root cannot be found
+    """
+    current = Path(__file__).resolve().parent
+
+    # Walk up the directory tree
+    for parent in [current] + list(current.parents):
+        # Check for .git directory (monorepo root marker)
+        if (parent / '.git').exists():
+            return parent
+
+    # Fallback: if .git not found, raise error
+    raise RuntimeError(
+        "Could not locate monorepo root. "
+        "Expected to find .git directory in parent directories."
+    )
+
+
+def get_backup_dir(subdir: str) -> Path:
+    """
+    Get the backup directory path for a specific subdirectory
+
+    Args:
+        subdir: Subdirectory name under backups/ (e.g., "extraction", "ingestion")
+
+    Returns:
+        Path to backup subdirectory
+
+    Example:
+        >>> get_backup_dir("extraction")
+        PosixPath('/path/to/monorepo/backups/extraction')
+    """
+    return get_monorepo_root() / "backups" / subdir
 
 
 def setup_logger(

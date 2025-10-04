@@ -270,9 +270,8 @@ extraction_errors.log
 ingestion.log
 ingestion.log.*
 
-# Reddit ingestion backups
-apps/data-ingestion/reddit_ingestion/backup/
-apps/data-ingestion/extraction_backups/
+# Backups directory (contains extraction and ingestion backups)
+backups/
 
 # PM2 logs
 .pm2/
@@ -441,5 +440,4 @@ site/
 # poetry.lock
 
 screenshots/
-apps/data-ingestion/ingestion/backup/
 workspace.code-workspace

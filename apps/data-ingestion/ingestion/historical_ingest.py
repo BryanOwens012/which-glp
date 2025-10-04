@@ -61,11 +61,12 @@ class LocalBackup:
         Initialize local backup handler
 
         Args:
-            backup_dir: Directory for backups (default: reddit_ingestion/backup/)
+            backup_dir: Directory for backups (default: monorepo_root/backups/ingestion/)
         """
         if backup_dir is None:
-            # Default to backup/ directory next to this module
-            backup_dir = Path(__file__).parent / "backup"
+            # Default: monorepo_root/backups/ingestion (via helper function)
+            from shared.config import get_backup_dir
+            backup_dir = get_backup_dir("ingestion")
 
         self.backup_dir = backup_dir
         self.backup_dir.mkdir(parents=True, exist_ok=True)
