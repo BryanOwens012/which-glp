@@ -515,3 +515,4 @@ Style
 - Append to that document only. Do not remove or modify existing content, even if it is incorrect or outdated. That document is meant to be an append-only log.
 - Keep notes there about your development process, decisions made, the current architecture of the project.
 - Whenever you make code changes, remember to append your proposed changes to that file (append-only; don't delete its existing content), and then append to that file again to state that you've completed the changes when you've completed the changes
+- That document is very long and won't fit into your context window. No worries: you don't have to read all of it. Please just, say, read the last 100 lines of it to know generally what's in it, and then append, since it's an append-only doc.
