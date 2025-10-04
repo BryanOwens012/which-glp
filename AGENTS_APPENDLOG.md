@@ -3134,3 +3134,99 @@ All extraction results successfully:
 - Ready for dashboard visualization
 
 ---
+
+## 2025-10-04: Refactored data-ingestion app to separate concerns
+
+**Issue:** The `apps/data-ingestion` codebase had all functionality mixed together in a single `reddit_ingestion/` package, making it difficult to understand and maintain the different responsibilities (ingestion vs extraction vs migrations).
+
+**Resolution:**
+Refactored the entire data-ingestion app into a clean separation of concerns with four distinct packages:
+
+### New Package Structure
+
+1. **`ingestion/`** - Reddit data ingestion
+   - `scheduler.py` - Real-time scheduled ingestion with APScheduler
+   - `historical_ingest.py` - Historical data backfilling from Reddit
+   - `upload_from_backup.py` - Upload data from JSON backups
+   - `client.py` - PRAW wrapper for Reddit API
+   - `parser.py` - Safe data extraction with null handling
+
+2. **`extraction/`** - AI-powered feature extraction
+   - `ai_extraction.py` - Main extraction pipeline
+   - `ai_client.py` - Claude AI client wrapper
+   - `prompts.py` - Prompt templates for AI extraction
+   - `context.py` - Context builder for nested comment threads
+   - `schema.py` - Pydantic models for extracted data
+
+3. **`shared/`** - Common utilities
+   - `database.py` - Database operations with psycopg2
+   - `config.py` - Logging configuration
+
+4. **`migrations/`** - Database schema (unchanged)
+   - SQL migration files (up/down)
+   - Migration runner scripts
+
+### Changes Made
+
+**Package Migration:**
+- Created new package directories: `ingestion/`, `extraction/`, `shared/`
+- Moved files from `reddit_ingestion/` to appropriate packages
+- Deleted old `reddit_ingestion/` directory
+- Added `__init__.py` files to all new packages
+
+**Import Updates:**
+- Updated all imports in `ingestion/` files:
+  - `scheduler.py` - Changed to use `shared.config`, `shared.database`, `ingestion.client`, `ingestion.parser`
+  - `historical_ingest.py` - Same import updates
+  - `upload_from_backup.py` - Now imports from `shared.config` and `shared.database`
+
+- Updated all imports in `extraction/` files:
+  - `ai_extraction.py` - Now imports from `shared.database`, `shared.config`, and `extraction.*`
+  - `context.py` - Changed from relative to `shared.config`
+  - `ai_client.py` - Updated to use `extraction.schema`, `extraction.prompts`, `shared.config`
+
+**Test Updates:**
+- `tests/test_parser.py` - Updated imports from `reddit_ingestion.parser` to `ingestion.parser`
+
+**Configuration Updates:**
+- `setup.py`:
+  - Renamed package from `reddit-ingestion` to `data-ingestion`
+  - Bumped version to `0.2.0`
+  - Added extraction dependencies: `anthropic>=0.18.0`, `pydantic>=2.0.0`
+
+**Documentation Updates:**
+- `README.md`:
+  - Updated Architecture section with new 4-package structure
+  - Updated Usage section with module-based commands:
+    - `python -m ingestion.scheduler`
+    - `python -m ingestion.historical_ingest --subreddit Ozempic`
+    - `python -m extraction.ai_extraction --subreddit Ozempic`
+  - Updated Testing section with correct paths
+  - Updated File Structure section with complete new layout
+  - Added new "Package Organization" section explaining each concern
+
+### Benefits
+
+1. **Clear Separation of Concerns**: Ingestion, extraction, and migrations are now in separate packages
+2. **Better Maintainability**: Easy to find and modify code for specific functionality
+3. **Improved Testability**: Each package can be tested independently
+4. **Cleaner Imports**: Explicit package boundaries with shared utilities
+5. **Better Onboarding**: New developers can understand the architecture at a glance
+
+### Usage Examples
+
+```bash
+# Run real-time ingestion
+python -m ingestion.scheduler --schedule
+
+# Run historical ingestion
+python -m ingestion.historical_ingest --subreddit Ozempic --posts 100 --comments 20
+
+# Run AI extraction
+python -m extraction.ai_extraction --subreddit Ozempic --posts-only
+
+# Run tests
+pytest tests/test_parser.py -v
+```
+
+---

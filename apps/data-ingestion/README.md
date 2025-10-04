@@ -15,12 +15,31 @@ This ingestion system:
 
 ## Architecture
 
+The codebase is organized into three separate concerns:
+
 ```
-scheduler.py          # Main orchestrator with APScheduler
-├── reddit_client.py  # PRAW wrapper for Reddit API
-├── parsers.py        # Safe data extraction with null handling
-├── database.py       # Batch insert operations with psycopg2
-└── logger.py         # Logging configuration
+ingestion/            # Reddit data ingestion
+├── scheduler.py      # Main orchestrator with APScheduler
+├── historical_ingest.py  # Historical data fetching
+├── upload_from_backup.py # Upload from JSON backups
+├── client.py         # PRAW wrapper for Reddit API
+└── parser.py         # Safe data extraction with null handling
+
+extraction/           # AI-powered feature extraction
+├── ai_extraction.py  # Main extraction pipeline
+├── ai_client.py      # Claude AI client wrapper
+├── prompts.py        # Prompt templates for extraction
+├── context.py        # Context builder for nested comments
+└── schema.py         # Pydantic models for extracted data
+
+shared/               # Shared utilities
+├── database.py       # Database operations with psycopg2
+└── config.py         # Logging configuration
+
+migrations/           # Database schema migrations
+├── 001_create_reddit_tables.up.sql
+├── 002_create_extracted_features.up.sql
+└── run_migration.py  # Migration runner
 ```
 
 ## Prerequisites
@@ -82,27 +101,43 @@ python verify_schema.py
 
 ## Usage
 
-### Run Once
+### Run Ingestion Once
 
 Fetch data from all Tier 1 subreddits once:
 
 ```bash
-cd apps/data-ingestion/src/ingestion
-python scheduler.py
+cd apps/data-ingestion
+python -m ingestion.scheduler
 ```
 
-### Run on Schedule
+### Run Ingestion on Schedule
 
 Run every 15 minutes automatically:
 
 ```bash
-python scheduler.py --schedule
+python -m ingestion.scheduler --schedule
 ```
 
 Custom interval (e.g., every 30 minutes):
 
 ```bash
-python scheduler.py --schedule --interval 30
+python -m ingestion.scheduler --schedule --interval 30
+```
+
+### Run Historical Ingestion
+
+Fetch top 100 posts from the past year:
+
+```bash
+python -m ingestion.historical_ingest --subreddit Ozempic --posts 100 --comments 20
+```
+
+### Run AI Extraction
+
+Extract features from ingested posts/comments:
+
+```bash
+python -m extraction.ai_extraction --subreddit Ozempic
 ```
 
 Stop with `Ctrl+C`.
@@ -112,8 +147,8 @@ Stop with `Ctrl+C`.
 Run comprehensive test suite (50+ tests):
 
 ```bash
-cd apps/data-ingestion/src/ingestion
-pytest test_parsers.py -v
+cd apps/data-ingestion
+pytest tests/test_parser.py -v
 ```
 
 Tests cover:
@@ -249,20 +284,31 @@ Normal if ingestion runs frequently. Posts are deduplicated automatically.
 ```
 apps/data-ingestion/
 ├── README.md                     # This file
+├── setup.py                      # Package configuration
 ├── pytest.ini                    # Pytest configuration
+├── ingestion/                    # Reddit data ingestion
+│   ├── __init__.py
+│   ├── scheduler.py              # Main orchestrator with APScheduler
+│   ├── historical_ingest.py      # Historical data fetching
+│   ├── upload_from_backup.py     # Upload from JSON backups
+│   ├── client.py                 # PRAW wrapper for Reddit API
+│   └── parser.py                 # Safe data extraction with null handling
+├── extraction/                   # AI-powered feature extraction
+│   ├── __init__.py
+│   ├── ai_extraction.py          # Main extraction pipeline
+│   ├── ai_client.py              # Claude AI client wrapper
+│   ├── prompts.py                # Prompt templates for extraction
+│   ├── context.py                # Context builder for nested comments
+│   └── schema.py                 # Pydantic models for extracted data
+├── shared/                       # Shared utilities
+│   ├── __init__.py
+│   ├── database.py               # Database operations with psycopg2
+│   └── config.py                 # Logging configuration
 ├── migrations/                   # Database migrations
 │   ├── 001_create_reddit_tables.up.sql
-│   ├── 001_create_reddit_tables.down.sql
+│   ├── 002_create_extracted_features.up.sql
 │   ├── run_migration.py
-│   ├── verify_schema.py
-│   └── README.md
-├── reddit_ingestion/             # Main package
-│   ├── __init__.py
-│   ├── scheduler.py              # Main orchestrator
-│   ├── client.py                 # Reddit API wrapper (was reddit_client.py)
-│   ├── parser.py                 # Data parsing (was parsers.py)
-│   ├── database.py               # Database operations
-│   └── config.py                 # Logging configuration (was logger.py)
+│   └── verify_schema.py
 ├── tests/                        # All tests
 │   ├── test_parser.py            # 45 parser unit tests
 │   ├── test_mocks.py             # Mock PRAW objects
@@ -271,6 +317,36 @@ apps/data-ingestion/
 └── scripts/                      # Utility scripts
     └── praw_test.py              # PRAW testing script
 ```
+
+## Package Organization
+
+The refactored structure separates three main concerns:
+
+### 1. Ingestion (`ingestion/`)
+Handles fetching raw data from Reddit API:
+- Real-time ingestion with scheduler
+- Historical ingestion for backfilling
+- Parsing Reddit objects into database format
+- Backup and upload utilities
+
+### 2. Extraction (`extraction/`)
+AI-powered feature extraction from ingested data:
+- Claude AI integration for structured data extraction
+- Prompt engineering for accurate feature detection
+- Context building for nested comment threads
+- Pydantic schemas for type-safe extraction
+
+### 3. Shared (`shared/`)
+Common utilities used across packages:
+- Database connection and operations
+- Logging configuration
+- Shared types and utilities
+
+### 4. Migrations (`migrations/`)
+Database schema management:
+- SQL migration files (up/down)
+- Migration runner script
+- Schema verification
 
 ## Future Enhancements
 
