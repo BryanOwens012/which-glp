@@ -356,7 +356,7 @@ class AIExtractionPipeline:
             return
 
         # Create extraction_backups directory if it doesn't exist
-        backup_dir = Path("extraction_backups")
+        backup_dir = Path("apps/data-ingestion/extraction_backups")
         backup_dir.mkdir(exist_ok=True)
 
         # Generate filename with timestamp and subreddit

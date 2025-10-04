@@ -195,7 +195,6 @@ scraping_temp/
 # DATABASE
 # ============================================
 # PostgreSQL
-*.sql
 *.dump
 *.backup
 postgres_data/
