@@ -5,9 +5,15 @@ These schemas define the structure of data extracted by Claude AI,
 ensuring type safety and validation before database insertion.
 """
 
-from typing import Optional, List, Literal, Dict, Any
+from typing import Optional, List, Literal, Dict, Any, Set
 from pydantic import BaseModel, Field, field_validator
 from datetime import datetime, timezone
+
+# Telehealth/compound pharmacy providers that map to 'other' drug_source
+TELEHEALTH_PROVIDERS: Set[str] = {
+    'hims', 'hers', 'emerge', 'empower', 'hallendale',
+    'zappy health', 'ro', 'calibrate', 'found', 'sequence'
+}
 
 
 class WeightData(BaseModel):
@@ -27,6 +33,19 @@ class WeightData(BaseModel):
             raise ValueError("Weight must be positive")
         if v is not None and v > 1000:  # Sanity check
             raise ValueError("Weight seems unrealistic (>1000)")
+        return v
+
+    @field_validator("unit", mode="before")
+    @classmethod
+    def normalize_unit(cls, v: Optional[str]) -> Optional[str]:
+        """Normalize 'kgs' to 'kg'"""
+        if v is None:
+            return None
+        v_lower = v.strip().lower()
+        if v_lower == "kgs":
+            return "kg"
+        if v_lower in ["lbs", "kg"]:
+            return v_lower
         return v
 
 
@@ -166,9 +185,9 @@ class ExtractedFeatures(BaseModel):
     )
 
     # Drug sourcing and switching
-    drug_source: Optional[Literal["brand", "compounded", "other"]] = Field(
+    drug_source: Optional[Literal["brand", "compounded", "out-of-pocket", "other"]] = Field(
         None,
-        description="Brand name, compounded, or other (e.g., foreign-sourced)"
+        description="Brand name, compounded, out-of-pocket, or other (e.g., foreign-sourced)"
     )
     switching_drugs: Optional[str] = Field(
         None,
@@ -314,6 +333,110 @@ class ExtractedFeatures(BaseModel):
                 raise ValueError(f"Sentiment score for {drug} must be between 0 and 1, got {score}")
             validated[drug.strip().title()] = score
         return validated
+
+    @field_validator("drug_source", mode="before")
+    @classmethod
+    def normalize_drug_source(cls, v) -> Optional[str]:
+        """Normalize drug source values and handle edge cases"""
+        if v is None:
+            return None
+
+        # Handle lists - take first valid value or default to 'other'
+        if isinstance(v, list):
+            for item in v:
+                if item and isinstance(item, str):
+                    item_lower = item.strip().lower()
+                    if item_lower in ['brand', 'compounded', 'out-of-pocket', 'other']:
+                        return item_lower
+            # If no valid value found, default to 'other'
+            return "other"
+
+        # Handle strings
+        if isinstance(v, str):
+            v_lower = v.strip().lower()
+
+            # Normalize 'out of pocket' variations
+            if v_lower in ['out of pocket', 'out-of-pocket']:
+                return "out-of-pocket"
+
+            # Valid values
+            if v_lower in ['brand', 'compounded', 'other']:
+                return v_lower
+
+            # Known company/telehealth platforms -> 'other'
+            if v_lower in TELEHEALTH_PROVIDERS:
+                return "other"
+
+            # Anything else that's not empty -> 'other'
+            if v_lower:
+                return "other"
+
+        return None
+
+    @field_validator("dietary_changes", mode="before")
+    @classmethod
+    def normalize_dietary_changes(cls, v) -> Optional[str]:
+        """Convert list to comma-separated string if needed"""
+        if v is None:
+            return None
+        if isinstance(v, list):
+            return ", ".join(str(item).strip() for item in v if item)
+        return v
+
+    @field_validator("currency", mode="before")
+    @classmethod
+    def normalize_currency(cls, v: Optional[str]) -> str:
+        """Normalize currency codes, default unsupported ones to USD"""
+        if v is None:
+            return "USD"
+
+        v_upper = v.strip().upper()
+
+        # Supported currencies
+        if v_upper in ["USD", "CAD", "GBP", "EUR", "AUD"]:
+            return v_upper
+
+        # Unsupported currencies (NZD, MXN, INR, etc.) -> default to USD
+        # The user can still see the original currency in the raw_response if needed
+        return "USD"
+
+    @field_validator("duration_weeks", mode="before")
+    @classmethod
+    def cap_duration_weeks(cls, v: Optional[int]) -> Optional[int]:
+        """Cap duration at 520 weeks (10 years) instead of rejecting"""
+        if v is None:
+            return None
+        if isinstance(v, (int, float)):
+            v_int = int(v)
+            # Cap at 520 weeks (10 years) for very long journeys
+            if v_int > 520:
+                return 520
+            if v_int < 0:
+                return 0
+            return v_int
+        return None
+
+    @field_validator("cost_per_month", mode="before")
+    @classmethod
+    def normalize_cost_per_month(cls, v) -> Optional[float]:
+        """Handle when AI returns dict with before/after values - take 'after' value"""
+        if v is None:
+            return None
+        if isinstance(v, dict):
+            # If it's a dict like {'before': 350.0, 'after': 5.0}, take the 'after' value
+            if 'after' in v:
+                after_val = v['after']
+                if isinstance(after_val, (int, float)):
+                    return float(after_val)
+            # Fallback to 'before' if 'after' not present
+            if 'before' in v:
+                before_val = v['before']
+                if isinstance(before_val, (int, float)):
+                    return float(before_val)
+            return None
+        if isinstance(v, (int, float)):
+            return float(v)
+        return None
 
 
 class ExtractionResult(BaseModel):

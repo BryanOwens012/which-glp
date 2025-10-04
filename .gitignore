@@ -34,9 +34,6 @@ oauth_tokens/
 .reddit_oauth
 .twitter_oauth
 
-# PRAW (Python Reddit API Wrapper)
-praw.ini
-
 # Database Credentials
 database.ini
 db_config.json
@@ -444,4 +441,5 @@ site/
 # poetry.lock
 
 screenshots/
+apps/data-ingestion/ingestion/backup/
 workspace.code-workspace
