@@ -260,15 +260,26 @@ The value is in the exclusive, structured, continuously-updated dataset that get
 6. **r/tirzepatidecompound** (28K members) - Generic tirzepatide discussions
 
 **Tier 2 - General GLP-1 Discussions:**
-7. **r/GLP1Agonists** (35K members) - Cross-drug comparisons, general questions
-8. **r/WegovyWeightLoss** (18K members) - Success stories, tips
-9. **r/liraglutide** (12K members) - Older drug, generic now available
+7. **r/glp1** (35K members) - Cross-drug comparisons, general questions
+8. **r/ozempicforweightloss** (37K members) - Dedicated Ozempic weight loss community, off-label use focus
+9. **r/WegovyWeightLoss** (18K members) - Success stories, tips
+10. **r/liraglutide** (12K members) - Older drug, generic now available
 
 **Tier 3 - Broader Weight Loss Communities:**
-10. **r/loseit** (4.2M members) - General weight loss, GLP-1 discussions in comments
-11. **r/obesity** (120K members) - Medical obesity discussions
-12. **r/SuperMorbidlyObese** (90K members) - Higher BMI users, often discuss GLP-1s
-13. **r/progresspics** (2.8M members) - Before/after photos, GLP-1 mentions in titles/comments
+11. **r/loseit** (4.2M members) - General weight loss, GLP-1 discussions in comments
+12. **r/progresspics** (2.8M members) - Before/after photos, GLP-1 mentions in titles/comments
+13. **r/intermittentfasting** (965K members) - Fasting community, some GLP-1 discussions
+14. **r/1200isplenty** (583K members) - Calorie restriction, occasional GLP-1 mentions
+15. **r/fasting** (538K members) - Fasting protocols, GLP-1 sometimes mentioned
+16. **r/CICO** (301K members) - Calories in/calories out, weight loss tracking
+17. **r/1500isplenty** (293K members) - Moderate calorie restriction
+18. **r/PCOS** (251K members) - GLP-1s discussed for PCOS weight management
+19. **r/Brogress** (249K members) - Male progress pics and transformations
+20. **r/diabetes** (149K members) - General diabetes discussions, GLP-1 mentions
+21. **r/obesity** (120K members) - Medical obesity discussions
+22. **r/peptides** (121K members) - Peptide discussions including GLP-1 compounds
+23. **r/SuperMorbidlyObese** (90K members) - Higher BMI users, often discuss GLP-1s
+24. **r/diabetes_t2** (49K members) - Type 2 diabetes, GLP-1s commonly prescribed
 
 **Content Types to Extract:**
 - **Original Posts:** Personal experiences, progress updates, questions
