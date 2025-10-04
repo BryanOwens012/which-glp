@@ -357,14 +357,16 @@ class AIExtractionPipeline:
             logger.warning("No results to backup")
             return
 
-        # Create extraction_backups directory if it doesn't exist
-        # Use environment variable if set, otherwise use default location
+        # Create extraction backups directory if it doesn't exist
+        # Use environment variable if set, otherwise use default location at monorepo root
         backup_path = os.getenv('EXTRACTION_BACKUP_DIR')
         if backup_path:
             backup_dir = Path(backup_path)
         else:
-            # Default: use absolute path to avoid issues with working directory
-            backup_dir = Path(__file__).parent.parent / "extraction_backups"
+            # Default: monorepo_root/backups/extraction
+            # From: apps/data-ingestion/extraction/ai_extraction.py
+            # To:   backups/extraction
+            backup_dir = Path(__file__).parent.parent.parent.parent / "backups" / "extraction"
         backup_dir.mkdir(exist_ok=True, parents=True)
 
         # Generate filename with timestamp and subreddit
