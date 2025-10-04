@@ -64,10 +64,9 @@ class LocalBackup:
             backup_dir: Directory for backups (default: monorepo_root/backups/ingestion/)
         """
         if backup_dir is None:
-            # Default: monorepo_root/backups/ingestion
-            # From: apps/data-ingestion/ingestion/historical_ingest.py
-            # To:   backups/ingestion
-            backup_dir = Path(__file__).parent.parent.parent.parent / "backups" / "ingestion"
+            # Default: monorepo_root/backups/ingestion (via helper function)
+            from shared.config import get_backup_dir
+            backup_dir = get_backup_dir("ingestion")
 
         self.backup_dir = backup_dir
         self.backup_dir.mkdir(parents=True, exist_ok=True)
