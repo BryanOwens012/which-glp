@@ -40,7 +40,8 @@ class AIExtractionPipeline:
         self,
         subreddit: Optional[str] = None,
         limit: Optional[int] = None,
-        dry_run: bool = False
+        dry_run: bool = False,
+        posts_only: bool = False
     ):
         """
         Initialize extraction pipeline.
@@ -49,10 +50,12 @@ class AIExtractionPipeline:
             subreddit: Filter by subreddit (e.g., 'Zepbound')
             limit: Max items to process (for testing)
             dry_run: If True, don't insert results to database
+            posts_only: If True, only process posts (skip comments)
         """
         self.subreddit = subreddit
         self.limit = limit
         self.dry_run = dry_run
+        self.posts_only = posts_only
 
         self.db = DatabaseManager()
         self.ai_client = get_client()
@@ -61,68 +64,106 @@ class AIExtractionPipeline:
 
         logger.info(
             f"Pipeline initialized - Subreddit: {subreddit or 'all'}, "
-            f"Limit: {limit or 'none'}, Dry run: {dry_run}"
+            f"Limit: {limit or 'none'}, Dry run: {dry_run}, "
+            f"Posts only: {posts_only}"
         )
 
-    def export_unprocessed_data(self) -> tuple[List[tuple], List[tuple]]:
+    def export_unprocessed_data(self) -> tuple[List[tuple], List[tuple], List[tuple]]:
         """
         Export unprocessed posts and comments from Supabase.
 
         Performs a bulk query to get all posts/comments that haven't been processed yet.
 
         Returns:
-            Tuple of (posts_rows, comments_rows)
+            Tuple of (posts_rows, comments_rows, all_comments_rows)
         """
         logger.info("Exporting unprocessed data from Supabase...")
 
-        # Build WHERE clause for subreddit filter
-        where_clause = f"AND subreddit = '{self.subreddit}'" if self.subreddit else ""
-
-        # Build LIMIT clause
-        limit_clause = f"LIMIT {self.limit}" if self.limit else ""
-
-        # Query unprocessed posts
-        posts_query = f"""
-            SELECT post_id, title, body, subreddit, author_flair_text
-            FROM reddit_posts
-            WHERE post_id NOT IN (
-                SELECT post_id FROM extracted_features
-                WHERE post_id IS NOT NULL
-            )
-            {where_clause}
-            ORDER BY created_at DESC
-            {limit_clause}
-        """
-
-        # Query unprocessed comments
-        # Join with posts to get subreddit info
-        comments_query = f"""
-            SELECT
-                c.comment_id,
-                c.post_id,
-                c.parent_comment_id,
-                c.body,
-                c.author,
-                c.depth,
-                c.author_flair_text
-            FROM reddit_comments c
-            INNER JOIN reddit_posts p ON c.post_id = p.post_id
-            WHERE c.comment_id NOT IN (
-                SELECT comment_id FROM extracted_features
-                WHERE comment_id IS NOT NULL
-            )
-            {where_clause.replace('subreddit', 'p.subreddit') if where_clause else ''}
-            ORDER BY c.created_at DESC
-            {limit_clause}
-        """
-
         with self.db.conn.cursor() as cursor:
-            # Get posts
-            cursor.execute(posts_query)
+            # Query unprocessed posts
+            if self.subreddit:
+                posts_query = """
+                    SELECT post_id, title, body, subreddit, author_flair_text
+                    FROM reddit_posts
+                    WHERE post_id NOT IN (
+                        SELECT post_id FROM extracted_features
+                        WHERE post_id IS NOT NULL
+                    )
+                    AND subreddit = %s
+                    ORDER BY created_at DESC
+                """
+                if self.limit:
+                    posts_query += " LIMIT %s"
+                    cursor.execute(posts_query, (self.subreddit, self.limit))
+                else:
+                    cursor.execute(posts_query, (self.subreddit,))
+            else:
+                posts_query = """
+                    SELECT post_id, title, body, subreddit, author_flair_text
+                    FROM reddit_posts
+                    WHERE post_id NOT IN (
+                        SELECT post_id FROM extracted_features
+                        WHERE post_id IS NOT NULL
+                    )
+                    ORDER BY created_at DESC
+                """
+                if self.limit:
+                    posts_query += " LIMIT %s"
+                    cursor.execute(posts_query, (self.limit,))
+                else:
+                    cursor.execute(posts_query)
+
             posts_rows = cursor.fetchall()
 
-            # Get unprocessed comments first
-            cursor.execute(comments_query)
+            # Query unprocessed comments
+            if self.subreddit:
+                comments_query = """
+                    SELECT
+                        c.comment_id,
+                        c.post_id,
+                        c.parent_comment_id,
+                        c.body,
+                        c.author,
+                        c.depth,
+                        c.author_flair_text
+                    FROM reddit_comments c
+                    INNER JOIN reddit_posts p ON c.post_id = p.post_id
+                    WHERE c.comment_id NOT IN (
+                        SELECT comment_id FROM extracted_features
+                        WHERE comment_id IS NOT NULL
+                    )
+                    AND p.subreddit = %s
+                    ORDER BY c.created_at DESC
+                """
+                if self.limit:
+                    comments_query += " LIMIT %s"
+                    cursor.execute(comments_query, (self.subreddit, self.limit))
+                else:
+                    cursor.execute(comments_query, (self.subreddit,))
+            else:
+                comments_query = """
+                    SELECT
+                        c.comment_id,
+                        c.post_id,
+                        c.parent_comment_id,
+                        c.body,
+                        c.author,
+                        c.depth,
+                        c.author_flair_text
+                    FROM reddit_comments c
+                    INNER JOIN reddit_posts p ON c.post_id = p.post_id
+                    WHERE c.comment_id NOT IN (
+                        SELECT comment_id FROM extracted_features
+                        WHERE comment_id IS NOT NULL
+                    )
+                    ORDER BY c.created_at DESC
+                """
+                if self.limit:
+                    comments_query += " LIMIT %s"
+                    cursor.execute(comments_query, (self.limit,))
+                else:
+                    cursor.execute(comments_query)
+
             comments_rows = cursor.fetchall()
 
             # Get ALL comments for posts that have unprocessed comments (for chain building)
@@ -130,26 +171,24 @@ class AIExtractionPipeline:
             if comments_rows:
                 # Get unique post IDs from unprocessed comments
                 comment_post_ids = list(set(row[1] for row in comments_rows))
-                post_ids_str = "', '".join(comment_post_ids)
 
-                all_comments_query = f"""
+                all_comments_query = """
                     SELECT comment_id, post_id, parent_comment_id, body, author, depth, author_flair_text
                     FROM reddit_comments
-                    WHERE post_id IN ('{post_ids_str}')
+                    WHERE post_id = ANY(%s)
                 """
-                cursor.execute(all_comments_query)
+                cursor.execute(all_comments_query, (comment_post_ids,))
                 all_comments_rows = cursor.fetchall()
             elif posts_rows:
                 # If only posts, get their comments too
                 post_ids = [row[0] for row in posts_rows]
-                post_ids_str = "', '".join(post_ids)
 
-                all_comments_query = f"""
+                all_comments_query = """
                     SELECT comment_id, post_id, parent_comment_id, body, author, depth, author_flair_text
                     FROM reddit_comments
-                    WHERE post_id IN ('{post_ids_str}')
+                    WHERE post_id = ANY(%s)
                 """
-                cursor.execute(all_comments_query)
+                cursor.execute(all_comments_query, (post_ids,))
                 all_comments_rows = cursor.fetchall()
             else:
                 all_comments_rows = []
@@ -175,6 +214,28 @@ class AIExtractionPipeline:
             all_comments_rows: All comments for context building
         """
         logger.info("Building in-memory context lookup...")
+
+        # Fetch missing posts for comments (P1 fix)
+        # Comments may belong to already-processed posts not in posts_rows
+        existing_post_ids = set(row[0] for row in posts_rows)
+        comment_post_ids = set(row[1] for row in all_comments_rows)
+        missing_post_ids = comment_post_ids - existing_post_ids
+
+        if missing_post_ids:
+            logger.info(f"Fetching {len(missing_post_ids)} missing posts for comment context...")
+            with self.db.conn.cursor() as cursor:
+                fetch_posts_query = """
+                    SELECT post_id, title, body, subreddit, author_flair_text
+                    FROM reddit_posts
+                    WHERE post_id = ANY(%s)
+                """
+                cursor.execute(fetch_posts_query, (list(missing_post_ids),))
+                missing_posts_rows = cursor.fetchall()
+
+                # Union missing posts with existing posts
+                posts_rows = list(posts_rows) + missing_posts_rows
+                logger.info(f"Added {len(missing_posts_rows)} missing posts to context")
+
         self.context_builder = build_context_from_db_rows(posts_rows, all_comments_rows)
 
     def process_post(self, post_row: tuple) -> Optional[ExtractionResult]:
@@ -294,8 +355,8 @@ class AIExtractionPipeline:
             logger.warning("No results to backup")
             return
 
-        # Create backups directory if it doesn't exist
-        backup_dir = Path("backups")
+        # Create extraction_backups directory if it doesn't exist
+        backup_dir = Path("extraction_backups")
         backup_dir.mkdir(exist_ok=True)
 
         # Generate filename with timestamp and subreddit
@@ -504,25 +565,28 @@ class AIExtractionPipeline:
             # Rate limiting: 1 request per second
             time.sleep(1)
 
-        # Process comments
+        # Process comments (unless posts_only mode)
         comment_results = []
-        for i, comment_row in enumerate(comments_rows, 1):
-            logger.info(f"Processing comment {i}/{len(comments_rows)}...")
-            result = self.process_comment(comment_row)
-            if result:
-                comment_results.append(result)
-                self.stats.total_success += 1
-                self.stats.total_cost_usd += result.processing_cost_usd or 0
-                self.stats.total_tokens_input += result.tokens_input or 0
-                self.stats.total_tokens_output += result.tokens_output or 0
-                self.stats.total_time_seconds += (result.processing_time_ms or 0) / 1000
-            else:
-                self.stats.total_failed += 1
+        if not self.posts_only:
+            for i, comment_row in enumerate(comments_rows, 1):
+                logger.info(f"Processing comment {i}/{len(comments_rows)}...")
+                result = self.process_comment(comment_row)
+                if result:
+                    comment_results.append(result)
+                    self.stats.total_success += 1
+                    self.stats.total_cost_usd += result.processing_cost_usd or 0
+                    self.stats.total_tokens_input += result.tokens_input or 0
+                    self.stats.total_tokens_output += result.tokens_output or 0
+                    self.stats.total_time_seconds += (result.processing_time_ms or 0) / 1000
+                else:
+                    self.stats.total_failed += 1
 
-            self.stats.total_processed += 1
+                self.stats.total_processed += 1
 
-            # Rate limiting: 1 request per second
-            time.sleep(1)
+                # Rate limiting: 1 request per second
+                time.sleep(1)
+        else:
+            logger.info("Skipping comment processing (posts_only=True)")
 
         # Insert all results
         all_results = post_results + comment_results
@@ -572,6 +636,11 @@ def main():
         action="store_true",
         help="Don't insert results to database"
     )
+    parser.add_argument(
+        "--posts-only",
+        action="store_true",
+        help="Only process posts, skip comments"
+    )
 
     args = parser.parse_args()
 
@@ -579,7 +648,8 @@ def main():
     pipeline = AIExtractionPipeline(
         subreddit=args.subreddit,
         limit=args.limit,
-        dry_run=args.dry_run
+        dry_run=args.dry_run,
+        posts_only=args.posts_only
     )
 
     try:

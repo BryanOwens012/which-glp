@@ -276,6 +276,7 @@ ingestion.log.*
 
 # Reddit ingestion backups
 apps/data-ingestion/reddit_ingestion/backup/
+apps/data-ingestion/extraction_backups/
 
 # PM2 logs
 .pm2/

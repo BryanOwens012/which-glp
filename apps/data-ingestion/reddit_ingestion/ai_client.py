@@ -218,14 +218,25 @@ class ClaudeClient:
                 tokens_output = response.usage.output_tokens
                 cost_usd = self.calculate_cost(model, tokens_input, tokens_output)
 
-                # Build metadata
+                # Build metadata with full API response
                 metadata = {
                     "model": model,
                     "cost_usd": cost_usd,
                     "tokens_input": tokens_input,
                     "tokens_output": tokens_output,
                     "processing_time_ms": processing_time_ms,
-                    "raw_response": extracted_data,
+                    "raw_response": {
+                        "id": response.id,
+                        "model": response.model,
+                        "role": response.role,
+                        "content": [{"type": c.type, "text": c.text} for c in response.content],
+                        "stop_reason": response.stop_reason,
+                        "stop_sequence": response.stop_sequence,
+                        "usage": {
+                            "input_tokens": response.usage.input_tokens,
+                            "output_tokens": response.usage.output_tokens,
+                        }
+                    },
                 }
 
                 logger.info(

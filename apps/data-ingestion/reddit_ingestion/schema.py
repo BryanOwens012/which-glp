@@ -5,9 +5,9 @@ These schemas define the structure of data extracted by Claude AI,
 ensuring type safety and validation before database insertion.
 """
 
-from typing import Optional, List, Literal, Dict
+from typing import Optional, List, Literal, Dict, Any
 from pydantic import BaseModel, Field, field_validator
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class WeightData(BaseModel):
@@ -292,7 +292,11 @@ class ExtractedFeatures(BaseModel):
                 result.append(SideEffectData(**item))
             elif isinstance(item, str):
                 # Legacy support: convert string to SideEffectData
-                result.append(SideEffectData(name=item.strip().lower()))
+                result.append(SideEffectData(
+                    name=item.strip().lower(),
+                    severity=None,
+                    confidence=None
+                ))
             elif isinstance(item, SideEffectData):
                 result.append(item)
 
@@ -333,20 +337,20 @@ class ExtractionResult(BaseModel):
     tokens_input: Optional[int] = Field(None, description="Input tokens used", ge=0)
     tokens_output: Optional[int] = Field(None, description="Output tokens generated", ge=0)
     processing_time_ms: Optional[int] = Field(None, description="Processing time in milliseconds", ge=0)
-    processed_at: datetime = Field(default_factory=datetime.utcnow, description="Timestamp of extraction")
+    processed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="Timestamp of extraction")
 
     # Raw response for debugging
     raw_response: Optional[dict] = Field(None, description="Full Claude API response")
 
     @field_validator("post_id", "comment_id")
     @classmethod
-    def check_source(cls, v, info):
+    def check_source(cls, v, _info):
         """Ensure exactly one source is set"""
         # This validation happens at model level, not field level
         # We'll handle this in model_validator
         return v
 
-    def model_post_init(self, __context):
+    def model_post_init(self, __context: Any) -> None:
         """Validate that exactly one source ID is set"""
         if (self.post_id is None and self.comment_id is None):
             raise ValueError("Either post_id or comment_id must be set")
@@ -368,7 +372,7 @@ class ProcessingStats(BaseModel):
     total_tokens_input: int = Field(0, description="Total input tokens")
     total_tokens_output: int = Field(0, description="Total output tokens")
     total_time_seconds: float = Field(0.0, description="Total processing time")
-    started_at: datetime = Field(default_factory=datetime.utcnow)
+    started_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     completed_at: Optional[datetime] = None
 
     def calculate_averages(self) -> dict:
@@ -388,4 +392,4 @@ class ProcessingStats(BaseModel):
 
     def mark_completed(self):
         """Mark the processing run as completed"""
-        self.completed_at = datetime.utcnow()
+        self.completed_at = datetime.now(timezone.utc)

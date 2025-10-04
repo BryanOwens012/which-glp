@@ -2741,3 +2741,70 @@ CRITICAL JSON FORMATTING RULES:
 **Status:** IN PROGRESS (started 2025-10-04 04:47 UTC)
 
 ---
+
+## 2025-10-03 - Type Error Fixes and Extraction Status
+
+### Type Errors Fixed in schema.py
+
+**Issues:**
+1. `SideEffectData` constructor missing explicit parameters for `severity` and `confidence`
+2. `model_post_init` method signature mismatch with Pydantic v2 BaseModel
+3. Unused argument warnings in field validators
+
+**Solutions:**
+1. Updated `SideEffectData` instantiation to explicitly pass `severity=None, confidence=None`
+2. Added proper type annotations to `model_post_init(self, __context: Any) -> None`
+3. Added `Any` to imports from typing
+4. Prefixed unused `info` parameter with underscore (`_info`) in `check_source` validator
+
+**Files Modified:**
+- `apps/data-ingestion/reddit_ingestion/schema.py`:
+  - Line 8: Added `Any` to typing imports
+  - Lines 295-299: Explicit SideEffectData constructor parameters
+  - Line 347: Renamed `info` to `_info` to mark as intentionally unused
+  - Line 353: Added proper type signature to `model_post_init`
+
+**Verification:**
+- All files compile without errors
+- Successfully imports: `from reddit_ingestion import schema`
+
+### Full Extraction In Progress
+
+**Status** (as of 36 minutes runtime):
+- Process PID: 76573
+- Subreddit: Zepbound
+- Started: ~2025-10-04 04:47 UTC
+- Processing: Posts completed, now processing comments
+- Many comments failing with `summary: None` (expected for low-content comments)
+
+**Observed Issues:**
+- Claude sometimes returns `summary: None` despite prompt updates (likely for very short/low-content comments)
+- Many "Post not found for comment" messages (expected - comments reference posts not in our 100-post sample)
+- Some comments have insufficient context for meaningful extraction
+
+**Next Actions When Complete:**
+1. ✅ JSON backup will be automatically saved to `backups/` directory
+2. ✅ Batch insert to Supabase `extracted_features` table
+3. ✅ Summary statistics printed
+4. Review failure rate and adjust prompts/filters as needed for future runs
+
+### Lessons Learned
+
+**Prompt Effectiveness:**
+- Adding "CRITICAL" and "NEVER" emphasis helps but doesn't guarantee compliance
+- Field type specifications need to be extremely explicit for Claude
+- Some edge cases (very short comments, flair-only data) still cause validation issues
+
+**Schema Design:**
+- Optional fields with explicit None defaults work well
+- Field validators with `mode="before"` catch most type mismatches
+- `min_length=10` on summary field catches trivial extractions
+
+### Future Improvements Needed
+
+1. **Summary field handling**: Add fallback summary generation for minimal-content posts
+2. **Comment filtering**: Skip comments with <30 characters total content
+3. **Better prompt examples**: Add more edge case examples in prompt
+4. **Cost tracking**: Monitor total API costs for large-scale extractions
+
+---

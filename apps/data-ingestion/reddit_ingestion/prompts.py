@@ -5,8 +5,6 @@ These templates guide Claude to extract weight loss features, costs, and experie
 in a structured format while maintaining accuracy and not hallucinating data.
 """
 
-from typing import Optional
-
 
 # System prompt that defines Claude's role and extraction rules
 SYSTEM_PROMPT = """You are analyzing Reddit posts and comments about GLP-1 weight loss medications (Ozempic, Wegovy, Mounjaro, Zepbound, semaglutide, tirzepatide, liraglutide, etc.).
@@ -24,7 +22,10 @@ CRITICAL RULES:
   - medium: mentioned but with some ambiguity
   - low: implied or vague reference
 - Preserve exact drug names as mentioned
-- Convert weights to lbs if kg is mentioned (1 kg = 2.20462 lbs), and note original unit
+- For weights: extract value and unit separately (lbs or kg). Weight objects should include:
+  - value: numeric weight (e.g., 180.5)
+  - unit: "lbs" or "kg"
+  - confidence: "high", "medium", or "low"
 - Extract ALL side effects mentioned, even minor ones
 - Extract location only if explicitly mentioned (city, state, country)
 - Be conservative: if uncertain, mark as null and lower confidence score
@@ -233,24 +234,43 @@ Return valid JSON matching this schema:
   "confidence_score": 0.85
 }
 
-CRITICAL JSON FORMATTING RULES:
-- Use null for scalar fields (strings, numbers, booleans) where data is not explicitly available
-- Use empty arrays [] for ALL list/array fields when nothing is mentioned - NEVER use null for arrays
-- ARRAY fields (must be [] when empty, NOT null):
-  - drugs_mentioned, side_effects, comorbidities, previous_weight_loss_attempts
-  - food_intolerances, labs_improvement, medication_reduction, nsv_mentioned
-- STRING fields (must be null or string, NEVER an array):
-  - dietary_changes, exercise_frequency, dosage_progression, switching_drugs
-  - side_effect_timing, location, support_system, mental_health_impact
-  - For dietary_changes: combine multiple items into a single string (e.g., "low carb, calorie counting")
-  - For switching_drugs: describe the switch as a string (e.g., "switched from Wegovy to Zepbound for cost") or null
-- INTEGER/NUMBER fields (must be plain number, NEVER an object with confidence/unit):
-  - duration_weeks: plain integer (e.g., 12, NOT {"value": 12, "confidence": "high"})
-  - cost_per_month: plain number (e.g., 150.50, NOT {"value": 150.50, "unit": "USD"})
-  - age: plain integer (e.g., 28)
-  - All sentiment scores: plain float 0-1 (e.g., 0.85)
-- BOOLEAN fields (must be true/false/null, NEVER a string):
-  - has_insurance, plateau_mentioned, rebound_weight_gain, pharmacy_access_issues
+CRITICAL JSON FORMATTING RULES - READ CAREFULLY BEFORE GENERATING OUTPUT:
+
+**ARRAY FIELDS - MUST BE [] WHEN EMPTY, NEVER null:**
+These fields must ALWAYS be an array, even if empty. null is INVALID and will cause validation errors.
+- drugs_mentioned: [] (NOT null)
+- side_effects: [] (NOT null)
+- comorbidities: [] (NOT null)
+- previous_weight_loss_attempts: [] (NOT null)
+- food_intolerances: [] (NOT null)
+- labs_improvement: [] (NOT null)
+- medication_reduction: [] (NOT null)
+- nsv_mentioned: [] (NOT null)
+
+**SCALAR FIELDS - Use null when not available:**
+- Use null for missing strings, numbers, booleans
+- summary: NEVER null, always a string (minimum 10 chars)
+
+**STRING FIELDS (null or string, NEVER an array):**
+- dietary_changes, exercise_frequency, dosage_progression, switching_drugs
+- side_effect_timing, location, support_system, mental_health_impact
+- For dietary_changes: combine multiple items into single string ("low carb, calorie counting")
+- For switching_drugs: describe as string ("switched from Wegovy to Zepbound") or null
+
+**INTEGER/NUMBER FIELDS (plain number, NEVER an object):**
+- duration_weeks: 12 (NOT {"value": 12, "confidence": "high"})
+- cost_per_month: 150.50 (NOT {"value": 150.50})
+- age: 28 (plain integer)
+- All sentiment scores: 0.85 (plain float 0-1)
+
+**BOOLEAN FIELDS (true/false/null, NEVER a string):**
+- has_insurance, plateau_mentioned, rebound_weight_gain, pharmacy_access_issues
+
+**VALIDATION CHECK - Before responding, verify:**
+✓ drugs_mentioned is [] or ["Drug1", "Drug2"], NOT null
+✓ side_effects is [] or [{"name": "...", "severity": "...", "confidence": "..."}], NOT null
+✓ summary is a string, NOT null
+✓ All list fields are arrays [], NOT null
 """
 
 
