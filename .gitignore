@@ -443,3 +443,4 @@ site/
 # poetry.lock
 
 screenshots/
+workspace.code-workspace
