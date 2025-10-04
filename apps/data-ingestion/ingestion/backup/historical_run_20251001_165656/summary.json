@@ -1,0 +1,24 @@
+{
+  "run_timestamp": "2025-10-01T17:18:30.567388",
+  "elapsed_seconds": 1293.8850717544556,
+  "elapsed_minutes": 21.564751195907593,
+  "subreddits": [
+    "tirzepatidecompound"
+  ],
+  "posts_limit": 100,
+  "comments_limit": 20,
+  "totals": {
+    "posts_fetched": 100,
+    "posts_inserted": 1,
+    "comments_fetched": 1980,
+    "comments_inserted": 1
+  },
+  "by_subreddit": {
+    "tirzepatidecompound": {
+      "posts_fetched": 100,
+      "posts_inserted": 1,
+      "comments_fetched": 1980,
+      "comments_inserted": 1
+    }
+  }
+}

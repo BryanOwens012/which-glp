@@ -166,9 +166,9 @@ class ExtractedFeatures(BaseModel):
     )
 
     # Drug sourcing and switching
-    drug_source: Optional[Literal["brand", "compounded", "other"]] = Field(
+    drug_source: Optional[Literal["brand", "compounded", "out-of-pocket", "other"]] = Field(
         None,
-        description="Brand name, compounded, or other (e.g., foreign-sourced)"
+        description="Brand name, compounded, out-of-pocket, or other (e.g., foreign-sourced)"
     )
     switching_drugs: Optional[str] = Field(
         None,
@@ -314,6 +314,27 @@ class ExtractedFeatures(BaseModel):
                 raise ValueError(f"Sentiment score for {drug} must be between 0 and 1, got {score}")
             validated[drug.strip().title()] = score
         return validated
+
+    @field_validator("drug_source", mode="before")
+    @classmethod
+    def normalize_drug_source(cls, v: Optional[str]) -> Optional[str]:
+        """Normalize 'out of pocket' to 'out-of-pocket'"""
+        if v is None:
+            return None
+        v_lower = v.strip().lower()
+        if v_lower == "out of pocket":
+            return "out-of-pocket"
+        return v
+
+    @field_validator("dietary_changes", mode="before")
+    @classmethod
+    def normalize_dietary_changes(cls, v) -> Optional[str]:
+        """Convert list to comma-separated string if needed"""
+        if v is None:
+            return None
+        if isinstance(v, list):
+            return ", ".join(str(item).strip() for item in v if item)
+        return v
 
 
 class ExtractionResult(BaseModel):

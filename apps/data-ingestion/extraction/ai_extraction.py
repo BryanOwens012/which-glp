@@ -25,6 +25,7 @@ from extraction.context import build_context_from_db_rows, ContextBuilder
 from extraction.ai_client import get_client
 from extraction.prompts import build_post_prompt, build_comment_prompt
 from extraction.schema import ExtractionResult, ProcessingStats
+from extraction.filters import should_process_post, should_process_comment
 
 logger = get_logger(__name__)
 
@@ -547,7 +548,17 @@ class AIExtractionPipeline:
 
         # Process posts
         post_results = []
+        skipped_count = 0
         for i, post_row in enumerate(posts_rows, 1):
+            # post_row format: (post_id, title, body, subreddit, author_flair_text)
+            post_subreddit = post_row[3]
+
+            # Apply content filter to save API costs
+            if not should_process_post(post_row, post_subreddit):
+                logger.info(f"Skipping post {i}/{len(posts_rows)} (no drug/medical keywords)")
+                skipped_count += 1
+                continue
+
             logger.info(f"Processing post {i}/{len(posts_rows)}...")
             result = self.process_post(post_row)
             if result:
@@ -564,6 +575,9 @@ class AIExtractionPipeline:
 
             # Rate limiting: 1 request per second
             time.sleep(1)
+
+        if skipped_count > 0:
+            logger.info(f"Skipped {skipped_count} posts without drug/medical keywords")
 
         # Process comments (unless posts_only mode)
         comment_results = []

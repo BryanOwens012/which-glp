@@ -34,9 +34,6 @@ oauth_tokens/
 .reddit_oauth
 .twitter_oauth
 
-# PRAW (Python Reddit API Wrapper)
-praw.ini
-
 # Database Credentials
 database.ini
 db_config.json

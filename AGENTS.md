@@ -485,6 +485,334 @@ The value is in the exclusive, structured, continuously-updated dataset that get
 
 **Extraction Model:** Claude Sonnet 4 (primary), consider cheaper alternatives like GLM-4.5 (https://docs.z.ai/scenario-example/develop-tools/claude) for cost optimization if volume scales
 
+---
+
+## Monetization Strategy
+
+### Overview
+
+WhichGLP's monetization approach prioritizes ethical revenue streams that align with the core mission of helping users make informed decisions about GLP-1 medications. As a solopreneur project, all revenue models are designed for automation with minimal ongoing operational overhead.
+
+### Revenue Model Rankings
+
+**Ranked by ROI for solopreneur implementation:**
+
+#### Rank 1: Freemium Personalized Predictions ⭐⭐⭐⭐⭐
+
+**Model:** Free basic features, premium subscription for advanced insights
+
+**Free Tier Includes:**
+- Basic drug comparison tables
+- General statistics and aggregated outcomes
+- Browse community reviews
+- Access to educational content
+
+**Premium Tier ($14.99/month or $99/year):**
+- Detailed cohort analysis: "Based on 500+ users with your profile (male, 28, 200lbs, NYC, Aetna insurance)..."
+- Weight loss trajectory predictions with confidence intervals
+- Cost breakdown by insurance provider and pharmacy
+- Side effect probability calculator personalized to demographics
+- Monthly outcome reports as you track your journey
+- Unlimited saved drug comparisons
+- Early access to new features
+
+**Solopreneur Advantages:**
+- Fully automated - no customer service required
+- 95%+ profit margins (server costs only)
+- Scales infinitely without linear cost increases
+- Aligns perfectly with core value proposition
+- Sticky revenue (monthly recurring)
+
+**Implementation Complexity:** Medium-High
+- Requires polished premium features
+- Payment integration (Stripe)
+- User authentication system
+- Premium content access controls
+
+**Revenue Potential:**
+- Target: 10,000 monthly active users
+- Conversion rate: 2-5% (industry standard for freemium SaaS)
+- Monthly revenue: 10,000 × 3% × $14.99 = **$4,497/month**
+- Annual revenue: **~$54,000/year**
+
+**Timeline:** 3-6 months to launch premium tier
+
+**Priority:** PRIMARY revenue model - build this first
+
+---
+
+#### Rank 2: Affiliate Partnerships with Telehealth Providers ⭐⭐⭐⭐⭐
+
+**Model:** Earn commissions by referring users to vetted telehealth providers
+
+**Partner Examples:**
+- **Hims** - $199-299/month GLP-1 programs
+- **Ro** - $145-299/month subscriptions
+- **Henry Meds** - $297/month compounded options
+- **Calibrate** - $135/month with coaching
+- **Sesame** - Pay-per-visit model
+
+**Commission Structure:**
+- Typical: 20-40% of first 3-6 months of patient subscriptions
+- Average commission per referral: $150-400
+- Cookie duration: 30-90 days
+
+**Implementation:**
+- "Find a Provider" page with curated telehealth options
+- Pre-filled intake forms with drug preferences from user's comparison searches
+- Transparent affiliate disclosure: "We may earn a commission if you sign up through our links"
+- Track which providers users actually recommend in Reddit/Twitter data
+
+**Solopreneur Advantages:**
+- Zero operational overhead
+- Passive income once implemented
+- No inventory, fulfillment, or customer service
+- Fast to implement (2-4 weeks)
+- Helps users solve "where do I actually get this drug?" problem
+
+**Ethical Safeguards:**
+- Only partner with legitimate, licensed telehealth providers
+- Clear disclosure of affiliate relationships
+- User reviews of providers (from Reddit data) visible alongside recommendations
+- Never hide non-affiliate options
+
+**Revenue Potential:**
+- Target: 100 referrals/month (1% of 10K MAU)
+- Average commission: $200
+- Monthly revenue: 100 × $200 = **$20,000/month**
+- Annual revenue: **~$240,000/year**
+
+**Note:** This is optimistic; realistic early-stage estimate is $2,000-5,000/month growing to $10,000-20,000/month at scale
+
+**Timeline:** 2-4 weeks to set up partnerships and integration
+
+**Priority:** QUICK WIN - implement immediately after MVP launch
+
+---
+
+#### Rank 3: Insurance Appeal Templates & Tools ⭐⭐⭐⭐
+
+**Model:** Premium tier includes tools to fight insurance denials
+
+**Problem Statement:**
+- 60-64% of patients discontinue GLP-1s due to cost/loss of insurance coverage (Goldman Sachs)
+- Insurance denials are common despite FDA approval for obesity
+- Successful appeals exist but require documentation and persistence
+
+**Premium Features (Included in $14.99/mo or $29 one-time):**
+- **Appeal letter templates** by insurance provider (Aetna, UnitedHealthcare, BCBS, Cigna, etc.)
+- **Medical necessity documentation guidance** - what your doctor needs to include
+- **Peer-reviewed study citations** to attach to appeals (efficacy, cardiovascular benefits, diabetes prevention)
+- **State-specific insurance regulations** and patient rights
+- **Appeal status tracker** - organize your appeal process
+- **Success story database** - anonymized successful appeals from Reddit with strategies used
+
+**Data Source:**
+- Extract successful appeal stories from Reddit using AI
+- Example: "I got Wegovy covered after 2 appeals - here's what worked"
+- Create templates based on patterns in successful appeals
+
+**Solopreneur Advantages:**
+- Create template library once, sell infinitely
+- Minimal updates needed (quarterly as policies change)
+- High perceived value relative to low production cost
+- Solves major pain point = high conversion rate
+- No ongoing customer support needed (templates are self-service)
+
+**Ethical Value:**
+- Directly helps people afford necessary medication
+- Democratizes knowledge that wealthy patients get from expensive advocates
+- Reduces discontinuation rate = better health outcomes
+
+**Legal Considerations:**
+- Include disclaimer: "Not legal advice, consult with your doctor"
+- Review templates with healthcare compliance consultant ($500-1000 one-time)
+- Update quarterly as insurance policies change
+
+**Revenue Potential:**
+- Embedded in premium tier: contributes to overall subscription value
+- Standalone option: 200 purchases/month × $29 = $5,800/month
+- Higher value: increases premium tier conversion rate by 1-2%
+
+**Timeline:** 6-8 weeks to create comprehensive template library
+
+**Priority:** PHASE 2 - add after core product is stable and premium tier is launched
+
+---
+
+#### Rank 4: B2B Data Licensing to Healthcare Companies ⭐⭐⭐⭐
+
+**Model:** Sell aggregated, anonymized insights to healthcare organizations
+
+**Potential Customers:**
+- **Insurance companies** - Actuarial modeling for coverage decisions
+- **Pharmaceutical companies** - Post-market surveillance, competitive intelligence
+- **Healthcare research firms** - Market trend analysis
+- **Hedge funds** - Investment thesis validation for pharma stocks
+- **Consulting firms** - Healthcare strategy practices
+
+**Product Offerings:**
+
+**Quarterly Market Reports ($5,000-15,000):**
+- Drug adoption trends by region and demographics
+- Side effect prevalence rates vs clinical trial data
+- Real-world discontinuation reasons (cost, side effects, efficacy)
+- Cost burden analysis by insurance type
+- Geographic pricing variations
+- Emerging sentiment trends
+
+**Custom Research Projects ($25,000-100,000):**
+- Specific questions: "What % of Mounjaro users switch to Zepbound and why?"
+- Demographic deep-dives
+- Competitive landscape analysis
+- Insurance coverage impact studies
+
+**API Access (Enterprise Tier: $50,000+/year):**
+- Real-time aggregated statistics API
+- Query interface for custom analyses
+- No PII, fully anonymized, aggregated only
+
+**Ethical Safeguards:**
+- **No raw data sales** - only aggregated insights (minimum 100+ users per data point)
+- **No PII** - all data fully anonymized before analysis
+- **IRB-style review** - internal ethics review for each customer/use case
+- **Deny harmful use cases** - no selling to pharma for price manipulation, no predatory marketing uses
+- **Transparency** - publish annual transparency report on data usage
+
+**Compliance Requirements:**
+- Legal review of data licensing agreements
+- HIPAA compliance review (likely not applicable but verify)
+- Terms of Service allowing aggregated data licensing (disclosed to users)
+
+**Solopreneur Advantages:**
+- High revenue per customer ($10K-50K per engagement)
+- Quarterly cadence = manageable workload
+- Automated report generation (Python scripts + Claude for analysis)
+- Prestigious clients validate dataset quality
+- Minimal ongoing support needed
+
+**Challenges:**
+- Long sales cycles (6-12 months from pitch to contract)
+- Requires significant dataset size (target: 100K+ data points)
+- Legal/compliance overhead
+- Need credibility signals (whitepapers, published research)
+
+**Revenue Potential:**
+- Early stage: 2-4 customers × $10,000/quarter = $80,000-160,000/year
+- Mature: 10-15 customers × $25,000/quarter = $250,000-375,000/year
+
+**Timeline:** 6-12 months (need larger dataset first, build credibility)
+
+**Priority:** PHASE 3 - pursue once 100K+ data points achieved and consumer product is successful
+
+---
+
+#### Rank 5: Pharmacy Price Comparison with Referral Fees ⭐⭐⭐
+
+**Model:** GoodRx-style price comparison with affiliate revenue from pharmacies
+
+**Feature Implementation:**
+- "Where to buy Ozempic in [city]" → interactive map with real-time pricing
+- Integration with GoodRx API, Blink Health, Cost Plus Drugs, SingleCare
+- Show retail price vs discount card price vs insurance copay estimates
+- User reviews of pharmacy experience (extracted from Reddit)
+
+**Revenue Sources:**
+- **Discount card usage fees:** $2-5 per prescription filled using WhichGLP discount code
+- **Pharmacy referral fees:** Pharmacies pay for qualified traffic
+- **Price alert premium feature:** Notify when drug price drops (premium tier)
+
+**Differentiation from GoodRx:**
+- **Community reviews of pharmacies** - "CVS on Main St was great, no judgment" vs "Walgreens pharmacist was rude about GLP-1s"
+- **Drug-specific optimization** - Only show pharmacies that stock GLP-1s (many don't)
+- **Insurance integration** - Compare discount card vs insurance copay
+
+**Solopreneur Advantages:**
+- API integrations available (GoodRx provides affiliate API)
+- Fully automated after setup
+- Clear user value (save money)
+- Proven business model
+
+**Challenges:**
+- **Commoditized space** - GoodRx dominates with $100M+ revenue
+- **Lower margins** - only $2-5 per transaction
+- **Pharmacy partnerships** - requires business development effort
+- **API costs** - GoodRx API may have usage fees
+
+**Revenue Potential:**
+- 500 pharmacy price checks/month
+- 20% conversion to discount card usage
+- 100 transactions × $3 average = **$300/month**
+- At scale (10K MAU): 2,000 transactions × $3 = **$6,000/month**
+
+**Timeline:** 4-6 weeks to implement API integrations
+
+**Priority:** OPTIONAL - only pursue if freemium premium tier plateaus or as complementary feature
+
+---
+
+### Monetization Roadmap
+
+**Phase 1 (Months 1-6): Foundation**
+- Launch free tier with basic features
+- Implement affiliate partnerships with telehealth providers (quick win)
+- Build email list and user base
+- Track conversion funnel metrics
+
+**Phase 2 (Months 6-12): Premium Tier**
+- Launch freemium premium tier ($14.99/month)
+- Add insurance appeal templates and tools
+- A/B test pricing and feature packaging
+- Optimize conversion funnel
+
+**Phase 3 (Months 12-24): Scale & Diversification**
+- Expand dataset to 100K+ data points
+- Begin B2B data licensing outreach
+- Publish research whitepapers for credibility
+- Consider pharmacy price comparison if premium plateaus
+
+**Phase 4 (Months 24+): Enterprise & Partnerships**
+- Formalize B2B data licensing program
+- Explore white-label opportunities (license platform to clinics)
+- International expansion (UK, Canada, Australia markets)
+- Consider institutional partnerships (universities, research orgs)
+
+---
+
+### Revenue Projections
+
+**Conservative Case (Year 1):**
+- Freemium subscriptions: 50 paid users × $14.99 × 12 months = $8,994
+- Telehealth affiliates: 20 referrals/month × $150 × 12 months = $36,000
+- **Total Year 1: ~$45,000**
+
+**Base Case (Year 2):**
+- Freemium subscriptions: 300 paid users × $14.99 × 12 months = $53,964
+- Telehealth affiliates: 100 referrals/month × $200 × 12 months = $240,000
+- Insurance appeal standalone: 50 purchases/month × $29 × 12 months = $17,400
+- **Total Year 2: ~$311,000**
+
+**Optimistic Case (Year 3):**
+- Freemium subscriptions: 1,000 paid users × $14.99 × 12 months = $179,880
+- Telehealth affiliates: 300 referrals/month × $200 × 12 months = $720,000
+- B2B data licensing: 4 customers × $10,000 × 4 quarters = $160,000
+- **Total Year 3: ~$1,060,000**
+
+---
+
+### Ethical Principles
+
+All monetization strategies adhere to these principles:
+
+1. **User-First:** Never compromise data accuracy or hide information for revenue
+2. **Transparency:** Clearly disclose affiliate relationships and sponsored content
+3. **Privacy:** Never sell individual user data or PII
+4. **Medical Ethics:** No partnerships with unethical providers or predatory lenders
+5. **Accessibility:** Core functionality remains free for users who can't afford premium
+6. **Truth in Advertising:** No false claims, no manipulation, no dark patterns
+7. **Harm Reduction:** Actively prevent misuse of platform (e.g., promoting off-label use in populations without medical need)
+
+---
 
 ## Root of this monorepo
 
