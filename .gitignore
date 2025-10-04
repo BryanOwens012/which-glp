@@ -441,4 +441,5 @@ site/
 # poetry.lock
 
 screenshots/
+apps/data-ingestion/ingestion/backup/
 workspace.code-workspace
