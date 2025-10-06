@@ -16,6 +16,8 @@ from dotenv import load_dotenv
 import praw
 from praw.exceptions import PRAWException
 
+from shared.config import get_monorepo_root
+
 logger = logging.getLogger(__name__)
 
 
@@ -59,10 +61,17 @@ class RedditClient:
             RedditClientConfigurationError: If .env file or required credentials are missing
             RedditAPIError: If PRAW initialization or authentication fails
         """
-        # Load environment variables
-        # Path traversal: reddit_ingestion (module) -> data-ingestion (app) -> apps (dir) -> repo root
-        # parents[3] navigates up 3 directory levels from this file
-        env_path = Path(__file__).resolve().parents[3] / ".env"
+        # Load environment variables from monorepo root
+        # Uses shared.config.get_monorepo_root() for robust path resolution
+        # that works regardless of whether module is run directly or as editable install
+        try:
+            env_path = get_monorepo_root() / ".env"
+        except RuntimeError as e:
+            raise RedditClientConfigurationError(
+                f"Configuration error: Could not locate monorepo root: {e}\n"
+                f"Please ensure you are running from within the git repository."
+            )
+
         if not env_path.exists():
             raise RedditClientConfigurationError(
                 f"Configuration error: .env file not found at expected location: {env_path}\n"

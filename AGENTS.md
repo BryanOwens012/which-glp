@@ -34,6 +34,8 @@ This monorepo is rooted at this file's enclosing directory. That is, this file i
 
 All git operations are to be run from this root directory.
 
+If you work with Python files, preemptively ensure that you've activated the venv, which is typically at `./venv` (inside this root directory). If the venv does not exist, create it.
+
 All Python dependencies are to be installed from this root directory (with its venv activated), and all dependencies are to be listed in requirements.txt in this root directory via `$ pip3 freeze > requirements.txt`.
 
 ---
