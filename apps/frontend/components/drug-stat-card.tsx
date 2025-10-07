@@ -178,29 +178,19 @@ export function DrugStatCard({ stats, onClick }: DrugStatCardProps) {
               </span>
             </div>
             <div className="space-y-1">
-              {stats.commonSideEffects.slice(0, 3).map((effect) => {
-                // Parse JSON string to extract the actual name
-                let effectName = effect.name;
-                try {
-                  const parsed = JSON.parse(effect.name);
-                  effectName = parsed.name;
-                } catch {
-                  // Keep original if parsing fails
-                }
-                return (
-                  <div
-                    key={effect.name}
-                    className="flex items-center justify-between text-xs"
-                  >
-                    <span className="text-muted-foreground capitalize">
-                      {effectName}
-                    </span>
-                    <span className="font-medium">
-                      {Math.round(effect.percentage)}%
-                    </span>
-                  </div>
-                );
-              })}
+              {stats.commonSideEffects.slice(0, 3).map((effect) => (
+                <div
+                  key={effect.name}
+                  className="flex items-center justify-between text-xs"
+                >
+                  <span className="text-muted-foreground capitalize">
+                    {effect.name}
+                  </span>
+                  <span className="font-medium">
+                    {Math.round(effect.percentage)}%
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
         )}
