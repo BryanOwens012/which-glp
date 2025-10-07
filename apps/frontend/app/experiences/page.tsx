@@ -67,8 +67,8 @@ const ExperiencesPage = () => {
       offset: pageParam,
     }),
     {
-      getNextPageParam: (lastPage, allPages) => {
-        const loadedCount = allPages.reduce((sum, page) => sum + page.experiences.length, 0)
+      getNextPageParam: (lastPage: any, allPages: any[]) => {
+        const loadedCount = allPages.reduce((sum: number, page: any) => sum + page.experiences.length, 0)
         return loadedCount < lastPage.total ? loadedCount : undefined
       },
     }
@@ -77,7 +77,7 @@ const ExperiencesPage = () => {
   // Flatten all pages into single array
   const experiencesData = data
     ? {
-        experiences: data.pages.flatMap((page) => page.experiences),
+        experiences: data.pages.flatMap((page: any) => page.experiences),
         total: data.pages[0]?.total ?? 0,
       }
     : { experiences: [], total: 0 }
@@ -120,7 +120,7 @@ const ExperiencesPage = () => {
         <div className="mb-8">
           <h1 className="mb-3 text-4xl font-bold">User Experiences</h1>
           <p className="text-lg text-muted-foreground">
-            Browse real user experiences with GLP-1 medications from Reddit
+            Browse real user experiences with weight-loss drugs from Reddit
           </p>
         </div>
 
@@ -149,13 +149,13 @@ const ExperiencesPage = () => {
 
             {/* Drug Filter */}
             <div className="space-y-2">
-              <Label htmlFor="drug">Medication</Label>
+              <Label htmlFor="drug">Drug</Label>
               <Select value={selectedDrug} onValueChange={setSelectedDrug}>
                 <SelectTrigger id="drug">
-                  <SelectValue placeholder="All medications" />
+                  <SelectValue placeholder="All drugs" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All medications</SelectItem>
+                  <SelectItem value="all">All drugs</SelectItem>
                   {drugs?.map((drug) => (
                     <SelectItem key={drug.drug} value={drug.drug}>
                       {drug.drug === "GLP-1" ? "GLP-1 (General)" : drug.drug} ({drug.count})
@@ -186,7 +186,7 @@ const ExperiencesPage = () => {
                   size="icon"
                   onClick={() => setSortOrder(sortOrder === SortDirection.ASC ? SortDirection.DESC : SortDirection.ASC)}
                   title={SORT_DIRECTION_TOOLTIPS[sortOrder as SortDirection]}
-                  className="shrink-0"
+                  className="shrink-0 cursor-pointer"
                 >
                   <ArrowUpDown className={`h-4 w-4 transition-transform ${sortOrder === SortDirection.ASC ? "rotate-180" : ""}`} />
                 </Button>
@@ -263,7 +263,7 @@ const ExperiencesPage = () => {
             )}
 
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {experiencesData.experiences.map((experience, index) => (
+              {experiencesData.experiences.map((experience: any, index: number) => (
                 <ExperienceCardComponent
                   key={`${experience.id}-${index}`}
                   experience={experience}
@@ -344,20 +344,11 @@ const ExperiencesPage = () => {
                     </Card>
                   )}
 
-                  {selectedExperience.recommendation_score !== null && (
-                    <Card className="border-border/40 bg-muted/30 p-4">
-                      <div className="text-xs text-muted-foreground mb-1">Rating</div>
-                      <div className={`text-lg font-bold ${getRatingColor(selectedExperience.recommendation_score)}`}>
-                        {(selectedExperience.recommendation_score * 10).toFixed(1)}
-                      </div>
-                    </Card>
-                  )}
-
                   {selectedExperience.sentiment_post !== null && (
                     <Card className="border-border/40 bg-muted/30 p-4">
-                      <div className="text-xs text-muted-foreground mb-1">Satisfaction</div>
-                      <div className="text-lg font-bold text-primary">
-                        {Math.round(selectedExperience.sentiment_post * 100)}%
+                      <div className="text-xs text-muted-foreground mb-1">Rating</div>
+                      <div className={`text-lg font-bold ${getRatingColor(selectedExperience.sentiment_post)}`}>
+                        {(selectedExperience.sentiment_post * 10).toFixed(1)}
                       </div>
                     </Card>
                   )}

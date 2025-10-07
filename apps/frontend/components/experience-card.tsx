@@ -76,14 +76,14 @@ export function ExperienceCard({ experience, onClick }: ExperienceCardProps) {
         {/* Stats Grid - Always show all 4 fields when available */}
         <div className="grid grid-cols-2 gap-4 pt-4 border-t border-border/40">
           {/* Rating */}
-          {experience.recommendation_score !== null && (
+          {experience.sentiment_post !== null && (
             <div className="flex items-center gap-2">
-              <Star className="h-4 w-4 text-yellow-500" />
+              <Star className={`h-4 w-4 ${getRatingColor(experience.sentiment_post)}`} />
               <div>
                 <div
-                  className={`text-sm font-semibold ${getRatingColor(experience.recommendation_score)}`}
+                  className={`text-sm font-semibold ${getRatingColor(experience.sentiment_post)}`}
                 >
-                  {(experience.recommendation_score * 10).toFixed(1)}
+                  {(experience.sentiment_post * 10).toFixed(1)}
                 </div>
                 <div className="text-xs text-muted-foreground">Rating</div>
               </div>

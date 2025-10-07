@@ -19,12 +19,12 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { TrendingDown, DollarSign, AlertCircle, Check, X, Users, Target } from "lucide-react"
 import { PredictionInput, PredictionResult, Sex } from "@/lib/types"
 
-// Mock prediction function - TO BE REPLACED with tRPC API
-async function getPredictions(input: PredictionInput): Promise<PredictionResult[]> {
+// Mock recommendation function - TO BE REPLACED with tRPC API
+async function getRecommendations(input: PredictionInput): Promise<PredictionResult[]> {
   // Simulate API delay
   await new Promise((resolve) => setTimeout(resolve, 1500))
 
-  // Mock prediction results
+  // Mock recommendation results
   return [
     {
       drug: "Mounjaro",
@@ -94,7 +94,7 @@ async function getPredictions(input: PredictionInput): Promise<PredictionResult[
   ]
 }
 
-const PredictPage = () => {
+const RecommendationsPage = () => {
   const [formData, setFormData] = useState<Partial<PredictionInput>>({
     weightUnit: "lbs",
     country: "USA",
@@ -102,7 +102,7 @@ const PredictPage = () => {
     comorbidities: [],
     sideEffectConcerns: [],
   })
-  const [predictions, setPredictions] = useState<PredictionResult[] | null>(null)
+  const [recommendations, setRecommendations] = useState<PredictionResult[] | null>(null)
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
@@ -127,11 +127,11 @@ const PredictPage = () => {
 
     setLoading(true)
     try {
-      const results = await getPredictions(formData as PredictionInput)
-      setPredictions(results)
+      const results = await getRecommendations(formData as PredictionInput)
+      setRecommendations(results)
       window.scrollTo({ top: document.getElementById("results")?.offsetTop, behavior: "smooth" })
     } catch (error) {
-      console.error("Prediction error:", error)
+      console.error("Recommendation error:", error)
     } finally {
       setLoading(false)
     }
@@ -173,9 +173,9 @@ const PredictPage = () => {
 
       <div className="container mx-auto px-4 pt-24 pb-12">
         <div className="mb-8">
-          <h1 className="mb-3 text-4xl font-bold">Personalized Prediction</h1>
+          <h1 className="mb-3 text-4xl font-bold">Personalized Recommendations</h1>
           <p className="text-lg text-muted-foreground">
-            Get medication recommendations based on your profile and similar user experiences
+            Find the best drug for your profile based on similar user experiences
           </p>
         </div>
 
@@ -401,23 +401,23 @@ const PredictPage = () => {
         </form>
 
         {/* Results */}
-        {predictions && (
+        {recommendations && (
           <div id="results" className="space-y-6">
             <div className="flex items-center gap-3 mb-6">
               <Target className="h-8 w-8 text-primary" />
               <div>
                 <h2 className="text-2xl font-bold">Your Personalized Recommendations</h2>
                 <p className="text-muted-foreground">
-                  Based on {predictions.reduce((sum, p) => sum + p.similarUserCount, 0)} similar user
+                  Based on {recommendations.reduce((sum, p) => sum + p.similarUserCount, 0)} similar user
                   experiences
                 </p>
               </div>
             </div>
 
             <div className="grid gap-6 lg:grid-cols-3">
-              {predictions.map((prediction, index) => (
+              {recommendations.map((recommendation, index) => (
                 <Card
-                  key={prediction.drug}
+                  key={recommendation.drug}
                   className={`border-border/40 bg-card p-6 relative ${
                     index === 0 ? "ring-2 ring-primary" : ""
                   }`}
@@ -429,13 +429,13 @@ const PredictPage = () => {
                   )}
 
                   <div className="mb-4">
-                    <h3 className="text-2xl font-bold mb-2">{prediction.drug}</h3>
+                    <h3 className="text-2xl font-bold mb-2">{recommendation.drug}</h3>
                     <div className="flex items-center gap-2">
                       <div className="flex-1">
                         <div className="text-xs text-muted-foreground mb-1">Match Score</div>
-                        <Progress value={prediction.matchScore} className="h-2" />
+                        <Progress value={recommendation.matchScore} className="h-2" />
                       </div>
-                      <div className="text-2xl font-bold text-primary">{prediction.matchScore}%</div>
+                      <div className="text-2xl font-bold text-primary">{recommendation.matchScore}%</div>
                     </div>
                   </div>
 
@@ -446,11 +446,11 @@ const PredictPage = () => {
                       <span className="text-sm font-medium">Expected Weight Loss</span>
                     </div>
                     <div className="text-3xl font-bold text-primary">
-                      {prediction.expectedWeightLoss.min}-{prediction.expectedWeightLoss.max}{" "}
-                      {prediction.expectedWeightLoss.unit}
+                      {recommendation.expectedWeightLoss.min}-{recommendation.expectedWeightLoss.max}{" "}
+                      {recommendation.expectedWeightLoss.unit}
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Average: {prediction.expectedWeightLoss.avg} {prediction.expectedWeightLoss.unit}
+                      Average: {recommendation.expectedWeightLoss.avg} {recommendation.expectedWeightLoss.unit}
                     </p>
                   </div>
 
@@ -460,20 +460,20 @@ const PredictPage = () => {
                       <Users className="h-4 w-4 text-muted-foreground" />
                       <span className="text-sm font-medium">Success Rate</span>
                     </div>
-                    <div className="text-2xl font-bold">{prediction.successRate}%</div>
+                    <div className="text-2xl font-bold">{recommendation.successRate}%</div>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Based on {prediction.similarUserCount} similar users
+                      Based on {recommendation.similarUserCount} similar users
                     </p>
                   </div>
 
                   {/* Cost */}
-                  {prediction.estimatedCost && (
+                  {recommendation.estimatedCost && (
                     <div className="mb-4 pb-4 border-b border-border/40">
                       <div className="flex items-center gap-2 mb-2">
                         <DollarSign className="h-4 w-4 text-muted-foreground" />
                         <span className="text-sm font-medium">Estimated Monthly Cost</span>
                       </div>
-                      <div className="text-2xl font-bold">${prediction.estimatedCost}</div>
+                      <div className="text-2xl font-bold">${recommendation.estimatedCost}</div>
                     </div>
                   )}
 
@@ -484,7 +484,7 @@ const PredictPage = () => {
                       <span className="text-sm font-medium">Common Side Effects</span>
                     </div>
                     <div className="space-y-2">
-                      {prediction.sideEffectProbability.map((se) => (
+                      {recommendation.sideEffectProbability.map((se) => (
                         <div key={se.effect} className="flex items-center justify-between text-xs">
                           <span className="capitalize text-muted-foreground">{se.effect}</span>
                           <span className="font-semibold">{se.probability}%</span>
@@ -497,7 +497,7 @@ const PredictPage = () => {
                   <div className="mb-4">
                     <div className="text-sm font-medium mb-2">Pros</div>
                     <ul className="space-y-1">
-                      {prediction.pros.map((pro, i) => (
+                      {recommendation.pros.map((pro, i) => (
                         <li key={i} className="flex items-start gap-2 text-xs">
                           <Check className="h-3 w-3 text-primary shrink-0 mt-0.5" />
                           <span className="text-muted-foreground">{pro}</span>
@@ -510,7 +510,7 @@ const PredictPage = () => {
                   <div>
                     <div className="text-sm font-medium mb-2">Cons</div>
                     <ul className="space-y-1">
-                      {prediction.cons.map((con, i) => (
+                      {recommendation.cons.map((con, i) => (
                         <li key={i} className="flex items-start gap-2 text-xs">
                           <X className="h-3 w-3 text-destructive shrink-0 mt-0.5" />
                           <span className="text-muted-foreground">{con}</span>
@@ -524,9 +524,9 @@ const PredictPage = () => {
 
             <Card className="border-border/40 bg-muted/30 p-6">
               <p className="text-sm text-muted-foreground">
-                <strong>Disclaimer:</strong> These predictions are based on aggregated user
+                <strong>Disclaimer:</strong> These recommendations are based on aggregated user
                 experiences and should not replace medical advice. Always consult with your
-                healthcare provider before starting any medication.
+                healthcare provider before starting any drug.
               </p>
             </Card>
           </div>
@@ -536,4 +536,4 @@ const PredictPage = () => {
   )
 }
 
-export default PredictPage
+export default RecommendationsPage

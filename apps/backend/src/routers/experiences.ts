@@ -39,79 +39,45 @@ export const experiencesRouter = router({
       const sortBy: SortFieldType = input.sortBy ?? 'date'
       const sortOrder: SortDirectionType = input.sortOrder ?? 'desc'
 
-      let query = supabase
+      // Map frontend sort fields to database columns
+      const columnMap: Record<SortFieldType, string> = {
+        date: 'created_at',
+        rating: 'sentiment_post',
+        duration: 'duration_weeks',
+        startWeight: 'beginning_weight',
+        endWeight: 'end_weight',
+        weightChange: 'weight_loss_lbs',
+        weightLossPercent: 'weight_loss_percentage',
+        weightLossSpeed: 'weight_loss_speed_lbs_per_month',
+        weightLossSpeedPercent: 'weight_loss_speed_percent_per_month',
+      }
+
+      const sortColumn = columnMap[sortBy]
+      const ascending = sortOrder === 'asc'
+
+      // Step 1: Build base query with filters, ordering, and pagination ALL in the database query
+      let dataQuery = supabase
         .from('mv_experiences_denormalized')
         .select('*', { count: 'exact' })
+        .is('comment_id', null)
 
-      // Only show posts (not comments) AND ensure we only get ONE row per post_id
-      // by selecting only rows where the feature was extracted from the post itself
-      query = query.is('comment_id', null)
-
+      // Apply filters
       if (input.drug) {
-        query = query.eq('primary_drug', input.drug)
+        dataQuery = dataQuery.eq('primary_drug', input.drug)
       }
 
       if (input.search) {
-        query = query.ilike('summary', `%${input.search}%`)
+        dataQuery = dataQuery.ilike('summary', `%${input.search}%`)
       }
 
-      // Apply sorting BEFORE pagination - this is critical for consistent results
-      switch (sortBy) {
-        case 'date':
-          query = query
-            .order('created_at', { ascending: sortOrder === 'asc', nullsFirst: false })
-            .order('post_id', { ascending: true })
-          break
-        case 'rating':
-          query = query
-            .order('recommendation_score', { ascending: sortOrder === 'asc', nullsFirst: false })
-            .order('post_id', { ascending: true })
-          break
-        case 'duration':
-          query = query
-            .order('duration_weeks', { ascending: sortOrder === 'asc', nullsFirst: false })
-            .order('post_id', { ascending: true })
-          break
-        case 'startWeight':
-          query = query
-            .order('beginning_weight->value', { ascending: sortOrder === 'asc', nullsFirst: false })
-            .order('post_id', { ascending: true })
-          break
-        case 'endWeight':
-          query = query
-            .order('end_weight->value', { ascending: sortOrder === 'asc', nullsFirst: false })
-            .order('post_id', { ascending: true })
-          break
-        case 'weightChange':
-          query = query
-            .order('weight_loss_lbs', { ascending: sortOrder === 'asc', nullsFirst: false })
-            .order('post_id', { ascending: true })
-          break
-        case 'weightLossPercent':
-          query = query
-            .order('weight_loss_percentage', { ascending: sortOrder === 'asc', nullsFirst: false })
-            .order('post_id', { ascending: true })
-          break
-        case 'weightLossSpeed':
-          query = query
-            .order('weight_loss_speed_lbs_per_month', { ascending: sortOrder === 'asc', nullsFirst: false })
-            .order('post_id', { ascending: true })
-          break
-        case 'weightLossSpeedPercent':
-          query = query
-            .order('weight_loss_speed_percent_per_month', { ascending: sortOrder === 'asc', nullsFirst: false })
-            .order('post_id', { ascending: true })
-          break
-        default:
-          query = query
-            .order('created_at', { ascending: false, nullsFirst: false })
-            .order('post_id', { ascending: true })
-      }
+      // Apply ordering in the database
+      dataQuery = dataQuery.order(sortColumn, { ascending, nullsFirst: false })
 
-      // Apply pagination AFTER sorting
-      query = query.range(offset, offset + input.limit - 1)
+      // Apply pagination in the database
+      dataQuery = dataQuery.range(offset, offset + input.limit - 1)
 
-      const { data, count, error } = await query
+      // Execute the query
+      const { data, error, count } = await dataQuery
 
       if (error) {
         console.error('Supabase error:', error)
@@ -119,7 +85,7 @@ export const experiencesRouter = router({
       }
 
       // Map feature_id to id for frontend compatibility
-      const mappedData = (data || []).map((experience) => ({
+      const mappedData = (data || []).map((experience: any) => ({
         ...experience,
         id: experience.feature_id,
       }))

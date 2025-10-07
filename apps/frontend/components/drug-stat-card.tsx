@@ -1,8 +1,9 @@
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { DrugStats } from "@/lib/types"
-import { TrendingDown, Users, DollarSign, AlertCircle, ThumbsUp } from "lucide-react"
+import { TrendingDown, Users, DollarSign, AlertCircle, ThumbsUp, Info } from "lucide-react"
 
 type DrugStatCardProps = {
   stats: DrugStats
@@ -32,17 +33,17 @@ export function DrugStatCard({ stats, onClick }: DrugStatCardProps) {
               <span>{stats.count.toLocaleString()} experiences</span>
             </div>
           </div>
-          {stats.avgRecommendationScore !== null && (
+          {stats.avgSentimentPost !== null && (
             <Badge
               variant={
-                stats.avgRecommendationScore >= 0.7
+                stats.avgSentimentPost >= 0.7
                   ? "default"
-                  : stats.avgRecommendationScore >= 0.4
+                  : stats.avgSentimentPost >= 0.4
                     ? "secondary"
                     : "outline"
               }
             >
-              {Math.round(stats.avgRecommendationScore * 100)}% recommend
+              {(stats.avgSentimentPost * 10).toFixed(1)} rating
             </Badge>
           )}
         </div>
@@ -55,8 +56,24 @@ export function DrugStatCard({ stats, onClick }: DrugStatCardProps) {
                 <TrendingDown className="h-4 w-4 text-primary" />
                 <span className="font-medium">Avg. Weight Loss</span>
               </div>
-              <span className="text-2xl font-bold text-primary">
-                {stats.avgWeightLoss?.toFixed(1) ?? 'N/A'}%
+              <span className="text-2xl font-bold text-primary flex items-center gap-2">
+                {stats.avgWeightLoss ? (
+                  `${stats.avgWeightLoss.toFixed(1)}%`
+                ) : (
+                  <>
+                    N/A%
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button className="p-1 hover:bg-muted rounded">
+                          <Info className="h-4 w-4 text-muted-foreground" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        Not enough data available
+                      </TooltipContent>
+                    </Tooltip>
+                  </>
+                )}
               </span>
             </div>
             {stats.avgWeightLossLbs && (
@@ -106,7 +123,13 @@ export function DrugStatCard({ stats, onClick }: DrugStatCardProps) {
         {/* Insurance Coverage */}
         <div className="flex items-center justify-between">
           <span className="text-sm text-muted-foreground">Insurance Coverage</span>
-          <span className="text-sm font-semibold">{Math.round(stats.insuranceCoverage)}%</span>
+          <span className="text-sm font-semibold">
+            {(() => {
+              const total = stats.drugSources.brand + stats.drugSources.compounded + stats.drugSources.outOfPocket + stats.drugSources.other
+              const coverage = total > 0 ? Math.round((stats.drugSources.brand / total) * 100) : 0
+              return coverage
+            })()}%
+          </span>
         </div>
 
         {/* Common Side Effects */}
@@ -117,31 +140,33 @@ export function DrugStatCard({ stats, onClick }: DrugStatCardProps) {
               <span className="text-sm font-medium">Most Common Side Effects</span>
             </div>
             <div className="space-y-1">
-              {stats.commonSideEffects.slice(0, 3).map((effect) => (
-                <div key={effect.name} className="flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground capitalize">{effect.name}</span>
-                  <span className="font-medium">{Math.round(effect.percentage)}%</span>
-                </div>
-              ))}
+              {stats.commonSideEffects.slice(0, 3).map((effect) => {
+                // Parse JSON string to extract the actual name
+                let effectName = effect.name
+                try {
+                  const parsed = JSON.parse(effect.name)
+                  effectName = parsed.name
+                } catch {
+                  // Keep original if parsing fails
+                }
+                return (
+                  <div key={effect.name} className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground capitalize">{effectName}</span>
+                    <span className="font-medium">{Math.round(effect.percentage)}%</span>
+                  </div>
+                )
+              })}
             </div>
           </div>
         )}
 
         {/* Additional Stats */}
-        <div className="grid grid-cols-2 gap-4 pt-2 border-t border-border/40 text-xs">
-          {stats.plateauRate > 0 && (
-            <div>
-              <div className="text-muted-foreground">Plateau Rate</div>
-              <div className="font-semibold">{Math.round(stats.plateauRate)}%</div>
-            </div>
-          )}
-          {stats.pharmacyAccessIssues > 0 && (
-            <div>
-              <div className="text-muted-foreground">Access Issues</div>
-              <div className="font-semibold">{Math.round(stats.pharmacyAccessIssues)}%</div>
-            </div>
-          )}
-        </div>
+        {stats.plateauRate > 0 && (
+          <div className="pt-2 border-t border-border/40 text-xs">
+            <div className="text-muted-foreground">Plateau Rate</div>
+            <div className="font-semibold">{Math.round(stats.plateauRate)}%</div>
+          </div>
+        )}
       </div>
     </Card>
   )

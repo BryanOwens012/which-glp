@@ -61,14 +61,23 @@ const DashboardPage = () => {
 
   const sentimentData = drugStats?.map((d) => ({
     drug: d.drug,
-    positive: Math.round(((d.avgRecommendationScore || 0) * 100)),
+    positive: Math.round(((d.avgSentimentPost || 0) * 100)),
     neutral: 15,
-    negative: Math.round((1 - (d.avgRecommendationScore || 0)) * 100) - 15,
+    negative: Math.round((1 - (d.avgSentimentPost || 0)) * 100) - 15,
   })) ?? []
 
   // Aggregate side effects across all drugs
   const allSideEffects = drugStats
     ?.flatMap((d) => d.commonSideEffects || [])
+    .map((effect: { name: string; count: number; percentage: number }) => {
+      // Parse the JSON string to extract the actual name
+      try {
+        const parsed = JSON.parse(effect.name)
+        return { name: parsed.name, percentage: effect.percentage, count: effect.count }
+      } catch {
+        return { name: effect.name, percentage: effect.percentage, count: effect.count }
+      }
+    })
     .reduce(
       (acc: Array<{ name: string; percentage: number }>, effect: { name: string; count: number; percentage: number }) => {
         const existing = acc.find((e: { name: string; percentage: number }) => e.name === effect.name)
@@ -101,7 +110,7 @@ const DashboardPage = () => {
         <div className="mb-8">
           <h1 className="mb-3 text-4xl font-bold">Data Dashboard</h1>
           <p className="text-lg text-muted-foreground">
-            Real-time insights from {platformStats?.totalExperiences.toLocaleString() ?? 0} GLP-1 user
+            Real-time insights from {platformStats?.totalExperiences.toLocaleString() ?? 0} weight-loss user
             experiences across Reddit
           </p>
         </div>
@@ -115,15 +124,15 @@ const DashboardPage = () => {
             icon={MessageSquare}
           />
           <StatCard
-            title="Medications Tracked"
+            title="Drugs Tracked"
             value={platformStats?.uniqueDrugs ?? 0}
-            subtitle="Different GLP-1 medications"
+            subtitle="Different weight-loss drugs"
             icon={Activity}
           />
           <StatCard
             title="Avg. Weight Loss"
             value={`${Math.round(platformStats?.avgWeightLossPercentage ?? 0)}%`}
-            subtitle="Across all medications"
+            subtitle="Across all drugs"
             icon={TrendingDown}
             valueClassName="text-primary"
           />
@@ -224,21 +233,21 @@ const DashboardPage = () => {
               </Card>
 
               <Card className="border-border/40 bg-card p-6">
-                <h4 className="mb-2 text-sm font-medium text-muted-foreground">Most Recommended</h4>
+                <h4 className="mb-2 text-sm font-medium text-muted-foreground">Highest Rated</h4>
                 <p className="mb-1 text-2xl font-bold">
                   {
                     drugStats?.sort(
-                      (a, b) => (b.avgRecommendationScore || 0) - (a.avgRecommendationScore || 0)
+                      (a, b) => (b.avgSentimentPost || 0) - (a.avgSentimentPost || 0)
                     )[0]?.drug ?? 'N/A'
                   }
                 </p>
                 <div className="text-lg text-primary">
-                  {Math.round(
+                  {(
                     (drugStats?.sort(
-                      (a, b) => (b.avgRecommendationScore || 0) - (a.avgRecommendationScore || 0)
-                    )[0]?.avgRecommendationScore || 0) * 100
-                  )}
-                  % recommend
+                      (a, b) => (b.avgSentimentPost || 0) - (a.avgSentimentPost || 0)
+                    )[0]?.avgSentimentPost || 0) * 10
+                  ).toFixed(1)}
+                  /10 rating
                 </div>
               </Card>
 
@@ -247,14 +256,27 @@ const DashboardPage = () => {
                   Best Insurance Coverage
                 </h4>
                 <p className="mb-1 text-2xl font-bold">
-                  {drugStats?.sort((a, b) => b.insuranceCoverage - a.insuranceCoverage)[0]?.drug ?? 'N/A'}
+                  {(() => {
+                    const drugsWithCoverage = drugStats?.map(d => ({
+                      drug: d.drug,
+                      coverage: d.drugSources.brand > 0
+                        ? Math.round((d.drugSources.brand / (d.drugSources.brand + d.drugSources.compounded + d.drugSources.outOfPocket + d.drugSources.other || 1)) * 100)
+                        : 0
+                    })).sort((a, b) => b.coverage - a.coverage) ?? []
+                    return drugsWithCoverage[0]?.drug ?? 'N/A'
+                  })()}
                 </p>
                 <div className="text-lg text-primary">
-                  {Math.round(
-                    drugStats?.sort((a, b) => b.insuranceCoverage - a.insuranceCoverage)[0]
-                      ?.insuranceCoverage ?? 0
-                  )}
-                  % coverage
+                  {(() => {
+                    const drugsWithCoverage = drugStats?.map(d => ({
+                      drug: d.drug,
+                      coverage: d.drugSources.brand > 0
+                        ? Math.round((d.drugSources.brand / (d.drugSources.brand + d.drugSources.compounded + d.drugSources.outOfPocket + d.drugSources.other || 1)) * 100)
+                        : 0
+                    })).sort((a, b) => b.coverage - a.coverage) ?? []
+                    return drugsWithCoverage[0]?.coverage ?? 0
+                  })()}
+                  % brand name
                 </div>
               </Card>
             </div>
@@ -343,7 +365,7 @@ const DashboardPage = () => {
               <Card className="border-border/40 bg-card p-6">
                 <h3 className="mb-4 text-lg font-semibold">Most Common Side Effects</h3>
                 <p className="mb-6 text-sm text-muted-foreground">
-                  Reported across all GLP-1 medications
+                  Reported across all weight-loss drugs
                 </p>
                 <ChartContainer
                   config={{

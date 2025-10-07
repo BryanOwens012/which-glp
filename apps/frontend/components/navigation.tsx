@@ -4,7 +4,7 @@ export const Navigation = () => {
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 border-b border-border/40 bg-background/80 backdrop-blur-sm">
       <div className="container mx-auto flex items-center justify-between px-4 py-4">
-        <Link href="/" className="flex items-center gap-2">
+        <Link href="/compare" className="flex items-center gap-2">
           <div className="text-2xl font-bold text-foreground">
             Which<span className="text-primary">GLP</span>
           </div>
@@ -23,17 +23,23 @@ export const Navigation = () => {
           >
             Experiences
           </Link>
-          <Link
+          {/* <Link
             href="/dashboard"
             className="text-sm text-muted-foreground transition-colors hover:text-foreground"
           >
             Dashboard
-          </Link>
+          </Link> */}
           <Link
-            href="/predict"
+            href="/recommendations"
             className="text-sm text-muted-foreground transition-colors hover:text-foreground"
           >
-            Get Prediction
+            Personalized Recommendations
+          </Link>
+          <Link
+            href="/about"
+            className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+          >
+            About
           </Link>
         </div>
       </div>

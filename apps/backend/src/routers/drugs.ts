@@ -25,14 +25,14 @@ export const drugsRouter = router({
 
     const drugStats = Array.from(drugMap.entries()).map(([drug, exps]) => {
       // Weight loss stats
-      const weightLossData = exps.filter(e => e.weightLoss && e.weightLossUnit === 'percent')
+      const weightLossData = exps.filter(e => e.weight_loss_percentage !== null && e.weight_loss_percentage !== undefined)
       const avgWeightLoss = weightLossData.length > 0
-        ? weightLossData.reduce((sum, e) => sum + e.weightLoss, 0) / weightLossData.length
+        ? weightLossData.reduce((sum, e) => sum + e.weight_loss_percentage, 0) / weightLossData.length
         : null
 
-      const weightLossLbsData = exps.filter(e => e.weightLoss && e.weightLossUnit === 'lbs')
+      const weightLossLbsData = exps.filter(e => e.weight_loss_lbs !== null && e.weight_loss_lbs !== undefined)
       const avgWeightLossLbs = weightLossLbsData.length > 0
-        ? weightLossLbsData.reduce((sum, e) => sum + e.weightLoss, 0) / weightLossLbsData.length
+        ? weightLossLbsData.reduce((sum, e) => sum + e.weight_loss_lbs, 0) / weightLossLbsData.length
         : null
 
       // Duration stats
@@ -86,11 +86,29 @@ export const drugsRouter = router({
         .sort((a, b) => b.count - a.count)
         .slice(0, 10)
 
-      // Side effect severity (placeholder - need severity data in DB)
-      const sideEffectSeverity = {
-        mild: 60,
-        moderate: 30,
-        severe: 10
+      // Side effect severity - calculate from actual data
+      const severityCounts = { mild: 0, moderate: 0, severe: 0 }
+      allSideEffects.forEach(effect => {
+        try {
+          const parsed = typeof effect === 'string' ? JSON.parse(effect) : effect
+          const severity = parsed.severity?.toLowerCase()
+          if (severity === 'mild') severityCounts.mild++
+          else if (severity === 'moderate') severityCounts.moderate++
+          else if (severity === 'severe') severityCounts.severe++
+        } catch {
+          // If parsing fails, skip this effect
+        }
+      })
+
+      const totalSeverity = severityCounts.mild + severityCounts.moderate + severityCounts.severe
+      const sideEffectSeverity = totalSeverity > 0 ? {
+        mild: (severityCounts.mild / totalSeverity) * 100,
+        moderate: (severityCounts.moderate / totalSeverity) * 100,
+        severe: (severityCounts.severe / totalSeverity) * 100
+      } : {
+        mild: 0,
+        moderate: 0,
+        severe: 0
       }
 
       // Insurance coverage

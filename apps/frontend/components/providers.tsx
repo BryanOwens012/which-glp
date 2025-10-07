@@ -20,7 +20,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     trpc.createClient({
       links: [
         httpBatchLink({
-          url: process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3002/trpc',
+          url: process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000/trpc',
           transformer: superjson,
         }),
       ],

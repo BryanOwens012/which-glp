@@ -258,6 +258,9 @@ export async function getExperiences(filters?: {
       primary_drug: "Wegovy",
       weightLoss: 35,
       weightLossUnit: "lbs",
+      beginning_weight: null,
+      end_weight: null,
+      side_effects: [],
       duration_weeks: 24,
       sentiment_post: 0.85,
       recommendation_score: 0.9,
@@ -267,6 +270,7 @@ export async function getExperiences(filters?: {
       sex: "female",
       location: "California",
       processed_at: "2025-01-15T10:30:00Z",
+      created_at: "2024-07-15T08:00:00Z",
     },
     {
       id: "2",
@@ -277,6 +281,9 @@ export async function getExperiences(filters?: {
       primary_drug: "Mounjaro",
       weightLoss: 45,
       weightLossUnit: "lbs",
+      beginning_weight: null,
+      end_weight: null,
+      side_effects: [],
       duration_weeks: 20,
       sentiment_post: 0.92,
       recommendation_score: 0.95,
@@ -286,6 +293,7 @@ export async function getExperiences(filters?: {
       sex: "male",
       location: "Texas",
       processed_at: "2025-01-14T15:45:00Z",
+      created_at: "2024-08-10T12:30:00Z",
     },
     {
       id: "3",
@@ -296,6 +304,9 @@ export async function getExperiences(filters?: {
       primary_drug: "Ozempic",
       weightLoss: 12,
       weightLossUnit: "lbs",
+      beginning_weight: null,
+      end_weight: null,
+      side_effects: [],
       duration_weeks: 6,
       sentiment_post: 0.72,
       recommendation_score: 0.8,
@@ -305,6 +316,7 @@ export async function getExperiences(filters?: {
       sex: "female",
       location: "Florida",
       processed_at: "2025-01-13T09:20:00Z",
+      created_at: "2024-12-01T14:00:00Z",
     },
   ]
 

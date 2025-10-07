@@ -379,7 +379,7 @@ export function formatSentiment(score: number | null): string {
 }
 
 /**
- * Get rating color class (for recommendation_score which is 0-1)
+ * Get rating color class (for sentiment_post which is 0-1)
  */
 export function getRatingColor(score: number | null): string {
   if (score === null) return "text-muted-foreground"

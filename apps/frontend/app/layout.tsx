@@ -9,12 +9,11 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: {
-    default:
-      "WhichGLP - GLP-1 Weight-Loss Drugs - Real-World Reviews & Outcomes",
+    default: "WhichGLP - Weight-Loss Drugs - Real-World Reviews & Outcomes",
     template: "%s | WhichGLP",
   },
   description:
-    "Compare GLP-1 medications like Ozempic, Wegovy, Mounjaro, and Zepbound using real-world data. Make informed decisions based on thousands of user experiences, cost analysis, and outcome predictions.",
+    "Compare weight-loss drugs like Ozempic, Wegovy, Mounjaro, and Zepbound using real-world data. Make informed decisions based on thousands of user experiences, cost analysis, and outcome predictions.",
   keywords: [
     "GLP-1",
     "agonist",
@@ -26,11 +25,11 @@ export const metadata: Metadata = {
     "Saxenda",
     "semaglutide",
     "tirzepatide",
-    "weight loss medication",
+    "weight loss drug",
     "GLP-1 agonist",
     "drug comparison",
     "real user reviews",
-    "medication outcomes",
+    "drug outcomes",
   ],
   authors: [{ name: "WhichGLP" }],
   creator: "WhichGLP",
@@ -41,9 +40,9 @@ export const metadata: Metadata = {
     locale: "en_US",
     url: "https://whichglp.com",
     siteName: "WhichGLP",
-    title: "WhichGLP - Real-World GLP-1 Drug Reviews & Outcomes",
+    title: "WhichGLP - Real-World Weight-Loss Drug Reviews & Outcomes",
     description:
-      "Compare GLP-1 medications using real-world data from thousands of user experiences. Get personalized predictions for weight loss outcomes.",
+      "Compare weight-loss drugs using real-world data from thousands of user experiences. Get personalized recommendations for weight loss outcomes.",
     // images: [
     //   {
     //     url: "/og-image.png",
