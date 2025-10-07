@@ -57,7 +57,12 @@ export const recommendationsRouter = router({
         // Get ML API URL from environment or default to 127.0.0.1
         // On Railway: Use the ML_URL env var with the internal service URL
         // Locally: Use 127.0.0.1 instead of localhost to avoid IPv6 resolution issues
-        const mlApiUrl = process.env.ML_URL || 'http://127.0.0.1:8001'
+        let mlApiUrl = process.env.ML_URL || 'http://127.0.0.1:8001'
+
+        // Add http:// if not present (Railway internal URLs don't include protocol)
+        if (!mlApiUrl.startsWith('http://') && !mlApiUrl.startsWith('https://')) {
+          mlApiUrl = `http://${mlApiUrl}`
+        }
 
         // Call FastAPI service
         const response = await fetch(`${mlApiUrl}/api/recommendations`, {
