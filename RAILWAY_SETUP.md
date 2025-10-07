@@ -61,7 +61,12 @@ SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_ANON_KEY=your-anon-key-here
 
 # ML API Connection (IMPORTANT)
-ML_URL=https://whichglp-ml.railway.app
+# Option 1: Use Railway's service reference (recommended for internal communication)
+# Railway will automatically inject the full URL with port
+ML_URL=${{ML.RAILWAY_PUBLIC_DOMAIN}}
+
+# Option 2: Use public domain (works but slower than internal)
+# ML_URL=https://ml-production-xxxx.up.railway.app
 
 # Redis (from Railway Redis plugin)
 REDIS_URL=redis://default:password@redis.railway.internal:6379
