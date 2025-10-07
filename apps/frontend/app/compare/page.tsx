@@ -30,14 +30,12 @@ const ComparePage = () => {
   useEffect(() => {
     if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
       requestIdleCallback(() => {
-        router.prefetch("/experiences");
         router.prefetch("/recommendations");
         router.prefetch("/about");
       });
     } else {
       // Fallback for browsers without requestIdleCallback
       setTimeout(() => {
-        router.prefetch("/experiences");
         router.prefetch("/recommendations");
         router.prefetch("/about");
       }, 1000);
