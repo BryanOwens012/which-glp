@@ -1,8 +1,7 @@
 /**
- * Stub AppRouter type for frontend.
- * This allows the frontend to build independently on Vercel.
+ * Re-export AppRouter type from backend for frontend consumption.
  *
- * IMPORTANT: This is a placeholder. The actual types come from the backend at runtime.
- * For full type safety in development, run the backend locally.
+ * The frontend now has @supabase/supabase-js as a devDependency,
+ * so TypeScript can resolve backend imports during build.
  */
-export type AppRouter = any
+export type { AppRouter } from '../../backend/src/routers/index.js'
