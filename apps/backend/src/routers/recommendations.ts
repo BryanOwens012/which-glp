@@ -59,9 +59,11 @@ export const recommendationsRouter = router({
         // Locally: Use 127.0.0.1 instead of localhost to avoid IPv6 resolution issues
         let mlApiUrl = process.env.ML_URL?.trim() || 'http://127.0.0.1:8001'
 
-        // Add http:// if not present (Railway internal URLs don't include protocol)
+        // Add protocol if not present
+        // Use https:// for Railway domains (.railway.app), http:// for local
         if (!mlApiUrl.startsWith('http://') && !mlApiUrl.startsWith('https://')) {
-          mlApiUrl = `http://${mlApiUrl}`
+          const protocol = mlApiUrl.includes('railway.app') ? 'https://' : 'http://'
+          mlApiUrl = `${protocol}${mlApiUrl}`
         }
 
         console.log(`[ML API] Calling: ${mlApiUrl}/api/recommendations`)
