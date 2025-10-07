@@ -41,7 +41,7 @@ SELECT
   ef.currency,
   ef.has_insurance,
   ef.insurance_provider,
-  ef.side_effects,
+  ef.side_effects, -- Full JSONB with severity info
   ef.comorbidities,
   ef.drug_source,
   ef.pharmacy_access_issues,

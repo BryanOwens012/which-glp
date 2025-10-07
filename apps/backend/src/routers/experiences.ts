@@ -43,7 +43,8 @@ export const experiencesRouter = router({
         .from('mv_experiences_denormalized')
         .select('*', { count: 'exact' })
 
-      // Only show posts (not comments)
+      // Only show posts (not comments) AND ensure we only get ONE row per post_id
+      // by selecting only rows where the feature was extracted from the post itself
       query = query.is('comment_id', null)
 
       if (input.drug) {
@@ -55,47 +56,56 @@ export const experiencesRouter = router({
       }
 
       // Apply sorting BEFORE pagination - this is critical for consistent results
-      // Always add a secondary sort by feature_id to ensure deterministic ordering
       switch (sortBy) {
         case 'date':
-          query = query.order('created_at', { ascending: sortOrder === 'asc', nullsFirst: false })
-            .order('feature_id', { ascending: true })
+          query = query
+            .order('created_at', { ascending: sortOrder === 'asc', nullsFirst: false })
+            .order('post_id', { ascending: true })
           break
         case 'rating':
-          query = query.order('recommendation_score', { ascending: sortOrder === 'asc', nullsFirst: false })
-            .order('feature_id', { ascending: true })
+          query = query
+            .order('recommendation_score', { ascending: sortOrder === 'asc', nullsFirst: false })
+            .order('post_id', { ascending: true })
           break
         case 'duration':
-          query = query.order('duration_weeks', { ascending: sortOrder === 'asc', nullsFirst: false })
-            .order('feature_id', { ascending: true })
+          query = query
+            .order('duration_weeks', { ascending: sortOrder === 'asc', nullsFirst: false })
+            .order('post_id', { ascending: true })
           break
         case 'startWeight':
-          query = query.order('beginning_weight->value', { ascending: sortOrder === 'asc', nullsFirst: false })
-            .order('feature_id', { ascending: true })
+          query = query
+            .order('beginning_weight->value', { ascending: sortOrder === 'asc', nullsFirst: false })
+            .order('post_id', { ascending: true })
           break
         case 'endWeight':
-          query = query.order('end_weight->value', { ascending: sortOrder === 'asc', nullsFirst: false })
-            .order('feature_id', { ascending: true })
+          query = query
+            .order('end_weight->value', { ascending: sortOrder === 'asc', nullsFirst: false })
+            .order('post_id', { ascending: true })
           break
         case 'weightChange':
-          query = query.order('weight_loss_lbs', { ascending: sortOrder === 'asc', nullsFirst: false })
-            .order('feature_id', { ascending: true })
+          query = query
+            .order('weight_loss_lbs', { ascending: sortOrder === 'asc', nullsFirst: false })
+            .order('post_id', { ascending: true })
           break
         case 'weightLossPercent':
-          query = query.order('weight_loss_percentage', { ascending: sortOrder === 'asc', nullsFirst: false })
-            .order('feature_id', { ascending: true })
+          query = query
+            .order('weight_loss_percentage', { ascending: sortOrder === 'asc', nullsFirst: false })
+            .order('post_id', { ascending: true })
           break
         case 'weightLossSpeed':
-          query = query.order('weight_loss_speed_lbs_per_month', { ascending: sortOrder === 'asc', nullsFirst: false })
-            .order('feature_id', { ascending: true })
+          query = query
+            .order('weight_loss_speed_lbs_per_month', { ascending: sortOrder === 'asc', nullsFirst: false })
+            .order('post_id', { ascending: true })
           break
         case 'weightLossSpeedPercent':
-          query = query.order('weight_loss_speed_percent_per_month', { ascending: sortOrder === 'asc', nullsFirst: false })
-            .order('feature_id', { ascending: true })
+          query = query
+            .order('weight_loss_speed_percent_per_month', { ascending: sortOrder === 'asc', nullsFirst: false })
+            .order('post_id', { ascending: true })
           break
         default:
-          query = query.order('created_at', { ascending: false, nullsFirst: false })
-            .order('feature_id', { ascending: true })
+          query = query
+            .order('created_at', { ascending: false, nullsFirst: false })
+            .order('post_id', { ascending: true })
       }
 
       // Apply pagination AFTER sorting
@@ -108,20 +118,8 @@ export const experiencesRouter = router({
         throw new Error('Failed to fetch experiences')
       }
 
-      // De-duplicate by post_id (keep first occurrence)
-      const seenPostIds = new Set<string>()
-      const deduplicatedData = (data || []).filter((experience) => {
-        if (experience.post_id && seenPostIds.has(experience.post_id)) {
-          return false
-        }
-        if (experience.post_id) {
-          seenPostIds.add(experience.post_id)
-        }
-        return true
-      })
-
       // Map feature_id to id for frontend compatibility
-      const mappedData = deduplicatedData.map((experience) => ({
+      const mappedData = (data || []).map((experience) => ({
         ...experience,
         id: experience.feature_id,
       }))

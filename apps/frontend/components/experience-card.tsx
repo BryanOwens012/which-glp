@@ -1,16 +1,16 @@
-import { useState } from "react"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import { RedditLink } from "@/components/reddit-link"
 import {
   ExperienceCard as ExperienceCardType,
   getRedditReference,
   formatDuration,
   formatCost,
-  getSentimentColor,
+  getRatingColor,
+  getSideEffectColor,
+  sortSideEffects,
 } from "@/lib/types"
-import { TrendingDown, Clock, DollarSign, AlertCircle, ThumbsUp, Star, Calendar, ChevronDown, ChevronUp } from "lucide-react"
+import { TrendingDown, Clock, AlertCircle, Star } from "lucide-react"
 
 type ExperienceCardProps = {
   experience: ExperienceCardType
@@ -22,7 +22,6 @@ type ExperienceCardProps = {
  * Used on /experiences page and in search results
  */
 export function ExperienceCard({ experience, onClick }: ExperienceCardProps) {
-  const [isExpanded, setIsExpanded] = useState(false)
   const redditRef = getRedditReference(experience)
 
   // Calculate weight loss display with percentage
@@ -51,9 +50,6 @@ export function ExperienceCard({ experience, onClick }: ExperienceCardProps) {
     ? new Date(experience.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     : null
 
-  // Check if summary is long enough to need expansion
-  const needsExpansion = experience.summary.length > 150
-
   return (
     <Card
       className="border-border/40 bg-card p-6 hover:border-primary/50 transition-colors cursor-pointer relative"
@@ -68,32 +64,9 @@ export function ExperienceCard({ experience, onClick }: ExperienceCardProps) {
                 {experience.primary_drug}
               </Badge>
             )}
-            <div className="relative">
-              <p className={`text-sm text-muted-foreground ${!isExpanded && needsExpansion ? 'line-clamp-3' : ''}`}>
-                {experience.summary}
-              </p>
-              {needsExpansion && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-auto p-0 mt-1 text-xs text-primary hover:text-primary/80 hover:bg-transparent relative z-10"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setIsExpanded(!isExpanded)
-                  }}
-                >
-                  {isExpanded ? (
-                    <>
-                      See less <ChevronUp className="ml-1 h-3 w-3" />
-                    </>
-                  ) : (
-                    <>
-                      See more <ChevronDown className="ml-1 h-3 w-3" />
-                    </>
-                  )}
-                </Button>
-              )}
-            </div>
+            <p className="text-sm text-muted-foreground line-clamp-3">
+              {experience.summary}
+            </p>
           </div>
           <div className="shrink-0 mt-1 relative z-10">
             {redditRef && <RedditLink reference={redditRef} />}
@@ -108,9 +81,9 @@ export function ExperienceCard({ experience, onClick }: ExperienceCardProps) {
               <Star className="h-4 w-4 text-yellow-500" />
               <div>
                 <div
-                  className={`text-sm font-semibold ${getSentimentColor(experience.recommendation_score)}`}
+                  className={`text-sm font-semibold ${getRatingColor(experience.recommendation_score)}`}
                 >
-                  {(experience.recommendation_score * 10).toFixed(1)}/10
+                  {(experience.recommendation_score * 10).toFixed(1)}
                 </div>
                 <div className="text-xs text-muted-foreground">Rating</div>
               </div>
@@ -152,15 +125,19 @@ export function ExperienceCard({ experience, onClick }: ExperienceCardProps) {
         </div>
 
         {/* Side Effects */}
-        {experience.top_side_effects && experience.top_side_effects.length > 0 && (
+        {experience.side_effects && experience.side_effects.length > 0 && (
           <div className="flex items-start gap-2 pt-4 border-t border-border/40">
             <AlertCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
             <div className="flex-1">
               <div className="text-xs font-medium text-muted-foreground mb-1">Side Effects</div>
               <div className="flex flex-wrap gap-1">
-                {experience.top_side_effects.map((effect, index) => (
-                  <Badge key={`${effect}-${index}`} variant="outline" className="text-xs">
-                    {effect}
+                {sortSideEffects(experience.side_effects).slice(0, 5).map((effect, index) => (
+                  <Badge
+                    key={`${effect.name}-${index}`}
+                    variant="outline"
+                    className={`text-xs text-white border-0 ${getSideEffectColor(effect.severity)}`}
+                  >
+                    {effect.name.charAt(0).toUpperCase() + effect.name.slice(1)}
                   </Badge>
                 ))}
               </div>

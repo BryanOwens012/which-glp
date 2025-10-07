@@ -25,7 +25,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { RedditLink } from "@/components/reddit-link"
-import { getRedditReference, formatDuration, formatCost } from "@/lib/types"
+import { getRedditReference, formatDuration, formatCost, getRatingColor, getSideEffectColor, sortSideEffects } from "@/lib/types"
 import { SortField, SortDirection, SORT_FIELD_LABELS, SORT_DIRECTION_TOOLTIPS, SortFieldType, SortDirectionType } from "@/lib/sort-types"
 
 const ExperiencesPage = () => {
@@ -71,7 +71,6 @@ const ExperiencesPage = () => {
         const loadedCount = allPages.reduce((sum, page) => sum + page.experiences.length, 0)
         return loadedCount < lastPage.total ? loadedCount : undefined
       },
-      keepPreviousData: true, // Keep previous data while fetching new
     }
   )
 
@@ -299,26 +298,15 @@ const ExperiencesPage = () => {
 
       {/* Experience Detail Dialog */}
       <Dialog open={!!selectedExperienceId} onOpenChange={() => setSelectedExperienceId(null)}>
-        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto" aria-describedby={undefined}>
           {selectedExperience && (
             <>
               <DialogHeader>
-                <div className="flex items-start justify-between gap-4">
-                  <DialogTitle className="text-2xl">User Experience</DialogTitle>
-                  {getRedditReference(selectedExperience) && (
-                    <RedditLink
-                      reference={getRedditReference(selectedExperience)!}
-                      showText
-                      className="shrink-0"
-                    />
-                  )}
-                </div>
-                <DialogDescription>
-                  {selectedExperience.primary_drug && (
-                    <Badge className="mt-2">{selectedExperience.primary_drug}</Badge>
-                  )}
-                </DialogDescription>
+                <DialogTitle className="text-2xl">User Experience</DialogTitle>
               </DialogHeader>
+              {selectedExperience.primary_drug && (
+                <Badge className="mt-2">{selectedExperience.primary_drug}</Badge>
+              )}
 
               <div className="space-y-6">
                 {/* Summary */}
@@ -359,8 +347,8 @@ const ExperiencesPage = () => {
                   {selectedExperience.recommendation_score !== null && (
                     <Card className="border-border/40 bg-muted/30 p-4">
                       <div className="text-xs text-muted-foreground mb-1">Rating</div>
-                      <div className="text-lg font-bold text-primary">
-                        {(selectedExperience.recommendation_score * 10).toFixed(1)}/10
+                      <div className={`text-lg font-bold ${getRatingColor(selectedExperience.recommendation_score)}`}>
+                        {(selectedExperience.recommendation_score * 10).toFixed(1)}
                       </div>
                     </Card>
                   )}
@@ -376,15 +364,19 @@ const ExperiencesPage = () => {
                 </div>
 
                 {/* Side Effects */}
-                {selectedExperience.top_side_effects.length > 0 && (
+                {selectedExperience.side_effects && selectedExperience.side_effects.length > 0 && (
                   <div>
                     <h3 className="mb-2 text-sm font-semibold text-muted-foreground">
                       Reported Side Effects
                     </h3>
                     <div className="flex flex-wrap gap-2">
-                      {selectedExperience.top_side_effects.map((effect: string) => (
-                        <Badge key={effect} variant="outline" className="capitalize">
-                          {effect}
+                      {sortSideEffects(selectedExperience.side_effects).map((effect, index) => (
+                        <Badge
+                          key={`${effect.name}-${index}`}
+                          variant="outline"
+                          className={`text-white border-0 ${getSideEffectColor(effect.severity)}`}
+                        >
+                          {effect.name.charAt(0).toUpperCase() + effect.name.slice(1)}
                         </Badge>
                       ))}
                     </div>
@@ -422,9 +414,24 @@ const ExperiencesPage = () => {
                   </div>
                 )}
 
-                {/* Timestamp */}
-                <div className="text-xs text-muted-foreground">
-                  Processed: {new Date(selectedExperience.processed_at).toLocaleDateString()}
+                {/* Timestamp and Source */}
+                <div className="space-y-2">
+                  <div className="text-xs text-muted-foreground">
+                    Processed: {new Date(selectedExperience.processed_at).toLocaleDateString()}
+                  </div>
+                  {selectedExperience.created_at && (
+                    <div className="text-xs text-muted-foreground">
+                      Posted: {new Date(selectedExperience.created_at).toLocaleDateString()}
+                    </div>
+                  )}
+                  {getRedditReference(selectedExperience) && (
+                    <div>
+                      <RedditLink
+                        reference={getRedditReference(selectedExperience)!}
+                        showText
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
             </>

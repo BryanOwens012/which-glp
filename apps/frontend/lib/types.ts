@@ -177,7 +177,8 @@ export type ExperienceCard = {
   duration_weeks: number | null
   sentiment_post: number | null
   recommendation_score: number | null
-  top_side_effects: string[] // top 3
+  side_effects: SideEffect[] // Full side effects with severity
+  top_side_effects: string[] // Simple array for backward compatibility
   cost_per_month: number | null
   age: number | null
   sex: Sex | null
@@ -378,11 +379,52 @@ export function formatSentiment(score: number | null): string {
 }
 
 /**
- * Get sentiment color class
+ * Get rating color class (for recommendation_score which is 0-1)
+ */
+export function getRatingColor(score: number | null): string {
+  if (score === null) return "text-muted-foreground"
+  // Score is 0-1, so convert to 0-10 scale
+  const ratingOutOf10 = score * 10
+  if (ratingOutOf10 >= 9.0) return "text-green-600"
+  if (ratingOutOf10 >= 7.0) return "text-yellow-600"
+  return "text-red-600"
+}
+
+/**
+ * Get sentiment color class (deprecated - use getRatingColor instead)
  */
 export function getSentimentColor(score: number | null): string {
-  if (score === null) return "text-muted-foreground"
-  if (score >= 0.7) return "text-primary"
-  if (score >= 0.4) return "text-yellow-600"
-  return "text-destructive"
+  return getRatingColor(score)
+}
+
+/**
+ * Get side effect severity color for badges
+ */
+export function getSideEffectColor(severity: "mild" | "moderate" | "severe" | "low" | null): string {
+  if (!severity) return "bg-gray-500"
+  // Map "low" to "mild" for consistency
+  if (severity === "low" || severity === "mild") return "bg-yellow-500"
+  if (severity === "moderate") return "bg-red-500"
+  if (severity === "severe") return "bg-purple-600"
+  return "bg-gray-500"
+}
+
+/**
+ * Sort side effects by severity (severe first) then alphabetically
+ */
+export function sortSideEffects(effects: SideEffect[]): SideEffect[] {
+  const severityOrder = { severe: 0, moderate: 1, mild: 2, low: 2 }
+
+  return [...effects].sort((a, b) => {
+    // First sort by severity
+    const severityA = a.severity ? severityOrder[a.severity] ?? 3 : 3
+    const severityB = b.severity ? severityOrder[b.severity] ?? 3 : 3
+
+    if (severityA !== severityB) {
+      return severityA - severityB
+    }
+
+    // Then sort alphabetically by name
+    return a.name.localeCompare(b.name)
+  })
 }
