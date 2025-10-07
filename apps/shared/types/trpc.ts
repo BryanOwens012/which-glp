@@ -1,17 +1,28 @@
 /**
- * AppRouter stub for production builds.
+ * AppRouter type for tRPC.
  *
- * In production (Vercel), we use this stub to avoid importing backend code.
- * In development, you can optionally import the real types from the backend.
- *
- * This is a necessary compromise for independent frontend/backend deployments.
+ * For Vercel builds, we cannot import from backend due to missing dependencies.
+ * Instead, we define a compatible stub type that satisfies tRPC's requirements.
  */
 
-// Use environment variable to conditionally import real types in development
-const isDevelopment = process.env.NODE_ENV === 'development'
+import type { RootConfig } from '@trpc/server'
 
-// Stub type for production
-export type AppRouter = {
+// Define a minimal router structure that tRPC can work with
+type ProcedureRouterRecord = Record<string, any>
+
+export interface AppRouter extends RootConfig<{
+  ctx: object
+  meta: object
+  errorShape: any
+  transformer: any
+}> {
+  _def: {
+    _config: any
+    router: true
+    procedures: ProcedureRouterRecord
+  }
+  createCaller: any
+  getErrorShape: any
   platform: any
   drugs: any
   experiences: any
