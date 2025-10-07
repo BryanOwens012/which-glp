@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +23,8 @@ import {
 import { trpc } from "@/lib/trpc";
 
 export const DrugComparison = () => {
+  const router = useRouter();
+
   // Fetch real drug stats from API
   const { data: drugStats, isLoading } = trpc.drugs.getAllStats.useQuery();
 
@@ -30,12 +33,37 @@ export const DrugComparison = () => {
   const [showAllDrugs, setShowAllDrugs] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // Navigate to experiences page with drug filter
+  const handleDrugClick = (drugName: string) => {
+    router.push(`/experiences?drug=${encodeURIComponent(drugName)}`);
+  };
+
   // Initialize with top 3 drugs once data is loaded
   useEffect(() => {
     if (drugStats && drugStats.length > 0 && selectedMeds.length === 0) {
       setSelectedMeds(drugStats.slice(0, 3).map((d) => d.drug));
     }
   }, [drugStats, selectedMeds.length]);
+
+  // Prefetch experiences pages for selected drugs during idle time
+  useEffect(() => {
+    if (selectedMeds.length === 0) return;
+
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      requestIdleCallback(() => {
+        selectedMeds.forEach((drug) => {
+          router.prefetch(`/experiences?drug=${encodeURIComponent(drug)}`);
+        });
+      });
+    } else {
+      // Fallback for browsers without requestIdleCallback
+      setTimeout(() => {
+        selectedMeds.forEach((drug) => {
+          router.prefetch(`/experiences?drug=${encodeURIComponent(drug)}`);
+        });
+      }, 500);
+    }
+  }, [selectedMeds, router]);
 
   const toggleDrug = (drug: string) => {
     if (selectedMeds.includes(drug)) {
@@ -149,7 +177,11 @@ export const DrugComparison = () => {
         <TabsContent value="effectiveness">
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {selectedDrugs.map((med) => (
-              <Card key={med.drug} className="border-border/40 bg-card p-6">
+              <Card
+                key={med.drug}
+                className="border-border/40 bg-card p-6 cursor-pointer transition-all hover:shadow-lg hover:border-primary/50"
+                onClick={() => handleDrugClick(med.drug)}
+              >
                 <div className="mb-4">
                   <h3 className="text-xl font-bold">{med.drug}</h3>
                   <p className="text-sm text-muted-foreground">
@@ -281,7 +313,11 @@ export const DrugComparison = () => {
         <TabsContent value="side-effects">
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {selectedDrugs.map((med) => (
-              <Card key={med.drug} className="border-border/40 bg-card p-6">
+              <Card
+                key={med.drug}
+                className="border-border/40 bg-card p-6 cursor-pointer transition-all hover:shadow-lg hover:border-primary/50"
+                onClick={() => handleDrugClick(med.drug)}
+              >
                 <h3 className="mb-4 text-xl font-bold">{med.drug}</h3>
 
                 {med.commonSideEffects.length === 0 ? (
@@ -387,7 +423,11 @@ export const DrugComparison = () => {
               const hasData = med.avgCostPerMonth !== null || totalSources > 0;
 
               return (
-                <Card key={med.drug} className="border-border/40 bg-card p-6">
+                <Card
+                  key={med.drug}
+                  className="border-border/40 bg-card p-6 cursor-pointer transition-all hover:shadow-lg hover:border-primary/50"
+                  onClick={() => handleDrugClick(med.drug)}
+                >
                   <h3 className="mb-4 text-xl font-bold">{med.drug}</h3>
 
                   {!hasData ? (

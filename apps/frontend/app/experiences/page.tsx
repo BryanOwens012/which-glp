@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
+import { useSearchParams, useRouter } from "next/navigation"
 import { Navigation } from "@/components/navigation"
 import { Footer } from "@/components/footer"
 import { Card } from "@/components/ui/card"
@@ -31,16 +32,31 @@ import { getRedditReference, formatDuration, formatCost, getRatingColor, getSide
 import { SortField, SortDirection, SORT_FIELD_LABELS, SORT_DIRECTION_TOOLTIPS, SortFieldType, SortDirectionType } from "@/lib/sort-types"
 
 const ExperiencesPage = () => {
-  // Filters
-  const [selectedDrug, setSelectedDrug] = useState<string>("all")
-  const [searchText, setSearchText] = useState("")
-  const [debouncedSearchText, setDebouncedSearchText] = useState("")
-  const [sortBy, setSortBy] = useState<SortFieldType>(SortField.DATE)
-  const [sortOrder, setSortOrder] = useState<SortDirectionType>(SortDirection.DESC)
+  const searchParams = useSearchParams()
+  const router = useRouter()
+
+  // Initialize filters from URL params with defaults
+  const [selectedDrug, setSelectedDrug] = useState<string>(searchParams.get("drug") || "Wegovy")
+  const [searchText, setSearchText] = useState(searchParams.get("search") || "")
+  const [debouncedSearchText, setDebouncedSearchText] = useState(searchParams.get("search") || "")
+  const [sortBy, setSortBy] = useState<SortFieldType>((searchParams.get("sortBy") as SortFieldType) || SortField.DATE)
+  const [sortOrder, setSortOrder] = useState<SortDirectionType>((searchParams.get("sortOrder") as SortDirectionType) || SortDirection.DESC)
   const [selectedExperienceId, setSelectedExperienceId] = useState<string | null>(null)
 
   // Intersection observer ref for infinite scroll
   const loadMoreRef = useRef<HTMLDivElement>(null)
+
+  // Update URL when filters change (only include non-default values)
+  useEffect(() => {
+    const params = new URLSearchParams()
+    if (selectedDrug !== "Wegovy") params.set("drug", selectedDrug)
+    if (searchText) params.set("search", searchText)
+    if (sortBy !== SortField.DATE) params.set("sortBy", sortBy)
+    if (sortOrder !== SortDirection.DESC) params.set("sortOrder", sortOrder)
+
+    const newUrl = params.toString() ? `/experiences?${params.toString()}` : "/experiences"
+    router.replace(newUrl, { scroll: false })
+  }, [selectedDrug, searchText, sortBy, sortOrder, router])
 
   // Debounce search input
   useEffect(() => {
