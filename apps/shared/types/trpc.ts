@@ -1,11 +1,31 @@
 /**
  * AppRouter type for tRPC.
  *
- * For Vercel builds, we cannot import from backend due to missing dependencies.
- * We use `any` as a workaround to avoid importing backend code during frontend builds.
- *
- * Type safety is maintained in development where the full backend types are available.
+ * This creates a minimal type definition that satisfies tRPC without importing backend code.
  */
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type AppRouter = any
+import type { inferRouterInputs, inferRouterOutputs } from '@trpc/server'
+
+// Define the router structure as an interface
+export interface AppRouter {
+  _def: {
+    _config: {
+      transformer: {
+        input: { serialize: (obj: any) => any; deserialize: (obj: any) => any }
+        output: { serialize: (obj: any) => any; deserialize: (obj: any) => any }
+      }
+      errorFormatter: any
+      allowOutsideOfServer: boolean
+      isServer: boolean
+      $types: any
+    }
+    router: true
+    procedures: {
+      platform: any
+      drugs: any
+      experiences: any
+      locations: any
+      demographics: any
+    }
+  }
+}
