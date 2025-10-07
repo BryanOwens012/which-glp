@@ -7,7 +7,8 @@ export const drugsRouter = router({
     // Cache key for all drug stats
     // This endpoint is called on initial /compare page load
     const cacheKey = 'drugs:all-stats'
-    const cacheTTL = 300 // 5 minutes
+    const cacheTTL = 3 * 24 * 60 * 60 // 3 days (259200 seconds)
+    // Data refreshes every few days when new Reddit posts are ingested
 
     return withCache(cacheKey, cacheTTL, async () => {
       return await fetchAllDrugStats()
