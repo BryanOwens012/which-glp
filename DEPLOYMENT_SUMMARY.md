@@ -76,7 +76,7 @@ curl http://localhost:8001/health
 1. **whichglp-backend** (Node.js)
    - Port: 8000
    - Handles: tRPC API, experiences, stats
-   - Environment: `ML_API_URL=<ml-service-url>`
+   - Environment: `ML_URL=<ml-service-url>`
 
 2. **whichglp-frontend** (Next.js)
    - Port: 3000
@@ -99,14 +99,14 @@ Add to `whichglp-ml`:
 ```bash
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_KEY=your-service-key
-ML_API_PORT=8001
+ML_PORT=8001
 ```
 
 #### Step 3: Update Backend
 
 In `whichglp-backend` service, add/update:
 ```bash
-ML_API_URL=https://whichglp-ml.railway.app
+ML_URL=https://whichglp-ml.railway.app
 ```
 
 #### Step 4: Deploy
@@ -210,7 +210,7 @@ Push to GitHub → All services auto-deploy
 ### Deploy to Railway
 1. [ ] Create `whichglp-ml` service
 2. [ ] Set environment variables
-3. [ ] Update `ML_API_URL` in backend service
+3. [ ] Update `ML_URL` in backend service
 4. [ ] Push to GitHub
 5. [ ] Monitor deployment logs
 6. [ ] Test production recommendations

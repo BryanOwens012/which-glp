@@ -11,9 +11,9 @@ cd "$REPO_ROOT"
 source "$REPO_ROOT/venv/bin/activate"
 
 # Set port from environment or default to 8001
-ML_API_PORT=${ML_API_PORT:-8001}
+ML_PORT=${ML_PORT:-8001}
 
-echo "Starting WhichGLP ML API on port $ML_API_PORT..."
+echo "Starting WhichGLP ML API on port $ML_PORT..."
 
 # Run the API
 cd "$REPO_ROOT/apps/ml"

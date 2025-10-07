@@ -74,7 +74,7 @@ which-glp/
   - `SUPABASE_URL`
   - `SUPABASE_ANON_KEY`
   - `REDIS_URL`
-  - `ML_API_URL` (points to ML service)
+  - `ML_URL` (points to ML service)
 
 ---
 
@@ -108,7 +108,7 @@ which-glp/
 - Environment variables:
   - `SUPABASE_URL`
   - `SUPABASE_SERVICE_KEY`
-  - `ML_API_PORT`
+  - `ML_PORT`
 
 ---
 
@@ -230,7 +230,7 @@ NEXT_PUBLIC_API_URL=http://localhost:8000
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_ANON_KEY=your-anon-key
 REDIS_URL=redis://localhost:6379
-ML_API_URL=http://localhost:8001
+ML_URL=http://localhost:8001
 ```
 
 ---
@@ -260,7 +260,7 @@ ML_API_URL=http://localhost:8001
    - `SUPABASE_URL`
    - `SUPABASE_ANON_KEY`
    - `REDIS_URL` (from Railway Redis addon)
-   - `ML_API_URL=https://your-ml.railway.app`
+   - `ML_URL=https://your-ml.railway.app`
 
 ### Step 3: ML API Service
 
@@ -273,13 +273,13 @@ ML_API_URL=http://localhost:8001
 4. Environment variables:
    - `SUPABASE_URL`
    - `SUPABASE_SERVICE_KEY`
-   - `ML_API_PORT=8001`
+   - `ML_PORT=8001`
 
 ### Step 4: Link Services
 
 Update backend environment:
 ```bash
-ML_API_URL=https://whichglp-ml.railway.app
+ML_URL=https://whichglp-ml.railway.app
 ```
 
 Update frontend environment:
