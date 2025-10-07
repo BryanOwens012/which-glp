@@ -21,12 +21,14 @@ export const Navigation = () => {
         <div className="hidden items-center gap-8 md:flex">
           <Link
             href="/compare"
+            prefetch={true}
             className="text-sm text-muted-foreground transition-colors hover:text-foreground"
           >
             Compare
           </Link>
           <Link
             href="/experiences"
+            prefetch={true}
             className="text-sm text-muted-foreground transition-colors hover:text-foreground"
           >
             Experiences
@@ -39,12 +41,14 @@ export const Navigation = () => {
           </Link> */}
           <Link
             href="/recommendations"
+            prefetch={true}
             className="text-sm text-muted-foreground transition-colors hover:text-foreground"
           >
             Recommend for Me
           </Link>
           <Link
             href="/about"
+            prefetch={true}
             className="text-sm text-muted-foreground transition-colors hover:text-foreground"
           >
             About

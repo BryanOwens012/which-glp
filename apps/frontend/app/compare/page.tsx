@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +24,15 @@ import {
 } from "@/components/ui/tooltip";
 
 const ComparePage = () => {
+  const router = useRouter();
+
+  // Prefetch related pages when component mounts
+  useEffect(() => {
+    router.prefetch("/experiences");
+    router.prefetch("/recommendations");
+    router.prefetch("/about");
+  }, [router]);
+
   // Fetch real platform stats from backend
   const { data: stats, isLoading } = trpc.platform.getStats.useQuery();
   return (
