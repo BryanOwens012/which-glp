@@ -26,11 +26,22 @@ import {
 const ComparePage = () => {
   const router = useRouter();
 
-  // Prefetch related pages when component mounts
+  // Prefetch related pages during idle time to avoid impacting page performance
   useEffect(() => {
-    router.prefetch("/experiences");
-    router.prefetch("/recommendations");
-    router.prefetch("/about");
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      requestIdleCallback(() => {
+        router.prefetch("/experiences");
+        router.prefetch("/recommendations");
+        router.prefetch("/about");
+      });
+    } else {
+      // Fallback for browsers without requestIdleCallback
+      setTimeout(() => {
+        router.prefetch("/experiences");
+        router.prefetch("/recommendations");
+        router.prefetch("/about");
+      }, 1000);
+    }
   }, [router]);
 
   // Fetch real platform stats from backend
