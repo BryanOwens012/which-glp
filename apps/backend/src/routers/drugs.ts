@@ -77,6 +77,10 @@ export const drugsRouter = router({
         return acc
       }, {} as Record<string, number>)
 
+      // Calculate percentage of users who reported side effects
+      const usersWithSideEffects = exps.filter(e => e.top_side_effects && e.top_side_effects.length > 0).length
+      const sideEffectReportingRate = (usersWithSideEffects / exps.length) * 100
+
       const commonSideEffects = Object.entries(sideEffectCounts)
         .map(([name, count]): { name: string; count: number; percentage: number } => ({
           name,
@@ -140,6 +144,7 @@ export const drugsRouter = router({
         reboundRate,
         commonSideEffects,
         sideEffectSeverity,
+        sideEffectReportingRate,
         insuranceCoverage,
         drugSources,
         pharmacyAccessIssues

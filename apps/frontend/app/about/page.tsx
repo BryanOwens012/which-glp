@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Navigation } from "@/components/navigation";
+import { Footer } from "@/components/footer";
 import { ArrowRight, MapPin, Users, TrendingUp, Sparkles } from "lucide-react";
 
 const AboutPage = () => {
@@ -86,7 +87,7 @@ const AboutPage = () => {
         <div className="container mx-auto px-4 py-16">
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="mb-3 text-3xl font-bold">
-              Get personalized recommendations
+              Get recommendations
             </h2>
             <p className="mb-6 text-lg leading-relaxed text-muted-foreground">
               See recommendations based on your profile, location, and health
@@ -94,43 +95,14 @@ const AboutPage = () => {
             </p>
             <Button size="lg" className="gap-2" asChild>
               <Link href="/recommendations">
-                Get Personalized Recommendations <ArrowRight className="h-4 w-4" />
+                Recommend for Me <ArrowRight className="h-4 w-4" />
               </Link>
             </Button>
           </div>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="border-t border-border/40">
-        <div className="container mx-auto px-4 py-8">
-          <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
-            <div className="text-sm text-muted-foreground">
-              © 2025 WhichGLP. All rights reserved.
-            </div>
-            <div className="flex gap-6">
-              <Link
-                href="/privacy"
-                className="text-sm text-muted-foreground hover:text-foreground"
-              >
-                Privacy
-              </Link>
-              <Link
-                href="/terms"
-                className="text-sm text-muted-foreground hover:text-foreground"
-              >
-                Terms
-              </Link>
-              <Link
-                href="/contact"
-                className="text-sm text-muted-foreground hover:text-foreground"
-              >
-                Contact
-              </Link>
-            </div>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 };
