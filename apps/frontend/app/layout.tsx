@@ -42,15 +42,15 @@ export const metadata: Metadata = {
     siteName: "WhichGLP",
     title: "WhichGLP - Real-World Weight-Loss Drug Reviews & Outcomes",
     description:
-      "Compare weight-loss drugs using real-world data from thousands of user experiences. Get personalized recommendations for weight loss outcomes.",
-    // images: [
-    //   {
-    //     url: "/og-image.png",
-    //     width: 1200,
-    //     height: 630,
-    //     alt: "WhichGLP - GLP-1 Drug Comparison Platform",
-    //   },
-    // ],
+      "Compare weight-loss drugs using real-world data from thousands of user experiences. Get personalized recommendations.",
+    images: [
+      {
+        url: "/icon.svg",
+        width: 1200,
+        height: 630,
+        alt: "WhichGLP - GLP-1 Drug Comparison Platform",
+      },
+    ],
   },
   // twitter: {
   //   card: "summary_large_image",
@@ -106,7 +106,10 @@ const RootLayout = ({
     <html lang="en">
       <head>
         {/* Google tag (gtag.js) */}
-        <script async src="https://www.googletagmanager.com/gtag/js?id=G-1JJ2DG0KPD"></script>
+        <script
+          async
+          src="https://www.googletagmanager.com/gtag/js?id=G-1JJ2DG0KPD"
+        ></script>
         <script
           dangerouslySetInnerHTML={{
             __html: `
