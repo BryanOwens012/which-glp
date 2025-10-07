@@ -40,16 +40,17 @@ function getRedisClient(): Redis | null {
             redisAvailable = false;
             return null;
           }
+          console.log(`🔄 Redis: Retry attempt ${times}/3`);
           return Math.min(times * 200, 3000);
         },
         // Reduce keepAlive for Railway's timeout settings
         keepAlive: 30000,
         // Don't wait too long for connections
         connectTimeout: 10000,
-        // Enable offline queue for temporary disconnections
-        enableOfflineQueue: false,
-        // Log connection events
-        lazyConnect: true,
+        // Enable offline queue to buffer commands while connecting
+        enableOfflineQueue: true,
+        // Automatically connect (not lazy)
+        lazyConnect: false,
       });
 
       // Connection event handlers
@@ -79,12 +80,6 @@ function getRedisClient(): Redis | null {
 
       redisClient.on("reconnecting", () => {
         console.log("🔄 Redis: Reconnecting...");
-      });
-
-      // Attempt connection
-      redisClient.connect().catch((err) => {
-        console.error("❌ Redis: Failed to connect:", err.message);
-        redisAvailable = false;
       });
     } catch (err) {
       console.error("❌ Redis: Initialization failed:", err);
@@ -118,9 +113,9 @@ export async function withCache<T>(
 ): Promise<T> {
   const client = getRedisClient();
 
-  // If Redis is unavailable, skip caching and execute function
-  if (!client || !redisAvailable) {
-    console.log(`⚠️  Redis unavailable, skipping cache for key: ${key}`);
+  // If Redis client couldn't be created, skip caching
+  if (!client) {
+    console.log(`⚠️  Redis client unavailable, skipping cache for key: ${key}`);
     return await fn();
   }
 
