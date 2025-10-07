@@ -1,0 +1,18 @@
+# FastAPI server
+fastapi==0.115.0
+uvicorn[standard]==0.32.0
+pydantic==2.9.2
+
+# Reddit API
+praw==7.8.1
+
+# Anthropic AI
+anthropic==0.39.0
+
+# Database
+psycopg2-binary==2.9.10
+supabase==2.9.0
+
+# Utilities
+python-dotenv==1.0.1
+requests==2.32.3
