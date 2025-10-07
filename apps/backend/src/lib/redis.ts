@@ -1,4 +1,4 @@
-import Redis from 'ioredis'
+import Redis from "ioredis";
 
 /**
  * Redis client for caching API responses
@@ -13,8 +13,8 @@ import Redis from 'ioredis'
  * - Error handling: logs errors but doesn't crash the app
  */
 
-let redisClient: Redis | null = null
-let redisAvailable = true
+let redisClient: Redis | null = null;
+let redisAvailable = true;
 
 /**
  * Get or create the Redis client instance
@@ -22,13 +22,13 @@ let redisAvailable = true
  */
 function getRedisClient(): Redis | null {
   if (!redisAvailable) {
-    return null
+    return null;
   }
 
   if (!redisClient) {
     try {
-      const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379'
-      console.log('🔌 Redis: Initializing connection to:', redisUrl.replace(/:[^:@]+@/, ':****@')) // Hide password in logs
+      const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
+      console.log("🔌 Redis: Initializing connection");
 
       redisClient = new Redis(redisUrl, {
         // Connection settings
@@ -36,62 +36,59 @@ function getRedisClient(): Redis | null {
         retryStrategy: (times) => {
           // Retry with exponential backoff, max 3 seconds
           if (times > 3) {
-            console.error('❌ Redis: Max retries reached, disabling cache')
-            redisAvailable = false
-            return null
+            console.error("❌ Redis: Max retries reached, disabling cache");
+            redisAvailable = false;
+            return null;
           }
-          return Math.min(times * 200, 3000)
+          console.log(`🔄 Redis: Retry attempt ${times}/3`);
+          return Math.min(times * 200, 3000);
         },
         // Reduce keepAlive for Railway's timeout settings
         keepAlive: 30000,
         // Don't wait too long for connections
         connectTimeout: 10000,
-        // Enable offline queue for temporary disconnections
-        enableOfflineQueue: false,
-        // Log connection events
-        lazyConnect: true,
-      })
+        // Enable offline queue to buffer commands while connecting
+        enableOfflineQueue: true,
+        // Automatically connect (not lazy)
+        lazyConnect: false,
+      });
 
       // Connection event handlers
-      redisClient.on('connect', () => {
-        console.log('✅ Redis: Connected')
-        redisAvailable = true
-      })
+      redisClient.on("connect", () => {
+        console.log("✅ Redis: Connected");
+        redisAvailable = true;
+      });
 
-      redisClient.on('ready', () => {
-        console.log('✅ Redis: Ready to accept commands')
-      })
+      redisClient.on("ready", () => {
+        console.log("✅ Redis: Ready to accept commands");
+      });
 
-      redisClient.on('error', (err) => {
-        console.error('❌ Redis error:', err.message)
+      redisClient.on("error", (err) => {
+        console.error("❌ Redis error:", err.message);
         // Don't disable on every error, only on critical ones
-        if (err.message.includes('ECONNREFUSED') || err.message.includes('ETIMEDOUT')) {
-          redisAvailable = false
+        if (
+          err.message.includes("ECONNREFUSED") ||
+          err.message.includes("ETIMEDOUT")
+        ) {
+          redisAvailable = false;
         }
-      })
+      });
 
-      redisClient.on('close', () => {
-        console.log('⚠️  Redis: Connection closed')
-      })
+      redisClient.on("close", () => {
+        console.log("⚠️  Redis: Connection closed");
+      });
 
-      redisClient.on('reconnecting', () => {
-        console.log('🔄 Redis: Reconnecting...')
-      })
-
-      // Attempt connection
-      redisClient.connect().catch((err) => {
-        console.error('❌ Redis: Failed to connect:', err.message)
-        redisAvailable = false
-      })
-
+      redisClient.on("reconnecting", () => {
+        console.log("🔄 Redis: Reconnecting...");
+      });
     } catch (err) {
-      console.error('❌ Redis: Initialization failed:', err)
-      redisAvailable = false
-      return null
+      console.error("❌ Redis: Initialization failed:", err);
+      redisAvailable = false;
+      return null;
     }
   }
 
-  return redisClient
+  return redisClient;
 }
 
 /**
@@ -114,40 +111,40 @@ export async function withCache<T>(
   ttl: number,
   fn: () => Promise<T>
 ): Promise<T> {
-  const client = getRedisClient()
+  const client = getRedisClient();
 
-  // If Redis is unavailable, skip caching and execute function
-  if (!client || !redisAvailable) {
-    console.log(`⚠️  Redis unavailable, skipping cache for key: ${key}`)
-    return await fn()
+  // If Redis client couldn't be created, skip caching
+  if (!client) {
+    console.log(`⚠️  Redis client unavailable, skipping cache for key: ${key}`);
+    return await fn();
   }
 
   try {
     // Try to get from cache
-    console.log(`🔍 Redis: Attempting GET for key: ${key}`)
-    const cached = await client.get(key)
+    console.log(`🔍 Redis: Attempting GET for key: ${key}`);
+    const cached = await client.get(key);
 
     if (cached) {
-      console.log(`✅ Cache HIT: ${key}`)
-      return JSON.parse(cached) as T
+      console.log(`✅ Cache HIT: ${key}`);
+      return JSON.parse(cached) as T;
     }
 
-    console.log(`⚠️  Cache MISS: ${key}`)
+    console.log(`⚠️  Cache MISS: ${key}`);
 
     // Cache miss - execute function
-    const result = await fn()
+    const result = await fn();
 
     // Store in cache (fire and forget, don't wait)
-    console.log(`💾 Redis: Setting cache for key: ${key} (TTL: ${ttl}s)`)
+    console.log(`💾 Redis: Setting cache for key: ${key} (TTL: ${ttl}s)`);
     client.setex(key, ttl, JSON.stringify(result)).catch((err) => {
-      console.error(`❌ Redis: Failed to set cache for ${key}:`, err.message)
-    })
+      console.error(`❌ Redis: Failed to set cache for ${key}:`, err.message);
+    });
 
-    return result
+    return result;
   } catch (err) {
     // If any Redis operation fails, fall back to executing the function
-    console.error(`❌ Redis operation failed for ${key}:`, err)
-    return await fn()
+    console.error(`❌ Redis operation failed for ${key}:`, err);
+    return await fn();
   }
 }
 
@@ -157,28 +154,44 @@ export async function withCache<T>(
  * @param pattern - Key or pattern to delete (e.g., "drugs:*" to delete all drug-related keys)
  */
 export async function invalidateCache(pattern: string): Promise<void> {
-  const client = getRedisClient()
+  const client = getRedisClient();
 
   if (!client || !redisAvailable) {
-    console.log(`⚠️  Redis unavailable, cannot invalidate: ${pattern}`)
-    return
+    console.log(`⚠️  Redis unavailable, cannot invalidate: ${pattern}`);
+    return;
   }
 
   try {
-    if (pattern.includes('*')) {
-      // Pattern-based deletion
-      const keys = await client.keys(pattern)
+    if (pattern.includes("*")) {
+      // Pattern-based deletion using SCAN (non-blocking)
+      const keys: string[] = [];
+      let cursor = "0";
+
+      do {
+        const result = await client.scan(
+          cursor,
+          "MATCH",
+          pattern,
+          "COUNT",
+          100
+        );
+        cursor = result[0];
+        keys.push(...result[1]);
+      } while (cursor !== "0");
+
       if (keys.length > 0) {
-        await client.del(...keys)
-        console.log(`✅ Invalidated ${keys.length} keys matching: ${pattern}`)
+        await client.del(...keys);
+        console.log(`✅ Invalidated ${keys.length} keys matching: ${pattern}`);
+      } else {
+        console.log(`⚠️  No keys found matching: ${pattern}`);
       }
     } else {
       // Single key deletion
-      await client.del(pattern)
-      console.log(`✅ Invalidated cache: ${pattern}`)
+      await client.del(pattern);
+      console.log(`✅ Invalidated cache: ${pattern}`);
     }
   } catch (err) {
-    console.error(`❌ Failed to invalidate cache ${pattern}:`, err)
+    console.error(`❌ Failed to invalidate cache ${pattern}:`, err);
   }
 }
 
@@ -187,30 +200,32 @@ export async function invalidateCache(pattern: string): Promise<void> {
  * Useful for monitoring and debugging
  */
 export async function getCacheStats(): Promise<{
-  available: boolean
-  connectedClients?: number
-  usedMemory?: string
-  keys?: number
+  available: boolean;
+  connectedClients?: number;
+  usedMemory?: string;
+  keys?: number;
 } | null> {
-  const client = getRedisClient()
+  const client = getRedisClient();
 
   if (!client || !redisAvailable) {
-    return { available: false }
+    return { available: false };
   }
 
   try {
-    const info = await client.info('stats')
-    const dbSize = await client.dbsize()
+    const info = await client.info("stats");
+    const dbSize = await client.dbsize();
 
     return {
       available: true,
       keys: dbSize,
-      connectedClients: parseInt(info.match(/connected_clients:(\d+)/)?.[1] || '0'),
-      usedMemory: info.match(/used_memory_human:([^\r\n]+)/)?.[1] || 'unknown',
-    }
+      connectedClients: parseInt(
+        info.match(/connected_clients:(\d+)/)?.[1] || "0"
+      ),
+      usedMemory: info.match(/used_memory_human:([^\r\n]+)/)?.[1] || "unknown",
+    };
   } catch (err) {
-    console.error('❌ Failed to get cache stats:', err)
-    return null
+    console.error("❌ Failed to get cache stats:", err);
+    return null;
   }
 }
 
@@ -221,10 +236,10 @@ export async function getCacheStats(): Promise<{
 export async function closeRedis(): Promise<void> {
   if (redisClient) {
     try {
-      await redisClient.quit()
-      console.log('✅ Redis: Connection closed gracefully')
+      await redisClient.quit();
+      console.log("✅ Redis: Connection closed gracefully");
     } catch (err) {
-      console.error('❌ Redis: Error during shutdown:', err)
+      console.error("❌ Redis: Error during shutdown:", err);
     }
   }
 }
