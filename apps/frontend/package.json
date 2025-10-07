@@ -62,6 +62,7 @@
     "recharts": "latest",
     "sonner": "^1.7.4",
     "superjson": "^2.2.2",
+    "@supabase/supabase-js": "^2.50.0",
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",
     "vaul": "^0.9.9",
