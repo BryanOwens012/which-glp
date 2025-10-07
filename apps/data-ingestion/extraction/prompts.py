@@ -73,7 +73,11 @@ EXTRACTION GUIDELINES:
 **Drugs:**
 - List ALL drug names mentioned in drugs_mentioned array
 - primary_drug should be the main drug discussed
-- Normalize names: "ozempic" → "Ozempic", "wegovy" → "Wegovy"
+- Use standard naming:
+  * Brand names: Title case (Ozempic, Wegovy, Mounjaro, Zepbound)
+  * Generic drugs: lowercase (semaglutide, tirzepatide, metformin)
+  * Compounded: "Compounded Semaglutide" or "Compounded Tirzepatide"
+  * Expand abbreviations: TRT → testosterone
 
 **Sentiment Scores (CRITICAL - read carefully):**
 - **sentiment_pre**: Quality of life/feelings BEFORE starting the drug (0-1)

@@ -1,27 +1,16 @@
-import type { Metadata } from "next";
+"use client"
+
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Navigation } from "@/components/navigation";
 import { DrugComparison } from "@/components/drug-comparison";
 import { ArrowRight, MapPin, Users, TrendingUp, Sparkles } from "lucide-react";
-
-export const metadata: Metadata = {
-  title: "Home - Compare GLP-1 Weight Loss Medications",
-  description:
-    "Compare Ozempic, Wegovy, Mounjaro, and Zepbound using real-world data from 15,000+ user experiences. Get personalized predictions, cost analysis, and side effect information for informed decisions.",
-  openGraph: {
-    title: "WhichGLP - Compare GLP-1 Weight Loss Medications",
-    description:
-      "Make data-driven decisions about GLP-1 medications with insights from thousands of real user experiences.",
-    url: "https://whichglp.com",
-  },
-  alternates: {
-    canonical: "https://whichglp.com",
-  },
-};
+import { trpc } from "@/lib/trpc";
 
 const HomePage = () => {
+  // Fetch real platform stats from backend
+  const { data: stats, isLoading } = trpc.platform.getStats.useQuery();
   return (
     <div className="min-h-screen">
       <Navigation />
@@ -42,32 +31,44 @@ const HomePage = () => {
       {/* Stats Section */}
       <section className="border-y border-border/40 bg-card/30">
         <div className="container mx-auto px-4 py-8">
-          <div className="grid grid-cols-2 gap-6 md:grid-cols-4">
-            <div className="text-center">
-              <div className="mb-1 text-3xl font-bold text-primary">15K+</div>
-              <div className="text-sm text-muted-foreground">
-                Real User Reviews
+          {isLoading ? (
+            <div className="text-center text-muted-foreground">Loading stats...</div>
+          ) : stats ? (
+            <div className="grid grid-cols-2 gap-6 md:grid-cols-4">
+              <div className="text-center">
+                <div className="mb-1 text-3xl font-bold text-primary">
+                  {stats.totalExperiences.toLocaleString()}+
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  Real User Experiences
+                </div>
+              </div>
+              <div className="text-center">
+                <div className="mb-1 text-3xl font-bold text-primary">
+                  {stats.uniqueDrugs}
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  GLP-1 Medications
+                </div>
+              </div>
+              <div className="text-center">
+                <div className="mb-1 text-3xl font-bold text-primary">
+                  {stats.locationsTracked}
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  States Tracked
+                </div>
+              </div>
+              <div className="text-center">
+                <div className="mb-1 text-3xl font-bold text-primary">
+                  {Math.round(stats.avgWeightLossPercentage)}%
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  Avg. Weight Loss
+                </div>
               </div>
             </div>
-            <div className="text-center">
-              <div className="mb-1 text-3xl font-bold text-primary">8</div>
-              <div className="text-sm text-muted-foreground">
-                GLP-1 Medications
-              </div>
-            </div>
-            <div className="text-center">
-              <div className="mb-1 text-3xl font-bold text-primary">500+</div>
-              <div className="text-sm text-muted-foreground">
-                Cities Tracked
-              </div>
-            </div>
-            <div className="text-center">
-              <div className="mb-1 text-3xl font-bold text-primary">92%</div>
-              <div className="text-sm text-muted-foreground">
-                Prediction Accuracy
-              </div>
-            </div>
-          </div>
+          ) : null}
         </div>
       </section>
 

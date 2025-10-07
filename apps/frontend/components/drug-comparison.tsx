@@ -1,117 +1,48 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Check, X, TrendingUp, DollarSign, AlertCircle, Users } from "lucide-react"
-
-// Mock data for GLP-1 medications
-const medications = [
-  {
-    id: "ozempic",
-    name: "Ozempic",
-    genericName: "Semaglutide",
-    manufacturer: "Novo Nordisk",
-    avgWeightLoss: "12-15%",
-    effectiveness: 4.5,
-    sideEffects: 3.2,
-    cost: "$$$",
-    costPerMonth: 950,
-    userRating: 4.3,
-    totalReviews: 3420,
-    availability: "High",
-    dosing: "Weekly injection",
-    commonSideEffects: ["Nausea", "Diarrhea", "Constipation", "Fatigue"],
-    benefits: ["Proven weight loss", "Cardiovascular benefits", "Once weekly dosing"],
-  },
-  {
-    id: "wegovy",
-    name: "Wegovy",
-    genericName: "Semaglutide",
-    manufacturer: "Novo Nordisk",
-    avgWeightLoss: "15-18%",
-    effectiveness: 4.7,
-    sideEffects: 3.5,
-    cost: "$$$",
-    costPerMonth: 1350,
-    userRating: 4.5,
-    totalReviews: 2890,
-    availability: "Medium",
-    dosing: "Weekly injection",
-    commonSideEffects: ["Nausea", "Vomiting", "Diarrhea", "Stomach pain"],
-    benefits: ["Highest weight loss", "FDA approved for weight loss", "Once weekly"],
-  },
-  {
-    id: "mounjaro",
-    name: "Mounjaro",
-    genericName: "Tirzepatide",
-    manufacturer: "Eli Lilly",
-    avgWeightLoss: "15-20%",
-    effectiveness: 4.8,
-    sideEffects: 3.4,
-    cost: "$$$",
-    costPerMonth: 1050,
-    userRating: 4.6,
-    totalReviews: 2150,
-    availability: "High",
-    dosing: "Weekly injection",
-    commonSideEffects: ["Nausea", "Diarrhea", "Decreased appetite", "Vomiting"],
-    benefits: ["Dual action mechanism", "Excellent weight loss", "Good tolerability"],
-  },
-  {
-    id: "zepbound",
-    name: "Zepbound",
-    genericName: "Tirzepatide",
-    manufacturer: "Eli Lilly",
-    avgWeightLoss: "18-22%",
-    effectiveness: 4.9,
-    sideEffects: 3.6,
-    cost: "$$$",
-    costPerMonth: 1200,
-    userRating: 4.7,
-    totalReviews: 1680,
-    availability: "Medium",
-    dosing: "Weekly injection",
-    commonSideEffects: ["Nausea", "Diarrhea", "Constipation", "Abdominal pain"],
-    benefits: ["Highest efficacy", "FDA approved for obesity", "Dual receptor action"],
-  },
-  {
-    id: "saxenda",
-    name: "Saxenda",
-    genericName: "Liraglutide",
-    manufacturer: "Novo Nordisk",
-    avgWeightLoss: "5-8%",
-    effectiveness: 3.8,
-    sideEffects: 3.8,
-    cost: "$$",
-    costPerMonth: 1400,
-    userRating: 3.9,
-    totalReviews: 4200,
-    availability: "High",
-    dosing: "Daily injection",
-    commonSideEffects: ["Nausea", "Diarrhea", "Constipation", "Headache"],
-    benefits: ["Long track record", "Daily dosing flexibility", "Well studied"],
-  },
-]
+import { trpc } from "@/lib/trpc"
 
 export const DrugComparison = () => {
-  const [selectedMeds, setSelectedMeds] = useState<string[]>(["ozempic", "wegovy", "mounjaro"])
+  // Fetch real drug stats from API
+  const { data: drugStats, isLoading } = trpc.drugs.getAllStats.useQuery()
 
-  const toggleMedication = (id: string) => {
-    if (selectedMeds.includes(id)) {
+  // State for selected medications
+  const [selectedMeds, setSelectedMeds] = useState<string[]>([])
+
+  // Initialize with top 3 drugs once data is loaded
+  useEffect(() => {
+    if (drugStats && drugStats.length > 0 && selectedMeds.length === 0) {
+      setSelectedMeds(drugStats.slice(0, 3).map(d => d.drug))
+    }
+  }, [drugStats, selectedMeds.length])
+
+  const toggleMedication = (drug: string) => {
+    if (selectedMeds.includes(drug)) {
       if (selectedMeds.length > 1) {
-        setSelectedMeds(selectedMeds.filter((m) => m !== id))
+        setSelectedMeds(selectedMeds.filter((m) => m !== drug))
       }
     } else {
       if (selectedMeds.length < 4) {
-        setSelectedMeds([...selectedMeds, id])
+        setSelectedMeds([...selectedMeds, drug])
       }
     }
   }
 
-  const selectedMedications = medications.filter((med) => selectedMeds.includes(med.id))
+  const selectedMedications = drugStats?.filter((med) => selectedMeds.includes(med.drug)) ?? []
+
+  if (isLoading) {
+    return <div className="text-center py-8">Loading medications...</div>
+  }
+
+  if (!drugStats || drugStats.length === 0) {
+    return <div className="text-center py-8">No medication data available</div>
+  }
 
   return (
     <div>
@@ -119,15 +50,16 @@ export const DrugComparison = () => {
       <Card className="mb-8 border-border/40 bg-card p-6">
         <h2 className="mb-4 text-lg font-semibold">Select Medications to Compare</h2>
         <div className="flex flex-wrap gap-3">
-          {medications.map((med) => (
+          {drugStats.slice(0, 8).map((drug) => (
             <Button
-              key={med.id}
-              variant={selectedMeds.includes(med.id) ? "default" : "outline"}
-              onClick={() => toggleMedication(med.id)}
+              key={drug.drug}
+              variant={selectedMeds.includes(drug.drug) ? "default" : "outline"}
+              onClick={() => toggleMedication(drug.drug)}
               className="gap-2"
             >
-              {selectedMeds.includes(med.id) && <Check className="h-4 w-4" />}
-              {med.name}
+              {selectedMeds.includes(drug.drug) && <Check className="h-4 w-4" />}
+              {drug.drug}
+              <span className="ml-1 text-xs opacity-70">({drug.count})</span>
             </Button>
           ))}
         </div>
@@ -146,48 +78,54 @@ export const DrugComparison = () => {
         <TabsContent value="overview">
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {selectedMedications.map((med) => (
-              <Card key={med.id} className="border-border/40 bg-card p-6">
+              <Card key={med.drug} className="border-border/40 bg-card p-6">
                 <div className="mb-4 flex items-start justify-between">
                   <div>
-                    <h3 className="text-xl font-bold">{med.name}</h3>
-                    <p className="text-sm text-muted-foreground">{med.genericName}</p>
+                    <h3 className="text-xl font-bold">{med.drug}</h3>
+                    <p className="text-sm text-muted-foreground">{med.count} experiences</p>
                   </div>
-                  <Badge variant="secondary">{med.cost}</Badge>
+                  <Badge variant="secondary">
+                    {med.avgCostPerMonth ? `$${Math.round(med.avgCostPerMonth)}` : 'N/A'}
+                  </Badge>
                 </div>
 
                 <div className="space-y-4">
                   <div>
                     <div className="mb-1 flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">Avg. Weight Loss</span>
-                      <span className="font-semibold text-primary">{med.avgWeightLoss}</span>
+                      <span className="font-semibold text-primary">
+                        {med.avgWeightLoss ? `${med.avgWeightLoss.toFixed(1)}%` : 'N/A'}
+                      </span>
                     </div>
                   </div>
 
                   <div>
                     <div className="mb-1 flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">User Rating</span>
-                      <span className="font-semibold">{med.userRating}/5.0</span>
+                      <span className="text-muted-foreground">Recommendation</span>
+                      <span className="font-semibold">
+                        {med.avgRecommendationScore ? `${Math.round(med.avgRecommendationScore * 100)}%` : 'N/A'}
+                      </span>
                     </div>
                     <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-                      <div className="h-full bg-primary" style={{ width: `${(med.userRating / 5) * 100}%` }} />
+                      <div
+                        className="h-full bg-primary"
+                        style={{ width: `${(med.avgRecommendationScore ?? 0) * 100}%` }}
+                      />
                     </div>
                   </div>
 
                   <div>
                     <div className="mb-1 flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">Reviews</span>
-                      <span className="font-semibold">{med.totalReviews.toLocaleString()}</span>
+                      <span className="text-muted-foreground">User Reports</span>
+                      <span className="font-semibold">{med.count.toLocaleString()}</span>
                     </div>
                   </div>
 
                   <div>
-                    <div className="mb-2 text-sm text-muted-foreground">Dosing</div>
-                    <p className="text-sm font-medium">{med.dosing}</p>
-                  </div>
-
-                  <div>
-                    <div className="mb-2 text-sm text-muted-foreground">Availability</div>
-                    <Badge variant={med.availability === "High" ? "default" : "secondary"}>{med.availability}</Badge>
+                    <div className="mb-2 text-sm text-muted-foreground">Avg. Duration</div>
+                    <p className="text-sm font-medium">
+                      {med.avgDurationWeeks ? `${Math.round(med.avgDurationWeeks / 4.33)} months` : 'N/A'}
+                    </p>
                   </div>
                 </div>
               </Card>
@@ -198,8 +136,8 @@ export const DrugComparison = () => {
         <TabsContent value="effectiveness">
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {selectedMedications.map((med) => (
-              <Card key={med.id} className="border-border/40 bg-card p-6">
-                <h3 className="mb-4 text-xl font-bold">{med.name}</h3>
+              <Card key={med.drug} className="border-border/40 bg-card p-6">
+                <h3 className="mb-4 text-xl font-bold">{med.drug}</h3>
 
                 <div className="space-y-4">
                   <div>
@@ -207,30 +145,51 @@ export const DrugComparison = () => {
                       <TrendingUp className="h-4 w-4 text-primary" />
                       <span className="text-sm font-medium">Weight Loss</span>
                     </div>
-                    <div className="text-2xl font-bold text-primary">{med.avgWeightLoss}</div>
-                    <p className="mt-1 text-xs text-muted-foreground">Average over 6 months</p>
+                    <div className="text-2xl font-bold text-primary">
+                      {med.avgWeightLoss ? `${med.avgWeightLoss.toFixed(1)}%` : 'N/A'}
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Average over {med.avgDurationWeeks ? Math.round(med.avgDurationWeeks / 4.33) : 'N/A'} months
+                    </p>
                   </div>
 
                   <div>
-                    <div className="mb-2 text-sm text-muted-foreground">Effectiveness Score</div>
+                    <div className="mb-2 text-sm text-muted-foreground">Recommendation Score</div>
                     <div className="flex items-center gap-2">
                       <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
-                        <div className="h-full bg-primary" style={{ width: `${(med.effectiveness / 5) * 100}%` }} />
+                        <div
+                          className="h-full bg-primary"
+                          style={{ width: `${(med.avgRecommendationScore ?? 0) * 100}%` }}
+                        />
                       </div>
-                      <span className="text-sm font-semibold">{med.effectiveness}/5</span>
+                      <span className="text-sm font-semibold">
+                        {med.avgRecommendationScore ? `${Math.round(med.avgRecommendationScore * 100)}%` : 'N/A'}
+                      </span>
                     </div>
                   </div>
 
                   <div>
-                    <div className="mb-2 text-sm font-medium">Key Benefits</div>
-                    <ul className="space-y-1">
-                      {med.benefits.map((benefit, idx) => (
-                        <li key={idx} className="flex items-start gap-2 text-sm">
-                          <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                          <span className="text-muted-foreground">{benefit}</span>
-                        </li>
-                      ))}
-                    </ul>
+                    <div className="mb-2 text-sm font-medium">Quality of Life</div>
+                    <div className="text-sm text-muted-foreground">
+                      {med.avgSentimentPre !== null && med.avgSentimentPost !== null ? (
+                        <span>
+                          {Math.round(med.avgSentimentPre * 100)}% → {Math.round(med.avgSentimentPost * 100)}%
+                        </span>
+                      ) : 'N/A'}
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-border/40">
+                    <div className="grid grid-cols-2 gap-4 text-xs">
+                      <div>
+                        <div className="text-muted-foreground">Plateau Rate</div>
+                        <div className="font-semibold">{Math.round(med.plateauRate)}%</div>
+                      </div>
+                      <div>
+                        <div className="text-muted-foreground">Rebound Rate</div>
+                        <div className="font-semibold">{Math.round(med.reboundRate)}%</div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </Card>
@@ -241,39 +200,51 @@ export const DrugComparison = () => {
         <TabsContent value="side-effects">
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {selectedMedications.map((med) => (
-              <Card key={med.id} className="border-border/40 bg-card p-6">
-                <h3 className="mb-4 text-xl font-bold">{med.name}</h3>
+              <Card key={med.drug} className="border-border/40 bg-card p-6">
+                <h3 className="mb-4 text-xl font-bold">{med.drug}</h3>
 
                 <div className="space-y-4">
                   <div>
-                    <div className="mb-2 flex items-center gap-2">
-                      <AlertCircle className="h-4 w-4 text-destructive" />
-                      <span className="text-sm font-medium">Side Effect Severity</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
-                        <div className="h-full bg-destructive" style={{ width: `${(med.sideEffects / 5) * 100}%` }} />
-                      </div>
-                      <span className="text-sm font-semibold">{med.sideEffects}/5</span>
-                    </div>
-                    <p className="mt-1 text-xs text-muted-foreground">Lower is better</p>
-                  </div>
-
-                  <div>
-                    <div className="mb-2 text-sm font-medium">Common Side Effects</div>
+                    <div className="mb-2 text-sm font-medium">Most Common Side Effects</div>
                     <ul className="space-y-1">
-                      {med.commonSideEffects.map((effect, idx) => (
-                        <li key={idx} className="flex items-start gap-2 text-sm">
+                      {med.commonSideEffects.slice(0, 5).map((effect) => (
+                        <li key={effect.name} className="flex items-start gap-2 text-sm">
                           <X className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
-                          <span className="text-muted-foreground">{effect}</span>
+                          <div className="flex-1">
+                            <span className="text-muted-foreground capitalize">{effect.name}</span>
+                            <span className="ml-2 text-xs">({Math.round(effect.percentage)}%)</span>
+                          </div>
                         </li>
                       ))}
+                      {med.commonSideEffects.length === 0 && (
+                        <li className="text-sm text-muted-foreground">No data available</li>
+                      )}
                     </ul>
+                  </div>
+
+                  <div className="pt-4 border-t border-border/40">
+                    <div className="text-sm font-medium mb-2">Severity Distribution</div>
+                    <div className="space-y-1 text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Mild</span>
+                        <span className="font-semibold">{Math.round(med.sideEffectSeverity.mild)}%</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Moderate</span>
+                        <span className="font-semibold">{Math.round(med.sideEffectSeverity.moderate)}%</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Severe</span>
+                        <span className="font-semibold text-destructive">
+                          {Math.round(med.sideEffectSeverity.severe)}%
+                        </span>
+                      </div>
+                    </div>
                   </div>
 
                   <div className="rounded-lg border border-border/40 bg-muted/30 p-3">
                     <p className="text-xs text-muted-foreground">
-                      Based on {med.totalReviews.toLocaleString()} user reports
+                      Based on {med.count.toLocaleString()} user reports
                     </p>
                   </div>
                 </div>
@@ -285,8 +256,8 @@ export const DrugComparison = () => {
         <TabsContent value="cost">
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {selectedMedications.map((med) => (
-              <Card key={med.id} className="border-border/40 bg-card p-6">
-                <h3 className="mb-4 text-xl font-bold">{med.name}</h3>
+              <Card key={med.drug} className="border-border/40 bg-card p-6">
+                <h3 className="mb-4 text-xl font-bold">{med.drug}</h3>
 
                 <div className="space-y-4">
                   <div>
@@ -294,33 +265,49 @@ export const DrugComparison = () => {
                       <DollarSign className="h-4 w-4 text-primary" />
                       <span className="text-sm font-medium">Monthly Cost</span>
                     </div>
-                    <div className="text-2xl font-bold">${med.costPerMonth}</div>
+                    <div className="text-2xl font-bold">
+                      ${med.avgCostPerMonth ? Math.round(med.avgCostPerMonth) : 'N/A'}
+                    </div>
                     <p className="mt-1 text-xs text-muted-foreground">Without insurance</p>
                   </div>
 
                   <div>
-                    <div className="mb-2 text-sm text-muted-foreground">Cost Category</div>
-                    <Badge variant="secondary" className="text-base">
-                      {med.cost}
-                    </Badge>
+                    <div className="mb-2 text-sm text-muted-foreground">Insurance Coverage</div>
+                    <div className="text-2xl font-bold text-primary">
+                      {Math.round(med.insuranceCoverage)}%
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">of users have coverage</p>
+                  </div>
+
+                  <div className="pt-4 border-t border-border/40">
+                    <div className="text-sm font-medium mb-2">Drug Sources</div>
+                    <div className="space-y-1 text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Brand</span>
+                        <span className="font-semibold">{med.drugSources.brand}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Compounded</span>
+                        <span className="font-semibold">{med.drugSources.compounded}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Out-of-Pocket</span>
+                        <span className="font-semibold">{med.drugSources.outOfPocket}</span>
+                      </div>
+                    </div>
                   </div>
 
                   <div>
                     <div className="mb-2 flex items-center gap-2">
                       <Users className="h-4 w-4 text-primary" />
-                      <span className="text-sm font-medium">Availability</span>
+                      <span className="text-sm font-medium">Access Issues</span>
                     </div>
-                    <Badge variant={med.availability === "High" ? "default" : "secondary"}>{med.availability}</Badge>
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      {med.availability === "High"
-                        ? "Widely available at most pharmacies"
-                        : "May have limited availability"}
+                    <div className="text-lg font-semibold">
+                      {Math.round(med.pharmacyAccessIssues)}%
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      reported difficulty finding medication
                     </p>
-                  </div>
-
-                  <div>
-                    <div className="mb-2 text-sm font-medium">Manufacturer</div>
-                    <p className="text-sm text-muted-foreground">{med.manufacturer}</p>
                   </div>
                 </div>
               </Card>

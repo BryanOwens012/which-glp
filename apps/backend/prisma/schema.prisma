@@ -1,0 +1,77 @@
+// Prisma schema for WhichGLP backend
+// Connects to Supabase PostgreSQL database and uses the materialized view
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Materialized view for denormalized experiences
+// This is the primary data source for frontend queries
+model mv_experiences_denormalized {
+  // Primary keys and references
+  feature_id   String   @id @db.Uuid
+  post_id      String?
+  comment_id   String?
+  subreddit    String
+  processed_at DateTime @db.Timestamptz
+
+  // Reddit content
+  post_title   String
+  post_text    String
+  comment_text String
+  author       String
+  created_at   DateTime @db.Timestamptz
+  score        Int
+  source_type  String
+
+  // Extracted features
+  primary_drug         String?
+  summary              String
+  sentiment_pre        Decimal? @db.Decimal(3, 2)
+  sentiment_post       Decimal? @db.Decimal(3, 2)
+  recommendation_score Decimal? @db.Decimal(3, 2)
+  age                  Int?
+  sex                  String?
+  location             String?
+  state                String?
+  country              String?
+  beginning_weight     Json?
+  end_weight           Json?
+  duration_weeks       Int?
+  cost_per_month       Decimal? @db.Decimal(10, 2)
+  currency             String?
+  has_insurance        Boolean?
+  insurance_provider   String?
+  side_effects         Json?
+  comorbidities        String[]
+  drug_source          String?
+  pharmacy_access_issues Boolean?
+  plateau_mentioned      Boolean?
+  rebound_weight_gain    Boolean?
+  side_effect_timing     String?
+  side_effect_resolution Decimal? @db.Decimal(3, 2)
+  food_intolerances      String[]
+  dosage_progression     String?
+  exercise_frequency     String?
+  dietary_changes        String?
+  labs_improvement       String[]
+  medication_reduction   String[]
+  nsv_mentioned          String[]
+  support_system         String?
+  mental_health_impact   String?
+
+  // Pre-calculated fields
+  weight_loss_lbs        Decimal? @db.Decimal
+  weight_loss_percentage Decimal? @db.Decimal
+  beginning_weight_lbs   Decimal? @db.Decimal
+  end_weight_lbs         Decimal? @db.Decimal
+  sentiment_change       Decimal? @db.Decimal(3, 2)
+  age_bucket             String?
+
+  @@map("mv_experiences_denormalized")
+}

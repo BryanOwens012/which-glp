@@ -22,6 +22,7 @@ import psycopg2.extras
 
 from shared.database import DatabaseManager
 from shared.config import get_logger
+from shared.drug_standardization import standardize_drug_name
 from extraction.context import build_context_from_db_rows, ContextBuilder
 from extraction.ai_client import get_client
 from extraction.prompts import build_post_prompt, build_comment_prompt
@@ -482,7 +483,7 @@ class AIExtractionPipeline:
                 f.cost_per_month,
                 f.currency,
                 f.drugs_mentioned,
-                f.primary_drug,
+                standardize_drug_name(f.primary_drug),  # Apply standardization
                 psycopg2.extras.Json(f.drug_sentiments) if f.drug_sentiments else None,
                 f.sentiment_pre,
                 f.sentiment_post,

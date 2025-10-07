@@ -15,19 +15,25 @@ export const Navigation = () => {
             href="/compare"
             className="text-sm text-muted-foreground transition-colors hover:text-foreground"
           >
-            Compare Drugs
+            Compare
+          </Link>
+          <Link
+            href="/experiences"
+            className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Experiences
           </Link>
           <Link
             href="/dashboard"
             className="text-sm text-muted-foreground transition-colors hover:text-foreground"
           >
-            Data Dashboard
+            Dashboard
           </Link>
           <Link
-            href="/about"
+            href="/predict"
             className="text-sm text-muted-foreground transition-colors hover:text-foreground"
           >
-            About
+            Get Prediction
           </Link>
         </div>
       </div>
