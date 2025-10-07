@@ -10,7 +10,7 @@ This script queries the extracted_features table and generates a report on:
 
 Usage:
     cd /Users/bryan/Github/which-glp
-    python3 apps/data-analysis/scripts/data_quality_report.py
+    python3 scripts/analysis/scripts/data_quality_report.py
 """
 
 import os

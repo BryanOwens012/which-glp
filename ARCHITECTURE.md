@@ -10,7 +10,7 @@ which-glp/
 │   ├── frontend/        # Next.js 15 app
 │   ├── backend/         # Node.js tRPC API
 │   └── ml/              # Python FastAPI service
-├── apps/data-ingestion/ # Python Reddit scraper (separate tooling)
+├── scripts/legacy-ingestion/ # Python Reddit scraper (separate tooling)
 ├── venv/                # Python virtual environment (shared)
 ├── requirements.txt     # Python dependencies (shared)
 └── package.json         # Root workspace config
@@ -74,11 +74,11 @@ which-glp/
   - `SUPABASE_URL`
   - `SUPABASE_ANON_KEY`
   - `REDIS_URL`
-  - `ML_URL` (points to ML service)
+  - `REC_ENGINE_URL` (points to ML service)
 
 ---
 
-### 3. ML API (`apps/ml`)
+### 3. ML API (`apps/rec-engine`)
 
 **Tech Stack:**
 - Python 3.13
@@ -103,12 +103,12 @@ which-glp/
 - `GET /api/cache/clear` - Clear cache
 
 **Deployment:**
-- Railway service: `whichglp-ml`
-- Start command: `cd apps/ml && python3 api.py`
+- Railway service: `whichglp-rec-engine`
+- Start command: `cd apps/rec-engine && python3 api.py`
 - Environment variables:
   - `SUPABASE_URL`
   - `SUPABASE_SERVICE_KEY`
-  - `ML_PORT`
+  - `REC_ENGINE_PORT`
 
 ---
 
@@ -206,7 +206,7 @@ cd apps/backend
 npm run dev
 
 # Terminal 3: ML API
-cd apps/ml
+cd apps/rec-engine
 ./start_api.sh
 ```
 
@@ -230,7 +230,7 @@ NEXT_PUBLIC_API_URL=http://localhost:8000
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_ANON_KEY=your-anon-key
 REDIS_URL=redis://localhost:6379
-ML_URL=http://localhost:8001
+REC_ENGINE_URL=http://localhost:8001
 ```
 
 ---
@@ -260,26 +260,26 @@ ML_URL=http://localhost:8001
    - `SUPABASE_URL`
    - `SUPABASE_ANON_KEY`
    - `REDIS_URL` (from Railway Redis addon)
-   - `ML_URL=https://your-ml.railway.app`
+   - `REC_ENGINE_URL=https://your-ml.railway.app`
 
 ### Step 3: ML API Service
 
-1. Create new service: `whichglp-ml`
+1. Create new service: `whichglp-rec-engine`
 2. Connect to GitHub
 3. Settings:
    - Root directory: `/` (monorepo root)
-   - Start command: `cd apps/ml && python3 api.py`
+   - Start command: `cd apps/rec-engine && python3 api.py`
    - Health check: `/health`
 4. Environment variables:
    - `SUPABASE_URL`
    - `SUPABASE_SERVICE_KEY`
-   - `ML_PORT=8001`
+   - `REC_ENGINE_PORT=8001`
 
 ### Step 4: Link Services
 
 Update backend environment:
 ```bash
-ML_URL=https://whichglp-ml.railway.app
+REC_ENGINE_URL=https://whichglp-rec-engine.railway.app
 ```
 
 Update frontend environment:
@@ -291,7 +291,7 @@ NEXT_PUBLIC_API_URL=https://whichglp-backend.railway.app
 
 ## Database Schema
 
-See `apps/data-ingestion/migrations/` for SQL schema.
+See `apps/shared/migrations/` for SQL schema.
 
 ### Key Tables
 
@@ -321,7 +321,7 @@ npm test
 
 ### ML API
 ```bash
-cd apps/ml
+cd apps/rec-engine
 pytest test_recommender.py -v
 ```
 
@@ -347,7 +347,7 @@ curl https://your-ml.railway.app/health
 ```bash
 railway logs --service whichglp-frontend
 railway logs --service whichglp-backend
-railway logs --service whichglp-ml
+railway logs --service whichglp-rec-engine
 ```
 
 ---

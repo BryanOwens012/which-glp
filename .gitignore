@@ -68,7 +68,7 @@ downloads/
 eggs/
 .eggs/
 # Python lib directories (but not frontend/lib)
-apps/data-ingestion/**/lib/
+scripts/legacy-ingestion/**/lib/
 lib64/
 parts/
 sdist/

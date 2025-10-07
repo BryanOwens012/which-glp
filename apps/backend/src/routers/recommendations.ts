@@ -54,10 +54,10 @@ export const recommendationsRouter = router({
       const startTime = Date.now()
 
       try {
-        // Get ML API URL from environment or default to 127.0.0.1
-        // On Railway: Use the ML_URL env var with the internal service URL
+        // Get rec-engine API URL from environment or default to 127.0.0.1
+        // On Railway: Use the REC_ENGINE_URL env var with the internal service URL
         // Locally: Use 127.0.0.1 instead of localhost to avoid IPv6 resolution issues
-        let mlApiUrl = process.env.ML_URL?.trim() || 'http://127.0.0.1:8001'
+        let mlApiUrl = process.env.REC_ENGINE_URL?.trim() || 'http://127.0.0.1:8001'
 
         // Add protocol if not present
         // Use https:// for Railway domains (.railway.app), http:// for local
@@ -66,7 +66,7 @@ export const recommendationsRouter = router({
           mlApiUrl = `${protocol}${mlApiUrl}`
         }
 
-        console.log(`[ML API] Calling: ${mlApiUrl}/api/recommendations`)
+        console.log(`[REC ENGINE] Calling: ${mlApiUrl}/api/recommendations`)
 
         // Call FastAPI service
         const response = await fetch(`${mlApiUrl}/api/recommendations`, {
@@ -79,7 +79,7 @@ export const recommendationsRouter = router({
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }))
-          throw new Error(`ML API error: ${errorData.detail || response.statusText}`)
+          throw new Error(`Rec engine error: ${errorData.detail || response.statusText}`)
         }
 
         const result = await response.json()

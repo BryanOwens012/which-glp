@@ -34,10 +34,10 @@ pip3 install -r requirements.txt
 
 ```bash
 # Option 1: Use start script
-./apps/ml/start_api.sh
+./apps/rec-engine/start_api.sh
 
 # Option 2: Manual
-cd apps/ml
+cd apps/rec-engine
 python3 api.py
 ```
 
@@ -125,7 +125,7 @@ Clears in-memory experiences cache (admin endpoint).
 ## Files
 
 ```
-apps/ml/
+apps/rec-engine/
 ├── api.py                  # FastAPI app + endpoints
 ├── recommender.py          # KNN-based recommendation engine
 ├── recommender_api.py      # Legacy CLI wrapper (deprecated)
@@ -143,35 +143,35 @@ Required:
 - `SUPABASE_ANON_KEY` or `SUPABASE_SERVICE_KEY` - Supabase credentials
 
 Optional:
-- `ML_PORT` - Port to run on (default: 8001)
+- `REC_ENGINE_PORT` - Port to run on (default: 8001)
 
 ## Railway Deployment
 
 ### Step 1: Create ML API Service
 
 1. Go to Railway dashboard → New → Empty Service
-2. Name: `whichglp-ml`
+2. Name: `whichglp-rec-engine`
 3. Connect to GitHub repo
 4. Settings:
    - **Root Directory**: `/` (monorepo root)
-   - **Start Command**: `cd apps/ml && python3 api.py`
+   - **Start Command**: `cd apps/rec-engine && python3 api.py`
    - **Health Check Path**: `/health`
 
 5. Environment Variables:
    ```
    SUPABASE_URL=https://your-project.supabase.co
    SUPABASE_SERVICE_KEY=your-service-key
-   ML_PORT=8001
+   REC_ENGINE_PORT=8001
    ```
 
-6. Generate domain → Copy URL (e.g., `https://whichglp-ml.railway.app`)
+6. Generate domain → Copy URL (e.g., `https://whichglp-rec-engine.railway.app`)
 
 ### Step 2: Update Backend Service
 
 In your `whichglp-backend` Railway service, add:
 
 ```
-ML_URL=https://whichglp-ml.railway.app
+REC_ENGINE_URL=https://whichglp-rec-engine.railway.app
 ```
 
 ### Step 3: Deploy
@@ -205,7 +205,7 @@ The service uses K-Nearest Neighbors to match users with similar profiles:
 
 ```bash
 # Run unit tests
-cd apps/ml
+cd apps/rec-engine
 pytest test_recommender.py -v
 
 # Test live API
@@ -218,7 +218,7 @@ curl -X POST http://localhost:8001/api/recommendations \
 
 Check logs in Railway:
 ```bash
-railway logs --service whichglp-ml
+railway logs --service whichglp-rec-engine
 ```
 
 Health check should return 200:

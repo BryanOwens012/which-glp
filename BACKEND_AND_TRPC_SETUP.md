@@ -8,7 +8,7 @@ Successfully implemented a complete tRPC backend API and integrated it with the 
 
 ### 1. Materialized View on Supabase
 
-**File**: `apps/data-ingestion/migrations/006_create_denormalized_view.up.sql`
+**File**: `apps/shared/migrations/006_create_denormalized_view.up.sql`
 
 Created `mv_experiences_denormalized` materialized view that:
 - Joins `extracted_features`, `reddit_posts`, and `reddit_comments` tables
@@ -341,8 +341,8 @@ const [queryClient] = useState(() => new QueryClient({
 - `apps/frontend/app/layout.tsx` (modified)
 
 ### Database
-- `apps/data-ingestion/migrations/006_create_denormalized_view.up.sql`
-- `apps/data-ingestion/migrations/006_create_denormalized_view.down.sql`
+- `apps/shared/migrations/006_create_denormalized_view.up.sql`
+- `apps/shared/migrations/006_create_denormalized_view.down.sql`
 
 ## Running the Stack
 

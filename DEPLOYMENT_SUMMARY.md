@@ -54,7 +54,7 @@ cd apps/backend
 npm run dev
 
 # Terminal 3: ML API (port 8001)
-./apps/ml/start_api.sh
+./apps/rec-engine/start_api.sh
 ```
 
 ### Test the Stack
@@ -76,7 +76,7 @@ curl http://localhost:8001/health
 1. **whichglp-backend** (Node.js)
    - Port: 8000
    - Handles: tRPC API, experiences, stats
-   - Environment: `ML_URL=<ml-service-url>`
+   - Environment: `REC_ENGINE_URL=<ml-service-url>`
 
 2. **whichglp-frontend** (Next.js)
    - Port: 3000
@@ -87,26 +87,26 @@ curl http://localhost:8001/health
 #### Step 1: Create Service
 
 1. Railway Dashboard → New Service
-2. Name: `whichglp-ml`
+2. Name: `whichglp-rec-engine`
 3. Connect to GitHub repo
 4. Root Directory: `/` (monorepo root)
-5. Start Command: `cd apps/ml && python3 api.py`
+5. Start Command: `cd apps/rec-engine && python3 api.py`
 6. Health Check Path: `/health`
 
 #### Step 2: Environment Variables
 
-Add to `whichglp-ml`:
+Add to `whichglp-rec-engine`:
 ```bash
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_KEY=your-service-key
-ML_PORT=8001
+REC_ENGINE_PORT=8001
 ```
 
 #### Step 3: Update Backend
 
 In `whichglp-backend` service, add/update:
 ```bash
-ML_URL=https://whichglp-ml.railway.app
+REC_ENGINE_URL=https://whichglp-rec-engine.railway.app
 ```
 
 #### Step 4: Deploy
@@ -119,7 +119,7 @@ Push to GitHub → All services auto-deploy
 
 ### Before Deploying
 
-- [ ] ML API starts locally: `./apps/ml/start_api.sh`
+- [ ] ML API starts locally: `./apps/rec-engine/start_api.sh`
 - [ ] Health check works: `curl http://localhost:8001/health`
 - [ ] Backend can reach ML API: Check backend logs for successful ML requests
 - [ ] Frontend recommendations work: Test the "Recommend for Me" feature
@@ -183,10 +183,10 @@ Push to GitHub → All services auto-deploy
 ## File Reference
 
 ### New Files
-- `apps/ml/api.py` - FastAPI application
-- `apps/ml/start_api.sh` - Local dev script
-- `apps/ml/railway.json` - Railway deployment config
-- `apps/ml/README.md` - ML service documentation
+- `apps/rec-engine/api.py` - FastAPI application
+- `apps/rec-engine/start_api.sh` - Local dev script
+- `apps/rec-engine/railway.json` - Railway deployment config
+- `apps/rec-engine/README.md` - ML service documentation
 - `ARCHITECTURE.md` - Overall system architecture
 - `DEPLOYMENT_SUMMARY.md` - This file
 
@@ -208,9 +208,9 @@ Push to GitHub → All services auto-deploy
 3. ✅ Check logs for errors
 
 ### Deploy to Railway
-1. [ ] Create `whichglp-ml` service
+1. [ ] Create `whichglp-rec-engine` service
 2. [ ] Set environment variables
-3. [ ] Update `ML_URL` in backend service
+3. [ ] Update `REC_ENGINE_URL` in backend service
 4. [ ] Push to GitHub
 5. [ ] Monitor deployment logs
 6. [ ] Test production recommendations
@@ -248,14 +248,14 @@ If something goes wrong, you can quickly rollback:
 ## Support
 
 ### Documentation
-- ML API: `apps/ml/README.md`
+- ML API: `apps/rec-engine/README.md`
 - Architecture: `ARCHITECTURE.md`
 - Backend tRPC: `apps/backend/src/routers/recommendations.ts`
 
 ### Logs
 ```bash
 # Railway CLI
-railway logs --service whichglp-ml
+railway logs --service whichglp-rec-engine
 railway logs --service whichglp-backend
 railway logs --service whichglp-frontend
 ```

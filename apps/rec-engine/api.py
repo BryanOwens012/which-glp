@@ -143,7 +143,7 @@ def recommendation_to_dict(rec: DrugRecommendation) -> dict:
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""
-    return {"status": "healthy", "service": "ml-api"}
+    return {"status": "healthy", "service": "rec-engine-api"}
 
 
 @app.post("/api/recommendations", response_model=RecommendationsResponse)
@@ -208,8 +208,8 @@ async def clear_cache():
 if __name__ == "__main__":
     import uvicorn
 
-    # Railway sets PORT env var, fall back to ML_PORT or 8001 for local dev
-    port = int(os.getenv("PORT", os.getenv("ML_PORT", "8001")))
+    # Railway sets PORT env var, fall back to REC_ENGINE_PORT or 8001 for local dev
+    port = int(os.getenv("PORT", os.getenv("REC_ENGINE_PORT", "8001")))
 
     uvicorn.run(
         "api:app",

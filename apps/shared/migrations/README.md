@@ -33,7 +33,7 @@ This directory contains database migration scripts and tools for the WhichGLP da
 
 ### Up Migration (Create Tables)
 ```bash
-cd apps/data-ingestion/migrations
+cd apps/shared/migrations
 python run_migration.py 001_create_reddit_tables.up.sql
 ```
 

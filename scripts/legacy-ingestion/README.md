@@ -86,7 +86,7 @@ Key dependencies for ingestion:
 Run the database migration to create required tables:
 
 ```bash
-cd apps/data-ingestion/migrations
+cd apps/shared/migrations
 python run_migration.py 001_create_reddit_tables.up.sql
 ```
 
@@ -106,7 +106,7 @@ python verify_schema.py
 Fetch data from all Tier 1 subreddits once:
 
 ```bash
-cd apps/data-ingestion
+cd scripts/legacy-ingestion
 python -m ingestion.scheduler
 ```
 
@@ -147,7 +147,7 @@ Stop with `Ctrl+C`.
 Run comprehensive test suite (50+ tests):
 
 ```bash
-cd apps/data-ingestion
+cd scripts/legacy-ingestion
 pytest tests/test_parser.py -v
 ```
 
@@ -259,7 +259,7 @@ Ensure `.env` file exists in repository root with all required variables.
 ### "Failed to connect to database"
 Check `SUPABASE_URL` and `SUPABASE_DB_PASSWORD` are correct. Test connection:
 ```bash
-cd apps/data-ingestion/migrations
+cd apps/shared/migrations
 python run_migration.py --help
 ```
 
@@ -282,7 +282,7 @@ Normal if ingestion runs frequently. Posts are deduplicated automatically.
 ## File Structure
 
 ```
-apps/data-ingestion/
+scripts/legacy-ingestion/
 ├── README.md                     # This file
 ├── setup.py                      # Package configuration
 ├── pytest.ini                    # Pytest configuration

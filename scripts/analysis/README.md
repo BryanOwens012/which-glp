@@ -34,14 +34,14 @@ Required packages (already in requirements.txt):
 
 ```bash
 cd /Users/bryan/Github/which-glp
-python3 apps/data-analysis/scripts/data_quality_report.py
+python3 scripts/analysis/scripts/data_quality_report.py
 ```
 
 ### Phase 2-5: Interactive Analysis
 
 ```bash
 cd /Users/bryan/Github/which-glp
-jupyter notebook apps/data-analysis/notebooks/glp1_trial_analysis.ipynb
+jupyter notebook analysis/notebooks/glp1_trial_analysis.ipynb
 ```
 
 ## Analysis Plan

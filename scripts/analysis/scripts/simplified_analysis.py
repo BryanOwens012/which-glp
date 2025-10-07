@@ -7,7 +7,7 @@ Works with the actual schema (JSONB fields, arrays, etc.)
 
 Usage:
     cd /Users/bryan/Github/which-glp
-    python3 apps/data-analysis/scripts/simplified_analysis.py
+    python3 scripts/analysis/scripts/simplified_analysis.py
 """
 
 import os

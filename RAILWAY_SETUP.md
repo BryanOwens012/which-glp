@@ -6,19 +6,19 @@ WhichGLP requires 3 separate Railway services:
 
 1. **whichglp-frontend** - Next.js app
 2. **whichglp-backend** - Node.js tRPC API
-3. **whichglp-ml** - Python FastAPI service
+3. **whichglp-rec-engine** - Python FastAPI service
 
 ## Service 1: ML API
 
 ### Create Service
 1. Railway Dashboard → New Service
-2. Name: `whichglp-ml`
+2. Name: `whichglp-rec-engine`
 3. Connect to GitHub repo
 4. Settings:
    - **Root Directory**: `/` (monorepo root)
-   - **Start Command**: `cd apps/ml && python3 api.py`
+   - **Start Command**: `cd apps/rec-engine && python3 api.py`
    - **Health Check Path**: `/health`
-   - **Watch Paths**: `apps/ml/**`
+   - **Watch Paths**: `apps/rec-engine/**`
 
 ### Environment Variables
 ```bash
@@ -27,12 +27,12 @@ SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_KEY=your-service-key-here
 
 # Optional
-ML_PORT=8001  # Railway will override with PORT
+REC_ENGINE_PORT=8001  # Railway will override with PORT
 ```
 
 ### Generate Domain
 1. Settings → Networking → Generate Domain
-2. Copy the domain (e.g., `whichglp-ml.railway.app`)
+2. Copy the domain (e.g., `whichglp-rec-engine.railway.app`)
 3. Save for next step
 
 ### Notes
@@ -63,10 +63,10 @@ SUPABASE_ANON_KEY=your-anon-key-here
 # ML API Connection (IMPORTANT)
 # Option 1: Use Railway's service reference (recommended for internal communication)
 # Railway will automatically inject the full URL with port
-ML_URL=${{ML.RAILWAY_PUBLIC_DOMAIN}}
+REC_ENGINE_URL=${{ML.RAILWAY_PUBLIC_DOMAIN}}
 
 # Option 2: Use public domain (works but slower than internal)
-# ML_URL=https://ml-production-xxxx.up.railway.app
+# REC_ENGINE_URL=https://ml-production-xxxx.up.railway.app
 
 # Redis (from Railway Redis plugin)
 REDIS_URL=redis://default:password@redis.railway.internal:6379
@@ -85,7 +85,7 @@ NODE_ENV=production
 2. Copy the domain for frontend configuration
 
 ### Notes
-- **ML_URL is critical** - must point to the ML service's Railway domain
+- **REC_ENGINE_URL is critical** - must point to the ML service's Railway domain
 - Node.js v20+ recommended (v18 deprecated by Supabase)
 - Redis connection configured with dual-stack DNS (`family: 0`)
 
@@ -141,11 +141,11 @@ Railway services can have IPv6-only or dual-stack networking, which can cause co
 #### 2. ML API Connection (`apps/backend/src/routers/recommendations.ts`)
 ```typescript
 // Locally: use 127.0.0.1 (IPv4) instead of localhost
-// On Railway: use ML_URL env var (handles DNS automatically)
-const mlApiUrl = process.env.ML_URL || 'http://127.0.0.1:8001'
+// On Railway: use REC_ENGINE_URL env var (handles DNS automatically)
+const mlApiUrl = process.env.REC_ENGINE_URL || 'http://127.0.0.1:8001'
 ```
 
-#### 3. FastAPI Service (`apps/ml/api.py`)
+#### 3. FastAPI Service (`apps/rec-engine/api.py`)
 ```python
 # Listen on 0.0.0.0 (all interfaces, IPv4 and IPv6)
 uvicorn.run(
@@ -168,13 +168,13 @@ uvicorn.run(
 ### Before First Deploy
 - [ ] All services created in Railway
 - [ ] Environment variables set for each service
-- [ ] `ML_URL` in backend points to ML service domain
+- [ ] `REC_ENGINE_URL` in backend points to ML service domain
 - [ ] `NEXT_PUBLIC_API_URL` in frontend points to backend domain
 - [ ] Redis plugin added to backend service
 - [ ] Domains generated for all services
 
 ### After Deploy
-- [ ] Check ML API health: `curl https://whichglp-ml.railway.app/health`
+- [ ] Check ML API health: `curl https://whichglp-rec-engine.railway.app/health`
 - [ ] Check backend logs for successful ML API connection
 - [ ] Test frontend recommendations feature
 - [ ] Monitor Railway logs for all 3 services
@@ -182,7 +182,7 @@ uvicorn.run(
 ### Common Issues
 
 **Issue**: Backend can't connect to ML API
-**Solution**: Verify `ML_URL` is set correctly in backend environment variables
+**Solution**: Verify `REC_ENGINE_URL` is set correctly in backend environment variables
 
 **Issue**: Redis connection refused
 **Solution**: Check Redis plugin is added and `REDIS_URL` is set
@@ -245,7 +245,7 @@ uvicorn.run(
 ### View Logs
 ```bash
 # Railway CLI
-railway logs --service whichglp-ml
+railway logs --service whichglp-rec-engine
 railway logs --service whichglp-backend
 railway logs --service whichglp-frontend
 ```
@@ -253,7 +253,7 @@ railway logs --service whichglp-frontend
 ### Health Checks
 ```bash
 # ML API
-curl https://whichglp-ml.railway.app/health
+curl https://whichglp-rec-engine.railway.app/health
 
 # Backend (via frontend)
 curl https://whichglp-frontend.railway.app/api/trpc/platform.getStats
@@ -322,4 +322,4 @@ Railway will automatically redeploy on push.
 For project-specific issues, see:
 - `ARCHITECTURE.md` - System architecture
 - `DEPLOYMENT_SUMMARY.md` - Migration summary
-- `apps/ml/README.md` - ML service docs
+- `apps/rec-engine/README.md` - ML service docs

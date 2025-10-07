@@ -31,9 +31,21 @@ This is a monorepo with the following structure:
 ├── requirements.txt        # Python dependencies (monorepo-wide)
 ├── venv/                   # Python virtual environment
 ├── AGENTS.md              # Primary instructions and business context
-├── apps/
-│   ├── data-ingestion/    # Python app for Reddit ingestion + AI extraction
-│   └── frontend/          # Next.js 15 app (not yet active)
+├── apps/                   # Railway-deployed services
+│   ├── frontend/          # Next.js 15 frontend
+│   ├── backend/           # Node.js tRPC API
+│   ├── ml/                # FastAPI ML recommendation service
+│   ├── user-ingestion/    # User demographics extraction service
+│   ├── post-ingestion/    # Reddit post fetching service
+│   ├── post-extraction/   # GLM-based feature extraction service
+│   └── shared/            # Shared database migrations and utilities
+├── scripts/               # One-off scripts, tests, analysis, legacy code
+│   ├── legacy-ingestion/  # Old Claude-based ingestion (deprecated)
+│   ├── tests/             # Ad-hoc test and debug scripts
+│   └── analysis/          # Data analysis notebooks and scripts
+│       ├── notebooks/     # Jupyter notebooks
+│       ├── scripts/       # Analysis Python scripts
+│       └── outputs/       # Generated analysis outputs
 └── backups/               # Local backup storage (referenced by shared.config)
     ├── ingestion/         # Reddit API ingestion backups
     └── extraction/        # AI extraction backups
@@ -51,7 +63,7 @@ The project uses a virtual environment at `/venv/`:
 # From repository root
 source venv/bin/activate
 pip3 install -r requirements.txt
-pip3 install -e apps/data-ingestion  # Install as editable package
+pip3 install -e scripts/legacy-ingestion  # Install as editable package
 ```
 
 ### Required Environment Variables
@@ -72,7 +84,7 @@ REDDIT_USER_AGENT=whichglp-ingestion/0.1
 ANTHROPIC_API_KEY=your-api-key
 ```
 
-**Database Connection**: The code extracts the project reference from `SUPABASE_URL` and constructs the PostgreSQL connection string automatically. See `apps/data-ingestion/shared/database.py` for implementation.
+**Database Connection**: The code extracts the project reference from `SUPABASE_URL` and constructs the PostgreSQL connection string automatically. See `scripts/legacy-ingestion/shared/database.py` for implementation.
 
 ## Data Ingestion Architecture
 
@@ -84,12 +96,12 @@ The data-ingestion app is installed as an editable Python package with the names
 python3 -m reddit_ingestion.historical_ingest --subreddit Ozempic
 ```
 
-**Not** `python3 apps/data-ingestion/ingestion/historical_ingest.py` (old pattern).
+**Not** `python3 scripts/legacy-ingestion/ingestion/historical_ingest.py` (old pattern).
 
 ### Module Organization
 
 ```
-apps/data-ingestion/
+scripts/legacy-ingestion/
 ├── ingestion/              # Reddit API clients and parsers
 │   ├── client.py          # PRAW wrapper for Reddit API
 │   ├── parser.py          # Parse Reddit JSON into database schema
@@ -125,7 +137,7 @@ This script:
 2. Fetches top 20 comments per post
 3. Parses data using `ingestion/parser.py`
 4. Batch inserts to Supabase (100 records per batch with ON CONFLICT for deduplication)
-5. Backs up to `apps/data-ingestion/ingestion/backup/historical_run_YYYYMMDD_HHMMSS_{subreddit}/`
+5. Backs up to `scripts/legacy-ingestion/ingestion/backup/historical_run_YYYYMMDD_HHMMSS_{subreddit}/`
 6. Creates `summary.json` with statistics
 
 **Backup Upload** (if database insert failed but backup exists):
@@ -199,7 +211,7 @@ Not all posts/comments are processed. See `extraction/filters.py` for logic:
 ### Backup Strategy
 
 All AI extractions are backed up to JSON files before database insertion:
-- Location: `apps/data-ingestion/extraction_backups/`
+- Location: `scripts/legacy-ingestion/extraction_backups/`
 - Filename pattern: `extraction_backup_{subreddit}_{timestamp}.json`
 - Contains full extraction results + metadata
 
@@ -209,7 +221,7 @@ The project uses simple SQL migrations with up/down files:
 
 ```bash
 cd /Users/bryan/Github/which-glp
-python3 apps/data-ingestion/migrations/run_migration.py apps/data-ingestion/migrations/001_create_reddit_tables.up.sql
+python3 apps/shared/migrations/run_migration.py apps/shared/migrations/001_create_reddit_tables.up.sql
 ```
 
 **Migration Naming Convention**:
@@ -229,8 +241,8 @@ Run tests from the repository root:
 
 ```bash
 cd /Users/bryan/Github/which-glp
-pytest apps/data-ingestion/tests/
-pytest apps/data-ingestion/tests/test_parser.py  # Single test file
+pytest scripts/legacy-ingestion/tests/
+pytest scripts/legacy-ingestion/tests/test_parser.py  # Single test file
 ```
 
 **Test Organization**:
@@ -349,13 +361,13 @@ If ingestion fails mid-process, backups are still created. Upload from backup:
 
 ```bash
 cd /Users/bryan/Github/which-glp
-python3 -m reddit_ingestion.upload_from_backup apps/data-ingestion/ingestion/backup/historical_run_20251003_123456_Ozempic
+python3 -m reddit_ingestion.upload_from_backup scripts/legacy-ingestion/ingestion/backup/historical_run_20251003_123456_Ozempic
 ```
 
 ### Adding New Extracted Features
 
-1. Create migration file: `apps/data-ingestion/migrations/006_add_new_field.up.sql`
-2. Run migration: `python3 apps/data-ingestion/migrations/run_migration.py apps/data-ingestion/migrations/006_add_new_field.up.sql`
+1. Create migration file: `apps/shared/migrations/006_add_new_field.up.sql`
+2. Run migration: `python3 apps/shared/migrations/run_migration.py apps/shared/migrations/006_add_new_field.up.sql`
 3. Update `extraction/schema.py` to include new field
 4. Update `extraction/prompts.py` to instruct Claude to extract new field
 5. Re-run extraction for updated posts
@@ -367,7 +379,7 @@ python3 -m reddit_ingestion.upload_from_backup apps/data-ingestion/ingestion/bac
 Ensure you've installed the package as editable:
 ```bash
 cd /Users/bryan/Github/which-glp
-pip3 install -e apps/data-ingestion
+pip3 install -e scripts/legacy-ingestion
 ```
 
 ### Database connection errors
