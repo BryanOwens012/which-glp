@@ -151,6 +151,7 @@ async def get_recommendations(request: RecommendationRequest):
     """
     Generate drug recommendations based on user profile.
     """
+    print(f"[ML API] Received recommendation request: {request.dict()}")
     try:
         # Create user profile
         user = UserProfile(
@@ -190,6 +191,9 @@ async def get_recommendations(request: RecommendationRequest):
         }
 
     except Exception as e:
+        print(f"[ML API] ERROR: {type(e).__name__}: {str(e)}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 
