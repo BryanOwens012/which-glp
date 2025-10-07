@@ -205,7 +205,7 @@ if __name__ == "__main__":
     import uvicorn
 
     # Get port from environment or default to 8001
-    port = int(os.getenv("ML_API_PORT", "8001"))
+    port = int(os.getenv("ML_PORT", "8001"))
 
     uvicorn.run(
         "api:app",

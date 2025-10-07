@@ -27,7 +27,7 @@ SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_KEY=your-service-key-here
 
 # Optional
-ML_API_PORT=8001  # Railway will override with PORT
+ML_PORT=8001  # Railway will override with PORT
 ```
 
 ### Generate Domain
@@ -61,7 +61,7 @@ SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_ANON_KEY=your-anon-key-here
 
 # ML API Connection (IMPORTANT)
-ML_API_URL=https://whichglp-ml.railway.app
+ML_URL=https://whichglp-ml.railway.app
 
 # Redis (from Railway Redis plugin)
 REDIS_URL=redis://default:password@redis.railway.internal:6379
@@ -80,7 +80,7 @@ NODE_ENV=production
 2. Copy the domain for frontend configuration
 
 ### Notes
-- **ML_API_URL is critical** - must point to the ML service's Railway domain
+- **ML_URL is critical** - must point to the ML service's Railway domain
 - Node.js v20+ recommended (v18 deprecated by Supabase)
 - Redis connection configured with dual-stack DNS (`family: 0`)
 
@@ -136,8 +136,8 @@ Railway services can have IPv6-only or dual-stack networking, which can cause co
 #### 2. ML API Connection (`apps/backend/src/routers/recommendations.ts`)
 ```typescript
 // Locally: use 127.0.0.1 (IPv4) instead of localhost
-// On Railway: use ML_API_URL env var (handles DNS automatically)
-const mlApiUrl = process.env.ML_API_URL || 'http://127.0.0.1:8001'
+// On Railway: use ML_URL env var (handles DNS automatically)
+const mlApiUrl = process.env.ML_URL || 'http://127.0.0.1:8001'
 ```
 
 #### 3. FastAPI Service (`apps/ml/api.py`)
@@ -163,7 +163,7 @@ uvicorn.run(
 ### Before First Deploy
 - [ ] All services created in Railway
 - [ ] Environment variables set for each service
-- [ ] `ML_API_URL` in backend points to ML service domain
+- [ ] `ML_URL` in backend points to ML service domain
 - [ ] `NEXT_PUBLIC_API_URL` in frontend points to backend domain
 - [ ] Redis plugin added to backend service
 - [ ] Domains generated for all services
@@ -177,7 +177,7 @@ uvicorn.run(
 ### Common Issues
 
 **Issue**: Backend can't connect to ML API
-**Solution**: Verify `ML_API_URL` is set correctly in backend environment variables
+**Solution**: Verify `ML_URL` is set correctly in backend environment variables
 
 **Issue**: Redis connection refused
 **Solution**: Check Redis plugin is added and `REDIS_URL` is set

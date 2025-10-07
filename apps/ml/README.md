@@ -143,7 +143,7 @@ Required:
 - `SUPABASE_ANON_KEY` or `SUPABASE_SERVICE_KEY` - Supabase credentials
 
 Optional:
-- `ML_API_PORT` - Port to run on (default: 8001)
+- `ML_PORT` - Port to run on (default: 8001)
 
 ## Railway Deployment
 
@@ -161,7 +161,7 @@ Optional:
    ```
    SUPABASE_URL=https://your-project.supabase.co
    SUPABASE_SERVICE_KEY=your-service-key
-   ML_API_PORT=8001
+   ML_PORT=8001
    ```
 
 6. Generate domain → Copy URL (e.g., `https://whichglp-ml.railway.app`)
@@ -171,7 +171,7 @@ Optional:
 In your `whichglp-backend` Railway service, add:
 
 ```
-ML_API_URL=https://whichglp-ml.railway.app
+ML_URL=https://whichglp-ml.railway.app
 ```
 
 ### Step 3: Deploy
