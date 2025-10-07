@@ -26,16 +26,16 @@ export const experiencesRouter = router({
       drug: z.string().optional(),
       search: z.string().optional(),
 
-      // Pagination
+      // Pagination (using cursor for tRPC infinite queries)
       limit: z.number().min(1).max(100).default(20),
-      offset: z.number().min(0).optional(),
+      cursor: z.number().min(0).optional(),
 
       // Sorting
       sortBy: SortField.optional(),
       sortOrder: SortDirection.optional(),
     }))
     .query(async ({ input }) => {
-      const offset = input.offset ?? 0
+      const offset = input.cursor ?? 0
       const sortBy: SortFieldType = input.sortBy ?? 'date'
       const sortOrder: SortDirectionType = input.sortOrder ?? 'desc'
 
@@ -59,7 +59,6 @@ export const experiencesRouter = router({
       let dataQuery = supabase
         .from('mv_experiences_denormalized')
         .select('*', { count: 'exact' })
-        .is('comment_id', null)
 
       // Apply filters
       if (input.drug) {

@@ -98,7 +98,7 @@ export const DrugComparison = () => {
           <Button
             variant="ghost"
             onClick={() => setShowAllDrugs(true)}
-            className="mt-3 text-sm"
+            className="mt-1 text-sm"
           >
             Show more ({drugStats.length - 10} more)
           </Button>
@@ -324,7 +324,7 @@ export const DrugComparison = () => {
                       <div className="text-sm font-medium mb-2">
                         Severity Distribution{" "}
                         <span className="text-xs font-normal text-muted-foreground">
-                          (among those reporting side effects)
+                          (among the {Math.round(med.sideEffectReportingRate)}% who reported side effects)
                         </span>
                       </div>
                       <div className="space-y-1 text-xs">

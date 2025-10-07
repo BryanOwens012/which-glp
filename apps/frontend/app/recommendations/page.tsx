@@ -168,12 +168,27 @@ const RecommendationsPage = () => {
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen relative">
+      {/* Coming Soon Scrim Overlay */}
+      <div className="pointer-events-none fixed inset-0 z-[9999] h-screen w-screen backdrop-blur-[2px] flex items-center justify-center">
+        <div className="pointer-events-auto">
+          <div className="relative overflow-hidden rounded-2xl border border-border/40 px-8 py-6 shadow-2xl" style={{background: 'linear-gradient(135deg, oklch(0.65 0.15 150 / 0.98), oklch(0.55 0.18 240 / 0.98))'}}>
+            <div className="flex items-center gap-3">
+              <div className="h-2 w-2 animate-pulse rounded-full bg-white"></div>
+              <span className="relative inline-block text-lg font-semibold tracking-tight">
+                <span className="text-white">Coming soon!</span>
+                <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent bg-[length:200%_100%] animate-[shimmer_2s_ease-in-out_infinite] bg-clip-text"></span>
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <Navigation />
 
       <div className="container mx-auto px-4 pt-24 pb-12">
         <div className="mb-8">
-          <h1 className="mb-3 text-4xl font-bold">Personalized Recommendations</h1>
+          <h1 className="mb-3 text-4xl font-bold">Recommend for Me</h1>
           <p className="text-lg text-muted-foreground">
             Find the best drug for your profile based on similar user experiences
           </p>
@@ -394,7 +409,7 @@ const RecommendationsPage = () => {
 
             <div className="mt-8">
               <Button type="submit" size="lg" disabled={loading} className="w-full md:w-auto">
-                {loading ? "Analyzing..." : "Get Personalized Recommendations"}
+                {loading ? "Analyzing..." : "Get Recommendations"}
               </Button>
             </div>
           </Card>
@@ -406,7 +421,7 @@ const RecommendationsPage = () => {
             <div className="flex items-center gap-3 mb-6">
               <Target className="h-8 w-8 text-primary" />
               <div>
-                <h2 className="text-2xl font-bold">Your Personalized Recommendations</h2>
+                <h2 className="text-2xl font-bold">Your Recommendations</h2>
                 <p className="text-muted-foreground">
                   Based on {recommendations.reduce((sum, p) => sum + p.similarUserCount, 0)} similar user
                   experiences

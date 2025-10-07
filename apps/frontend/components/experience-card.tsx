@@ -115,7 +115,7 @@ export function ExperienceCard({ experience, onClick }: ExperienceCardProps) {
           {/* Loss Speed */}
           {lossSpeedDisplay && (
             <div className="flex items-center gap-2">
-              <TrendingDown className="h-4 w-4 text-green-500" />
+              <TrendingDown className="h-4 w-4 text-foreground" />
               <div>
                 <div className="text-sm font-semibold">{lossSpeedDisplay}</div>
                 <div className="text-xs text-muted-foreground">Loss Speed</div>

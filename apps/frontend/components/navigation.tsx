@@ -33,7 +33,7 @@ export const Navigation = () => {
             href="/recommendations"
             className="text-sm text-muted-foreground transition-colors hover:text-foreground"
           >
-            Personalized Recommendations
+            Recommend for Me
           </Link>
           <Link
             href="/about"

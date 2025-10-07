@@ -58,19 +58,20 @@ const ExperiencesPage = () => {
     isLoading: experiencesLoading,
     isFetching,
   } = trpc.experiences.list.useInfiniteQuery(
-    ({ pageParam = 0 }) => ({
+    {
       drug: selectedDrug !== "all" ? selectedDrug : undefined,
       search: debouncedSearchText || undefined,
       sortBy,
       sortOrder,
       limit: 20,
-      offset: pageParam,
-    }),
+    },
     {
       getNextPageParam: (lastPage: any, allPages: any[]) => {
         const loadedCount = allPages.reduce((sum: number, page: any) => sum + page.experiences.length, 0)
         return loadedCount < lastPage.total ? loadedCount : undefined
       },
+      // Keep previous data while fetching to prevent UI flicker
+      keepPreviousData: false,
     }
   )
 
