@@ -69,15 +69,6 @@ const DashboardPage = () => {
   // Aggregate side effects across all drugs
   const allSideEffects = drugStats
     ?.flatMap((d) => d.commonSideEffects || [])
-    .map((effect: { name: string; count: number; percentage: number }) => {
-      // Parse the JSON string to extract the actual name
-      try {
-        const parsed = JSON.parse(effect.name)
-        return { name: parsed.name, percentage: effect.percentage, count: effect.count }
-      } catch {
-        return { name: effect.name, percentage: effect.percentage, count: effect.count }
-      }
-    })
     .reduce(
       (acc: Array<{ name: string; percentage: number }>, effect: { name: string; count: number; percentage: number }) => {
         const existing = acc.find((e: { name: string; percentage: number }) => e.name === effect.name)

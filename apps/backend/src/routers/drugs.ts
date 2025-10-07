@@ -89,9 +89,18 @@ async function fetchAllDrugStats() {
       const reboundRate = (reboundCount / exps.length) * 100
 
       // Side effects
+      // Parse JSON strings to extract actual effect names and combine duplicates
       const allSideEffects = exps.flatMap(e => e.top_side_effects || [])
       const sideEffectCounts = allSideEffects.reduce((acc, effect) => {
-        acc[effect] = (acc[effect] || 0) + 1
+        // Parse JSON string to get the effect name
+        let effectName = effect
+        try {
+          const parsed = typeof effect === 'string' ? JSON.parse(effect) : effect
+          effectName = parsed.name || effect
+        } catch {
+          // If parsing fails, use the raw effect string
+        }
+        acc[effectName] = (acc[effectName] || 0) + 1
         return acc
       }, {} as Record<string, number>)
 
