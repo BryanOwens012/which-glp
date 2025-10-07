@@ -1,9 +1,9 @@
-import { router } from '../lib/trpc'
-import { platformRouter } from './platform'
-import { drugsRouter } from './drugs'
-import { experiencesRouter } from './experiences'
-import { locationsRouter } from './locations'
-import { demographicsRouter } from './demographics'
+import { router } from '../lib/trpc.js'
+import { platformRouter } from './platform.js'
+import { drugsRouter } from './drugs.js'
+import { experiencesRouter } from './experiences.js'
+import { locationsRouter } from './locations.js'
+import { demographicsRouter } from './demographics.js'
 
 export const appRouter = router({
   platform: platformRouter,

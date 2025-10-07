@@ -1,5 +1,5 @@
-import { router, publicProcedure } from '../lib/trpc'
-import { supabase } from '../lib/supabase'
+import { router, publicProcedure } from '../lib/trpc.js'
+import { supabase } from '../lib/supabase.js'
 
 export const drugsRouter = router({
   getAllStats: publicProcedure.query(async () => {
