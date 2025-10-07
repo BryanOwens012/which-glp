@@ -5,27 +5,58 @@
  * Instead, we define a compatible stub type that satisfies tRPC's requirements.
  */
 
-import type { RootConfig } from '@trpc/server'
+// Create a minimal procedure type that tRPC can work with
+type AnyProcedure = {
+  _def: any
+  [key: string]: any
+}
 
-// Define a minimal router structure that tRPC can work with
-type ProcedureRouterRecord = Record<string, any>
+// Define router record with nested routers
+type RouterRecord = {
+  [key: string]: AnyProcedure | RouterRecord
+}
 
-export interface AppRouter extends RootConfig<{
-  ctx: object
-  meta: object
-  errorShape: any
-  transformer: any
-}> {
+// Main AppRouter type compatible with tRPC
+export type AppRouter = {
   _def: {
-    _config: any
+    _config: {
+      transformer: any
+      errorFormatter: any
+      allowOutsideOfServer: boolean
+      isServer: boolean
+      isDev: boolean
+    }
     router: true
-    procedures: ProcedureRouterRecord
+    procedures: RouterRecord
+    record: RouterRecord
+    queries: RouterRecord
+    mutations: RouterRecord
+    subscriptions: RouterRecord
   }
-  createCaller: any
-  getErrorShape: any
-  platform: any
-  drugs: any
-  experiences: any
-  locations: any
-  demographics: any
+  createCaller: (ctx: any) => any
+  getErrorShape: (opts: any) => any
+
+  // Define the actual router structure
+  platform: {
+    getStats: AnyProcedure
+    [key: string]: any
+  }
+  drugs: {
+    list: AnyProcedure
+    getById: AnyProcedure
+    [key: string]: any
+  }
+  experiences: {
+    list: AnyProcedure
+    getById: AnyProcedure
+    [key: string]: any
+  }
+  locations: {
+    list: AnyProcedure
+    [key: string]: any
+  }
+  demographics: {
+    getStats: AnyProcedure
+    [key: string]: any
+  }
 }
