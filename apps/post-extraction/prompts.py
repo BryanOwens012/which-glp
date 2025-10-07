@@ -1,1 +1,1 @@
-../../apps/data-ingestion/extraction/prompts.py
+../../scripts/legacy-ingestion/extraction/prompts.py

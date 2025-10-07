@@ -49,20 +49,26 @@ async def trigger_extraction(request: ExtractionRequest, background_tasks: Backg
             db = DatabaseManager()
             glm = get_client()
 
-            # Query unprocessed posts
+            # Query unprocessed posts (with parameterized query to prevent SQL injection)
             query = """
                 SELECT post_id, title, body, subreddit, author_flair_text
                 FROM reddit_posts
                 WHERE post_id NOT IN (SELECT post_id FROM extracted_features WHERE post_id IS NOT NULL)
             """
+            params = []
+
             if request.subreddit:
-                query += f" AND subreddit = '{request.subreddit}'"
+                query += " AND subreddit = %s"
+                params.append(request.subreddit)
+
             query += " ORDER BY created_at DESC"
+
             if request.limit:
-                query += f" LIMIT {request.limit}"
+                query += " LIMIT %s"
+                params.append(request.limit)
 
             with db.conn.cursor() as cursor:
-                cursor.execute(query)
+                cursor.execute(query, params)
                 posts = cursor.fetchall()
 
             logger.info(f"Found {len(posts)} unprocessed posts")

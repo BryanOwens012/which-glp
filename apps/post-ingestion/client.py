@@ -1,1 +1,1 @@
-../../apps/data-ingestion/ingestion/client.py
+../../scripts/legacy-ingestion/ingestion/client.py

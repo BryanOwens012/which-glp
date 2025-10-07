@@ -31,22 +31,22 @@ async function testRecommendation() {
     console.log(`✅ ML API returned ${mlResult.recommendations.length} recommendations`);
     console.log(`   Top recommendation: ${mlResult.recommendations[0]?.drug}\n`);
 
-    // Test through backend
-    console.log('2️⃣ Testing through tRPC backend...');
-    const backendResponse = await fetch('http://localhost:8000/trpc/recommendations.getForUser', {
+    // Test through API
+    console.log('2️⃣ Testing through tRPC API...');
+    const apiResponse = await fetch('http://localhost:8000/trpc/recommendations.getForUser', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(testPayload)
     });
 
-    if (!backendResponse.ok) {
-      const errorText = await backendResponse.text();
-      throw new Error(`Backend failed: ${backendResponse.statusText}\n${errorText}`);
+    if (!apiResponse.ok) {
+      const errorText = await apiResponse.text();
+      throw new Error(`API failed: ${apiResponse.statusText}\n${errorText}`);
     }
 
-    const backendResult = await backendResponse.json();
-    console.log('✅ Backend returned successfully');
-    console.log(`   Processing time: ${backendResult.result?.data?.processingTime}ms\n`);
+    const apiResult = await apiResponse.json();
+    console.log('✅ API returned successfully');
+    console.log(`   Processing time: ${apiResult.result?.data?.processingTime}ms\n`);
 
     console.log('🎉 End-to-end flow working!');
 

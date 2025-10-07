@@ -93,11 +93,13 @@ class RedditUserAnalyzer:
             ORDER BY author
         """
 
+        params = []
         if limit:
-            query += f" LIMIT {limit}"
+            query += " LIMIT %s"
+            params.append(limit)
 
         with self.db.conn.cursor() as cursor:
-            cursor.execute(query)
+            cursor.execute(query, params)
             rows = cursor.fetchall()
 
         usernames = [row[0] for row in rows]

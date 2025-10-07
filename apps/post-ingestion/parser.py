@@ -1,1 +1,1 @@
-../../apps/data-ingestion/ingestion/parser.py
+../../scripts/legacy-ingestion/ingestion/parser.py

@@ -1,1 +1,1 @@
-../../apps/data-ingestion/extraction/schema.py
+../../scripts/legacy-ingestion/extraction/schema.py

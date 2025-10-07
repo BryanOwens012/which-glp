@@ -4,13 +4,13 @@ FastAPI microservice for drug recommendations based on user profiles and real-wo
 
 ## Architecture
 
-This is a **standalone Python service** separate from the Node.js backend:
+This is a **standalone Python service** separate from the Node.js API:
 
 ```
 apps/
 ├── frontend/        # Next.js app (port 3000)
-├── backend/         # Node.js tRPC API (port 8000)
-└── ml/          # Python FastAPI service (port 8001) ← YOU ARE HERE
+├── api/             # Node.js tRPC API (port 8000)
+└── rec-engine/      # Python FastAPI service (port 8001) ← YOU ARE HERE
 ```
 
 ### Why Separate?
