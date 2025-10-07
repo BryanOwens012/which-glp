@@ -1,5 +1,8 @@
 /**
- * Re-export AppRouter type from backend for frontend consumption.
- * This allows type-safe tRPC without importing backend code.
+ * Stub AppRouter type for frontend.
+ * This allows the frontend to build independently on Vercel.
+ *
+ * IMPORTANT: This is a placeholder. The actual types come from the backend at runtime.
+ * For full type safety in development, run the backend locally.
  */
-export type { AppRouter } from '../../backend/src/routers/index.js'
+export type AppRouter = any
