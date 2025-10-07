@@ -1,0 +1,12 @@
+# Ignore everything at the root and in other apps
+/*
+!/.env
+!/apps/
+/apps/*
+!/apps/api/
+
+# Ignore api dev files
+apps/api/node_modules/
+apps/api/dist/
+apps/api/.env.local
+apps/api/.env.development

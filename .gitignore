@@ -5,8 +5,8 @@
 # BUSINESS STRATEGY & PRIVATE DOCS (CRITICAL)
 # ============================================
 # Keep business strategy and revenue projections private
-MONETIZATION.md
-AGENTS_APPENDLOG.md
+docs/MONETIZATION.md
+docs/AGENTS_APPENDLOG.md
 
 # ============================================
 # SECRETS & CREDENTIALS (CRITICAL)
@@ -68,7 +68,7 @@ downloads/
 eggs/
 .eggs/
 # Python lib directories (but not frontend/lib)
-apps/data-ingestion/**/lib/
+scripts/legacy-ingestion/**/lib/
 lib64/
 parts/
 sdist/

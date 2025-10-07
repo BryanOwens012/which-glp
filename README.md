@@ -2,7 +2,7 @@
 
 Real-world dashboard for GLP-1 weight-loss drug outcomes by aggregating Reddit/Twitter posts and user-submitted reviews. Mission is to help people make educated decisions when choosing their weight-loss drug.
 
-I've accelerated development by prompting Claude Code to generate code. More details at AGENTS.md and AGENTS_APPENDLOG.md. 
+I've accelerated development by prompting Claude Code to generate code. More details at [docs/AGENTS.md](docs/AGENTS.md).
 
 Once complete, this project will be available at whichglp.com.
 
@@ -17,7 +17,7 @@ I'll progressively add more stack as necessary. No need to prematurely optimize.
 
 ## Full Tech Stack Vision
 
-### Backend
+### API
 
 - **Runtime:** Node.js 20+
 - **Framework:** Express.js
@@ -27,7 +27,7 @@ I'll progressively add more stack as necessary. No need to prematurely optimize.
 - **Data Ingestion:** Reddit API (PRAW/custom HTTP client), Twitter API (via twitterapi.io)
 - **Scraping Backup:** Playwright (when APIs rate-limited/unavailable)
 - **AI Processing:** Claude Sonnet 4 API (extract structured data from posts)
-- **Optional:** FastAPI + Python microservice (heavy NLP/data processing if needed)
+- **Recommendation Engine:** FastAPI + Python microservice (KNN-based ML recommendations)
 
 ### Frontend
 
@@ -42,7 +42,7 @@ I'll progressively add more stack as necessary. No need to prematurely optimize.
 
 - **Database:** PostgreSQL via Supabase (free tier: 500MB, upgrade to Pro: 8GB @ $25/month)
 - **Auth:** Supabase Auth
-- **Backend Hosting:** Railway (Express + tRPC + Redis + Playwright)
+- **API Hosting:** Railway (Express + tRPC + Redis + Playwright)
 - **Frontend Hosting:** Vercel
 - **Containerization:** Not present initially, Docker added later for production
 
@@ -50,7 +50,7 @@ I'll progressively add more stack as necessary. No need to prematurely optimize.
 
 - **Primary ingestion:** Reddit API + Twitter API (twitterapi.io proxy)
 - **Backup ingestion:** Playwright scraping (fallback when API limits exceeded)
-- **Type safety:** tRPC ensures frontend/backend contract enforcement
+- **Type safety:** tRPC ensures frontend/api contract enforcement
 - **Supabase benefits:** PostgreSQL + Auth + Storage + Realtime in single platform
-- **Railway deployment:** Single service for Node.js backend, Redis, and Playwright dependencies
+- **Railway deployment:** Separate services for frontend, API (Node.js), and rec-engine (Python)
 

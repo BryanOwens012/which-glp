@@ -23,5 +23,5 @@
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules", "../backend", "../data-ingestion", "../data-analysis"]
+  "exclude": ["node_modules", "../api", "../rec-engine", "../user-extraction", "../post-ingestion", "../post-extraction"]
 }

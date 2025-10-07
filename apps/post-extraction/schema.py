@@ -1,0 +1,1 @@
+../../scripts/legacy-ingestion/extraction/schema.py
