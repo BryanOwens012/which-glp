@@ -4,28 +4,28 @@
  * This creates a minimal type definition that satisfies tRPC without importing backend code.
  */
 
-import type { inferRouterInputs, inferRouterOutputs } from '@trpc/server'
+// Define a minimal procedure type
+type AnyProcedure = {
+  _type: 'query' | 'mutation' | 'subscription'
+  _def: any
+}
 
-// Define the router structure as an interface
-export interface AppRouter {
+// Define a router type
+type AnyRouter = {
   _def: {
-    _config: {
-      transformer: {
-        input: { serialize: (obj: any) => any; deserialize: (obj: any) => any }
-        output: { serialize: (obj: any) => any; deserialize: (obj: any) => any }
-      }
-      errorFormatter: any
-      allowOutsideOfServer: boolean
-      isServer: boolean
-      $types: any
-    }
+    _config: any
     router: true
-    procedures: {
-      platform: any
-      drugs: any
-      experiences: any
-      locations: any
-      demographics: any
-    }
+    procedures: Record<string, AnyProcedure | AnyRouter>
   }
+  createCaller: any
+  getErrorShape: any
+}
+
+// Create the AppRouter type by extending the base router
+export type AppRouter = AnyRouter & {
+  platform: AnyRouter
+  drugs: AnyRouter
+  experiences: AnyRouter
+  locations: AnyRouter
+  demographics: AnyRouter
 }
