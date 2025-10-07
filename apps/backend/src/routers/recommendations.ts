@@ -1,14 +1,5 @@
 import { router, publicProcedure } from '../lib/trpc.js'
 import { z } from 'zod'
-import { exec } from 'child_process'
-import { promisify } from 'util'
-import path from 'path'
-import { fileURLToPath } from 'url'
-
-const execAsync = promisify(exec)
-
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
 
 // Input validation schema
 const RecommendationInput = z.object({
@@ -63,35 +54,26 @@ export const recommendationsRouter = router({
       const startTime = Date.now()
 
       try {
-        // Path to the Python ML script
-        const repoRoot = path.resolve(__dirname, '../../../..')
-        const pythonScript = path.join(repoRoot, 'apps/backend/ml/recommender_api.py')
-        const venvPython = path.join(repoRoot, 'venv/bin/python3')
+        // Get ML API URL from environment or default to 127.0.0.1
+        // On Railway: Use the ML_API_URL env var with the internal service URL
+        // Locally: Use 127.0.0.1 instead of localhost to avoid IPv6 resolution issues
+        const mlApiUrl = process.env.ML_API_URL || 'http://127.0.0.1:8001'
 
-        // Serialize input to JSON for Python
-        const inputJson = JSON.stringify(input)
+        // Call FastAPI service
+        const response = await fetch(`${mlApiUrl}/api/recommendations`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(input),
+        })
 
-        // Execute Python script
-        const { stdout, stderr } = await execAsync(
-          `${venvPython} ${pythonScript} '${inputJson}'`,
-          {
-            cwd: path.join(repoRoot, 'apps/backend'),
-            timeout: 30000, // 30 second timeout
-            maxBuffer: 1024 * 1024 * 10, // 10MB buffer
-          }
-        )
-
-        if (stderr && !stderr.includes('INFO')) {
-          console.error('Python stderr:', stderr)
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }))
+          throw new Error(`ML API error: ${errorData.detail || response.statusText}`)
         }
 
-        // Parse Python output
-        const result = JSON.parse(stdout)
-
-        if (result.error) {
-          throw new Error(result.error)
-        }
-
+        const result = await response.json()
         const processingTime = Date.now() - startTime
 
         return {
