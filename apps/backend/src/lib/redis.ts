@@ -43,6 +43,9 @@ function getRedisClient(): Redis | null {
           console.log(`🔄 Redis: Retry attempt ${times}/3`);
           return Math.min(times * 200, 3000);
         },
+        // Railway IPv6 support - enable dual-stack DNS resolution
+        // https://docs.railway.com/reference/errors/enotfound-redis-railway-internal
+        family: 0,
         // Reduce keepAlive for Railway's timeout settings
         keepAlive: 30000,
         // Don't wait too long for connections
