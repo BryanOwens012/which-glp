@@ -12,6 +12,7 @@ import os
 import sys
 from pathlib import Path
 from typing import Optional
+from datetime import datetime
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
@@ -39,6 +40,24 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Startup/shutdown event handlers
+@app.on_event("startup")
+async def startup_event():
+    logger.info("=" * 80)
+    logger.info("🚀 USER EXTRACTION SERVICE STARTING UP")
+    logger.info(f"   Service: user-extraction")
+    logger.info(f"   Port: {os.getenv('PORT', '8002')}")
+    logger.info(f"   Model: GLM-4.5-Air")
+    logger.info(f"   Time: {datetime.now().isoformat()}")
+    logger.info("=" * 80)
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    logger.info("=" * 80)
+    logger.info("🛑 USER EXTRACTION SERVICE SHUTTING DOWN")
+    logger.info(f"   Time: {datetime.now().isoformat()}")
+    logger.info("=" * 80)
 
 
 # Request/Response models
@@ -107,7 +126,14 @@ async def trigger_analysis(
     """
     global _analysis_running
 
+    logger.info("=" * 80)
+    logger.info("📥 USER ANALYSIS REQUEST RECEIVED")
+    logger.info(f"   Limit: {request.limit or 'all users'}")
+    logger.info(f"   Rate limit delay: {request.rate_limit_delay}s")
+    logger.info("=" * 80)
+
     if _analysis_running:
+        logger.warning("⚠️  Analysis already running - request rejected")
         raise HTTPException(
             status_code=409,
             detail="Analysis already running. Please wait for it to complete."
@@ -118,16 +144,40 @@ async def trigger_analysis(
         def run_analysis():
             global _analysis_running
             _analysis_running = True
+            start_time = datetime.now()
+            users_processed = 0
+            users_failed = 0
+
             try:
+                logger.info("🔧 Initializing user analyzer...")
                 analyzer = RedditUserAnalyzer()
+                logger.info("✅ User analyzer initialized")
+
+                logger.info(f"🎯 Starting user analysis (limit: {request.limit or 'none'})...")
                 analyzer.run(
                     limit=request.limit,
                     rate_limit_delay=request.rate_limit_delay
                 )
+
+                duration = (datetime.now() - start_time).total_seconds()
+                logger.info("=" * 80)
+                logger.info("✨ USER ANALYSIS BATCH COMPLETED")
+                logger.info(f"   Duration: {duration:.2f}s")
+                logger.info("=" * 80)
+
+            except Exception as e:
+                logger.error("=" * 80)
+                logger.error("💥 USER ANALYSIS FATAL ERROR")
+                logger.error(f"   Error type: {type(e).__name__}")
+                logger.error(f"   Error message: {str(e)}")
+                logger.error("=" * 80)
+                logger.exception("Full traceback:")
             finally:
                 _analysis_running = False
+                logger.info("🏁 Analysis task completed, worker released")
 
         background_tasks.add_task(run_analysis)
+        logger.info("✅ Analysis task queued successfully")
 
         return {
             "status": "started",
@@ -135,7 +185,7 @@ async def trigger_analysis(
         }
 
     except Exception as e:
-        logger.error(f"Failed to start analysis: {e}")
+        logger.error(f"❌ Failed to start analysis: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
