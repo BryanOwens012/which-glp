@@ -3,11 +3,11 @@ nixPkgs = ["python313", "libpq"]
 
 [phases.install]
 cmds = [
-    "cd ../.. && pip install -r requirements.txt"
+    "pip install -r ../../requirements.txt"
 ]
 
 [phases.build]
 cmds = ["echo 'No build step required'"]
 
 [start]
-cmd = "cd apps/ml && python3 api.py"
+cmd = "python3 api.py"
