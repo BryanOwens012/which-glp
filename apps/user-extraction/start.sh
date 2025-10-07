@@ -1,9 +1,9 @@
 #!/bin/bash
-# Startup script for user-ingestion service on Railway
+# Startup script for user-extraction service on Railway
 
 set -e
 
-echo "Starting WhichGLP User Ingestion Service..."
+echo "Starting WhichGLP User Extraction Service..."
 
 # Activate virtual environment (if running locally)
 if [ -d "../../venv" ]; then

@@ -42,7 +42,7 @@ which-glp/
 
 ---
 
-### 2. Backend (`apps/backend`)
+### 2. Backend (`apps/api`)
 
 **Tech Stack:**
 - Node.js 18+
@@ -67,7 +67,7 @@ which-glp/
 - `recommendations.getForUser` - Get personalized recommendations (calls ML API)
 
 **Deployment:**
-- Railway service: `whichglp-backend`
+- Railway service: `whichglp-api`
 - Build command: `npm run build`
 - Start command: `npm start`
 - Environment variables:
@@ -202,7 +202,7 @@ cd apps/frontend
 npm run dev
 
 # Terminal 2: Backend
-cd apps/backend
+cd apps/api
 npm run dev
 
 # Terminal 3: ML API
@@ -225,7 +225,7 @@ SUPABASE_SERVICE_KEY=your-service-key
 NEXT_PUBLIC_API_URL=http://localhost:8000
 ```
 
-3. **`apps/backend/.env`**:
+3. **`apps/api/.env`**:
 ```bash
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_ANON_KEY=your-anon-key
@@ -250,10 +250,10 @@ REC_ENGINE_URL=http://localhost:8001
 
 ### Step 2: Backend Service
 
-1. Create new service: `whichglp-backend`
+1. Create new service: `whichglp-api`
 2. Connect to GitHub
 3. Settings:
-   - Root directory: `apps/backend`
+   - Root directory: `apps/api`
    - Build command: `npm run build`
    - Start command: `npm start`
 4. Environment variables:
@@ -284,7 +284,7 @@ REC_ENGINE_URL=https://whichglp-rec-engine.railway.app
 
 Update frontend environment:
 ```bash
-NEXT_PUBLIC_API_URL=https://whichglp-backend.railway.app
+NEXT_PUBLIC_API_URL=https://whichglp-api.railway.app
 ```
 
 ---
@@ -313,7 +313,7 @@ npm run build  # Type checking
 
 ### Backend
 ```bash
-cd apps/backend
+cd apps/api
 npm run lint
 npm run build
 npm test
@@ -346,7 +346,7 @@ curl https://your-ml.railway.app/health
 
 ```bash
 railway logs --service whichglp-frontend
-railway logs --service whichglp-backend
+railway logs --service whichglp-api
 railway logs --service whichglp-rec-engine
 ```
 

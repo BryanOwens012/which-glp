@@ -5,7 +5,7 @@
 WhichGLP requires 3 separate Railway services:
 
 1. **whichglp-frontend** - Next.js app
-2. **whichglp-backend** - Node.js tRPC API
+2. **whichglp-api** - Node.js tRPC API
 3. **whichglp-rec-engine** - Python FastAPI service
 
 ## Service 1: ML API
@@ -46,13 +46,13 @@ REC_ENGINE_PORT=8001  # Railway will override with PORT
 
 ### Create Service
 1. Railway Dashboard → New Service
-2. Name: `whichglp-backend`
+2. Name: `whichglp-api`
 3. Connect to GitHub repo
 4. Settings:
-   - **Root Directory**: `apps/backend`
+   - **Root Directory**: `apps/api`
    - **Build Command**: `npm run build`
    - **Start Command**: `npm start`
-   - **Watch Paths**: `apps/backend/**`, `apps/shared/**`
+   - **Watch Paths**: `apps/api/**`, `apps/shared/**`
 
 ### Environment Variables
 ```bash
@@ -106,7 +106,7 @@ NODE_ENV=production
 ### Environment Variables
 ```bash
 # Required
-NEXT_PUBLIC_API_URL=https://whichglp-backend.railway.app
+NEXT_PUBLIC_API_URL=https://whichglp-api.railway.app
 
 # Optional
 NODE_ENV=production
@@ -129,7 +129,7 @@ Railway services can have IPv6-only or dual-stack networking, which can cause co
 
 ### Solutions Implemented
 
-#### 1. Redis Connection (`apps/backend/src/lib/redis.ts`)
+#### 1. Redis Connection (`apps/api/src/lib/redis.ts`)
 ```typescript
 {
   family: 0,  // 0 = dual-stack (try IPv6, fallback to IPv4)
@@ -138,7 +138,7 @@ Railway services can have IPv6-only or dual-stack networking, which can cause co
 }
 ```
 
-#### 2. ML API Connection (`apps/backend/src/routers/recommendations.ts`)
+#### 2. ML API Connection (`apps/api/src/routers/recommendations.ts`)
 ```typescript
 // Locally: use 127.0.0.1 (IPv4) instead of localhost
 // On Railway: use REC_ENGINE_URL env var (handles DNS automatically)
@@ -246,7 +246,7 @@ uvicorn.run(
 ```bash
 # Railway CLI
 railway logs --service whichglp-rec-engine
-railway logs --service whichglp-backend
+railway logs --service whichglp-api
 railway logs --service whichglp-frontend
 ```
 
@@ -277,7 +277,7 @@ If deployment fails:
 
 2. **CLI**:
 ```bash
-railway rollback --service whichglp-backend
+railway rollback --service whichglp-api
 ```
 
 3. **Git**:
@@ -320,6 +320,6 @@ Railway will automatically redeploy on push.
 - Node.js Best Practices: https://docs.railway.com/guides/nodejs
 
 For project-specific issues, see:
-- `ARCHITECTURE.md` - System architecture
-- `DEPLOYMENT_SUMMARY.md` - Migration summary
+- `docs/ARCHITECTURE.md` - System architecture
+- `docs/DEPLOYMENT_SUMMARY.md` - Migration summary
 - `apps/rec-engine/README.md` - ML service docs

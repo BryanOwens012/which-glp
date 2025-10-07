@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 
 # Add apps to path
-sys.path.insert(0, str(Path(__file__).parent.parent / "apps" / "user-ingestion"))
+sys.path.insert(0, str(Path(__file__).parent.parent / "apps" / "user-extraction"))
 sys.path.insert(0, str(Path(__file__).parent.parent / "apps" / "shared"))
 
 from glm_client import get_client

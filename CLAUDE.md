@@ -10,16 +10,26 @@ WhichGLP is a GLP-1 weight-loss drug comparison platform that aggregates real-wo
 
 ## Documentation Structure
 
-This project uses multiple documentation files:
+This project uses multiple documentation files located in the `docs/` directory:
 
 - **CLAUDE.md** (this file) - Technical development guide for Claude Code
-- **AGENTS.md** - Development process, coding standards, workflow guidelines
-- **TECH_SPEC.md** - Drugs, data sources, tech stack, pipelines
-- **MONETIZATION.md** (private, not committed) - Business strategy and revenue models
+- **docs/AGENTS.md** - **IMPORTANT**: Primary instructions, business context, development process, and coding standards
+- **docs/AGENTS_APPENDLOG.md** - **IMPORTANT**: Historical changelog of all development work (append-only log)
+- **docs/TECH_SPEC.md** - Drugs, data sources, tech stack, pipelines
+- **docs/MONETIZATION.md** (private, not committed) - Business strategy and revenue models
+- **docs/ARCHITECTURE.md** - System architecture and service design
+- **docs/DEPLOYMENT_SUMMARY.md** - Deployment summary and migration notes
+- **docs/RAILWAY_SETUP.md** - Railway deployment instructions
+- **docs/BACKEND_AND_TRPC_SETUP.md** - Backend and tRPC setup guide
+- **docs/BACKEND_IMPLEMENTATION_PLAN.md** - Backend implementation plan
 
-For development workflow and coding standards, see **AGENTS.md**.
-For drug catalog, subreddit lists, and technical architecture, see **TECH_SPEC.md**.
-For business context, market analysis, and monetization strategy, see **MONETIZATION.md** (keep local).
+**Key Files for Claude Code:**
+- Read **docs/AGENTS.md** for development workflow, coding standards, and project guidelines
+- Read **docs/AGENTS_APPENDLOG.md** to understand the history of development changes
+- Consult **docs/TECH_SPEC.md** for technical specifications and drug catalog
+- Reference **docs/ARCHITECTURE.md** for system design and service architecture
+
+When working on tasks, check the `docs/` directory for relevant documentation before making changes.
 
 ## Monorepo Structure
 
@@ -30,12 +40,17 @@ This is a monorepo with the following structure:
 ├── .env                    # Environment variables (git-ignored)
 ├── requirements.txt        # Python dependencies (monorepo-wide)
 ├── venv/                   # Python virtual environment
-├── AGENTS.md              # Primary instructions and business context
+├── docs/                   # Documentation
+│   ├── AGENTS.md          # Primary instructions and business context
+│   ├── TECH_SPEC.md       # Technical specifications
+│   ├── ARCHITECTURE.md    # System architecture
+│   ├── DEPLOYMENT_SUMMARY.md
+│   └── RAILWAY_SETUP.md
 ├── apps/                   # Railway-deployed services
 │   ├── frontend/          # Next.js 15 frontend
-│   ├── backend/           # Node.js tRPC API
-│   ├── ml/                # FastAPI ML recommendation service
-│   ├── user-ingestion/    # User demographics extraction service
+│   ├── api/               # Node.js tRPC API
+│   ├── rec-engine/        # FastAPI recommendation engine
+│   ├── user-extraction/   # User demographics extraction service
 │   ├── post-ingestion/    # Reddit post fetching service
 │   ├── post-extraction/   # GLM-based feature extraction service
 │   └── shared/            # Shared database migrations and utilities

@@ -4,7 +4,7 @@
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent / "apps" / "user-ingestion"))
+sys.path.insert(0, str(Path(__file__).parent.parent / "apps" / "user-extraction"))
 sys.path.insert(0, str(Path(__file__).parent.parent / "apps" / "shared"))
 
 print("1. Importing modules...")

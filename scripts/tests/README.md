@@ -11,6 +11,10 @@ This directory contains ad-hoc test and debug scripts for development and troubl
 - **`test_full_user_analysis.py`** - End-to-end test of user analysis pipeline
 - **`test_user_analyzer_debug.py`** - Debug script to troubleshoot user analyzer issues
 
+### Backend/API Tests
+
+- **`test-recommendation.js`** - End-to-end test of recommendation flow (rec-engine + backend tRPC)
+
 ## Running Tests
 
 All tests should be run from the repository root with the virtual environment activated:
@@ -20,11 +24,14 @@ All tests should be run from the repository root with the virtual environment ac
 cd /Users/bryan/Github/which-glp
 source venv/bin/activate
 
-# Run individual tests
+# Run Python tests
 python3 scripts/tests/test_zai_minimal.py
 python3 scripts/tests/test_glm.py
 python3 scripts/tests/test_full_user_analysis.py
 python3 scripts/tests/test_user_analyzer_debug.py
+
+# Run Node.js tests (requires backend and rec-engine running)
+node scripts/tests/test-recommendation.js
 ```
 
 ## Prerequisites
@@ -36,7 +43,7 @@ python3 scripts/tests/test_user_analyzer_debug.py
 ## Notes
 
 These are development/debug scripts, not production tests. For proper unit tests, see:
-- `apps/user-ingestion/tests/`
+- `apps/user-extraction/tests/`
 - `apps/post-ingestion/tests/`
 - `apps/post-extraction/tests/`
 - `scripts/legacy-ingestion/tests/`

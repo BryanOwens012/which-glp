@@ -6,7 +6,7 @@
 
 **Before:**
 ```
-apps/backend/
+apps/api/
 ├── src/
 │   └── routers/
 │       └── recommendations.ts   # Used exec() to call Python
@@ -50,7 +50,7 @@ cd apps/frontend
 npm run dev
 
 # Terminal 2: Backend (port 8000)
-cd apps/backend
+cd apps/api
 npm run dev
 
 # Terminal 3: ML API (port 8001)
@@ -73,7 +73,7 @@ curl http://localhost:8001/health
 
 ### Current Setup (2 services)
 
-1. **whichglp-backend** (Node.js)
+1. **whichglp-api** (Node.js)
    - Port: 8000
    - Handles: tRPC API, experiences, stats
    - Environment: `REC_ENGINE_URL=<ml-service-url>`
@@ -104,7 +104,7 @@ REC_ENGINE_PORT=8001
 
 #### Step 3: Update Backend
 
-In `whichglp-backend` service, add/update:
+In `whichglp-api` service, add/update:
 ```bash
 REC_ENGINE_URL=https://whichglp-rec-engine.railway.app
 ```
@@ -187,15 +187,15 @@ Push to GitHub → All services auto-deploy
 - `apps/rec-engine/start_api.sh` - Local dev script
 - `apps/rec-engine/railway.json` - Railway deployment config
 - `apps/rec-engine/README.md` - ML service documentation
-- `ARCHITECTURE.md` - Overall system architecture
-- `DEPLOYMENT_SUMMARY.md` - This file
+- `docs/ARCHITECTURE.md` - Overall system architecture
+- `docs/DEPLOYMENT_SUMMARY.md` - This file
 
 ### Modified Files
-- `apps/backend/src/routers/recommendations.ts` - Changed from `exec()` to `fetch()`
+- `apps/api/src/routers/recommendations.ts` - Changed from `exec()` to `fetch()`
 - `requirements.txt` - Added FastAPI and Uvicorn
 
 ### Deprecated Files (kept for reference)
-- `apps/backend/ml/recommender_api.py` - Old CLI wrapper
+- `apps/api/ml/recommender_api.py` - Old CLI wrapper
 - Can be deleted after confirming new service works
 
 ---
@@ -219,7 +219,7 @@ Push to GitHub → All services auto-deploy
 1. [ ] Monitor Railway logs for 24 hours
 2. [ ] Check ML API response times
 3. [ ] Verify no regression in recommendation quality
-4. [ ] Clean up old `apps/backend/ml/` directory if desired
+4. [ ] Clean up old `apps/api/ml/` directory if desired
 
 ### Future Enhancements
 - [ ] Add Redis caching to ML API
@@ -238,7 +238,7 @@ If something goes wrong, you can quickly rollback:
 1. **Keep old code**: The `exec()` version still exists in git history
 2. **Revert recommendations.ts**:
    ```bash
-   git checkout HEAD~1 apps/backend/src/routers/recommendations.ts
+   git checkout HEAD~1 apps/api/src/routers/recommendations.ts
    ```
 3. **Redeploy backend**: Push to trigger Railway deployment
 4. **Delete ML service**: Remove from Railway if not needed
@@ -249,14 +249,14 @@ If something goes wrong, you can quickly rollback:
 
 ### Documentation
 - ML API: `apps/rec-engine/README.md`
-- Architecture: `ARCHITECTURE.md`
-- Backend tRPC: `apps/backend/src/routers/recommendations.ts`
+- Architecture: `docs/ARCHITECTURE.md`
+- Backend tRPC: `apps/api/src/routers/recommendations.ts`
 
 ### Logs
 ```bash
 # Railway CLI
 railway logs --service whichglp-rec-engine
-railway logs --service whichglp-backend
+railway logs --service whichglp-api
 railway logs --service whichglp-frontend
 ```
 

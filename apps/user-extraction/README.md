@@ -1,4 +1,4 @@
-# User Ingestion Service
+# User Extraction Service
 
 Analyzes Reddit user post/comment history to extract demographic information using GLM-4.5-Air.
 
@@ -13,7 +13,7 @@ This service:
 ## Architecture
 
 ```
-user-ingestion/
+user-extraction/
 ├── glm_client.py       # Z.AI SDK wrapper (GLM-4.5-Air)
 ├── user_analyzer.py    # Main analyzer (PRAW + GLM)
 ├── prompts.py          # Demographic extraction prompts
@@ -48,7 +48,7 @@ user-ingestion/
 ### CLI Mode
 
 ```bash
-cd apps/user-ingestion
+cd apps/user-extraction
 source ../../venv/bin/activate
 
 # Analyze 10 users
@@ -131,9 +131,9 @@ REDDIT_API_APP_SECRET=your-app-secret
 
 ### Setup
 
-1. Create new Railway service: `whichglp-user-ingestion`
+1. Create new Railway service: `whichglp-user-extraction`
 2. Link to GitHub repo
-3. Set root directory: `apps/user-ingestion`
+3. Set root directory: `apps/user-extraction`
 4. Set start command: `./start.sh`
 
 ### Environment Variables

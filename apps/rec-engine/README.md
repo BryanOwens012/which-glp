@@ -168,7 +168,7 @@ Optional:
 
 ### Step 2: Update Backend Service
 
-In your `whichglp-backend` Railway service, add:
+In your `whichglp-api` Railway service, add:
 
 ```
 REC_ENGINE_URL=https://whichglp-rec-engine.railway.app

@@ -301,7 +301,7 @@ apps/
 
 ### Prisma Schema
 
-**File:** `apps/backend/src/prisma/schema.prisma`
+**File:** `apps/api/src/prisma/schema.prisma`
 
 ```prisma
 generator client {
@@ -424,7 +424,7 @@ model ExtractedFeature {
 ## tRPC Router Implementations
 
 ### 1. Platform Router
-**File:** `apps/backend/src/routers/platform.ts`
+**File:** `apps/api/src/routers/platform.ts`
 
 ```typescript
 import { router, publicProcedure } from '../trpc';
@@ -476,7 +476,7 @@ export const platformRouter = router({
 ```
 
 ### 2. Drugs Router
-**File:** `apps/backend/src/routers/drugs.ts`
+**File:** `apps/api/src/routers/drugs.ts`
 
 ```typescript
 import { router, publicProcedure } from '../trpc';
@@ -602,7 +602,7 @@ export const drugsRouter = router({
 ```
 
 ### 3. Experiences Router
-**File:** `apps/backend/src/routers/experiences.ts`
+**File:** `apps/api/src/routers/experiences.ts`
 
 ```typescript
 import { router, publicProcedure } from '../trpc';

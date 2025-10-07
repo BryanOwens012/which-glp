@@ -26,7 +26,7 @@ from shared.config import get_logger
 logger = get_logger(__name__)
 
 app = FastAPI(
-    title="WhichGLP User Ingestion API",
+    title="WhichGLP User Extraction API",
     version="0.1.0",
     description="Demographics extraction service for Reddit users"
 )
@@ -66,7 +66,7 @@ async def health_check():
     """Health check endpoint for Railway/load balancers."""
     return {
         "status": "healthy",
-        "service": "user-ingestion",
+        "service": "user-extraction",
         "version": "0.1.0"
     }
 

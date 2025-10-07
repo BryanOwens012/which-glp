@@ -30,7 +30,7 @@ Created `mv_experiences_denormalized` materialized view that:
 
 ### 2. Backend Node.js + Express + tRPC Server
 
-**Location**: `apps/backend/`
+**Location**: `apps/api/`
 
 **Tech Stack**:
 - Node.js 20+ (though running on 18.18.0 currently)
@@ -52,7 +52,7 @@ Created `mv_experiences_denormalized` materialized view that:
 
 ### 3. tRPC Routers Implemented
 
-All routers live in `apps/backend/src/routers/`
+All routers live in `apps/api/src/routers/`
 
 #### Platform Router (`platform.ts`)
 - `platform.getStats`: Overall statistics (total experiences, unique drugs, locations tracked, avg weight loss)
@@ -320,19 +320,19 @@ const [queryClient] = useState(() => new QueryClient({
 ## Files Created/Modified
 
 ### Backend
-- `apps/backend/package.json`
-- `apps/backend/tsconfig.json`
-- `apps/backend/.env`
-- `apps/backend/.env.example`
-- `apps/backend/prisma/schema.prisma`
-- `apps/backend/src/index.ts`
-- `apps/backend/src/lib/trpc.ts`
-- `apps/backend/src/routers/index.ts`
-- `apps/backend/src/routers/platform.ts`
-- `apps/backend/src/routers/drugs.ts`
-- `apps/backend/src/routers/experiences.ts`
-- `apps/backend/src/routers/locations.ts`
-- `apps/backend/src/routers/demographics.ts`
+- `apps/api/package.json`
+- `apps/api/tsconfig.json`
+- `apps/api/.env`
+- `apps/api/.env.example`
+- `apps/api/prisma/schema.prisma`
+- `apps/api/src/index.ts`
+- `apps/api/src/lib/trpc.ts`
+- `apps/api/src/routers/index.ts`
+- `apps/api/src/routers/platform.ts`
+- `apps/api/src/routers/drugs.ts`
+- `apps/api/src/routers/experiences.ts`
+- `apps/api/src/routers/locations.ts`
+- `apps/api/src/routers/demographics.ts`
 
 ### Frontend
 - `apps/frontend/lib/trpc.ts`
@@ -348,7 +348,7 @@ const [queryClient] = useState(() => new QueryClient({
 
 **Terminal 1 - Backend**:
 ```bash
-cd apps/backend
+cd apps/api
 npm run dev
 ```
 

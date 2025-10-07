@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 
-sys.path.insert(0, str(Path(__file__).parent.parent / "apps" / "user-ingestion"))
+sys.path.insert(0, str(Path(__file__).parent.parent / "apps" / "user-extraction"))
 sys.path.insert(0, str(Path(__file__).parent.parent / "apps" / "shared"))
 
 load_dotenv()
