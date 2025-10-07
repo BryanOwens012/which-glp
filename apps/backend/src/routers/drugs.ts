@@ -1,8 +1,25 @@
 import { router, publicProcedure } from '../lib/trpc.js'
 import { supabase } from '../lib/supabase.js'
+import { withCache } from '../lib/redis.js'
 
 export const drugsRouter = router({
   getAllStats: publicProcedure.query(async () => {
+    // Cache key for all drug stats
+    // This endpoint is called on initial /compare page load
+    const cacheKey = 'drugs:all-stats'
+    const cacheTTL = 300 // 5 minutes
+
+    return withCache(cacheKey, cacheTTL, async () => {
+      return await fetchAllDrugStats()
+    })
+  }),
+})
+
+/**
+ * Fetch all drug statistics from database
+ * This is the core logic extracted for caching
+ */
+async function fetchAllDrugStats() {
     // Get all experiences grouped by drug
     const { data: experiences } = await supabase
       .from('mv_experiences_denormalized')
@@ -152,5 +169,4 @@ export const drugsRouter = router({
     })
 
     return drugStats.sort((a, b) => b.count - a.count)
-  }),
-})
+}
