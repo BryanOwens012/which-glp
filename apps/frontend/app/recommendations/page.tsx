@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { Navigation } from "@/components/navigation"
+import { Footer } from "@/components/footer"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -172,7 +173,7 @@ const RecommendationsPage = () => {
       {/* Coming Soon Scrim Overlay */}
       <div className="pointer-events-none fixed inset-0 z-[9999] h-screen w-screen backdrop-blur-[2px] flex items-center justify-center">
         <div className="pointer-events-auto">
-          <div className="relative overflow-hidden rounded-2xl border border-border/40 px-8 py-6 shadow-2xl" style={{background: 'linear-gradient(135deg, oklch(0.65 0.15 150 / 0.98), oklch(0.55 0.18 240 / 0.98))'}}>
+          <div className="relative overflow-hidden rounded-2xl border border-border/40 px-8 py-6 shadow-2xl" style={{background: 'linear-gradient(135deg, oklch(0.319 0.462 296.0 / 0.98), oklch(0.461 0.534 292.8 / 0.98))'}}>
             <div className="flex items-center gap-3">
               <div className="h-2 w-2 animate-pulse rounded-full bg-white"></div>
               <span className="relative inline-block text-lg font-semibold tracking-tight">
@@ -547,6 +548,8 @@ const RecommendationsPage = () => {
           </div>
         )}
       </div>
+
+      <Footer />
     </div>
   )
 }

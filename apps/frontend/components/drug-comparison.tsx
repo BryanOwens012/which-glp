@@ -5,7 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   Check,
   X,
@@ -44,7 +48,9 @@ export const DrugComparison = () => {
         setSelectedMeds([...selectedMeds, drug]);
         setErrorMessage(null);
       } else {
-        setErrorMessage("Maximum 6 drugs selected. Please deselect one to add another.");
+        setErrorMessage(
+          "Maximum 6 drugs selected. Please deselect one to add another."
+        );
         setTimeout(() => setErrorMessage(null), 3000);
       }
     }
@@ -65,9 +71,7 @@ export const DrugComparison = () => {
     <div>
       {/* Drug Selector */}
       <Card className="mb-8 border-border/40 bg-card p-6">
-        <h2 className="mb-4 text-lg font-semibold">
-          Select Drugs to Compare
-        </h2>
+        <h2 className="mb-4 text-lg font-semibold">Select Drugs to Compare</h2>
         <div className="flex flex-wrap gap-3">
           {[...drugStats]
             .sort((a, b) => {
@@ -110,7 +114,9 @@ export const DrugComparison = () => {
             </p>
             {selectedMeds.length > 0 && (
               <button
-                onClick={() => setSelectedMeds(drugStats.slice(0, 3).map((d) => d.drug))}
+                onClick={() =>
+                  setSelectedMeds(drugStats.slice(0, 3).map((d) => d.drug))
+                }
                 className="text-xs text-primary hover:underline cursor-pointer"
               >
                 Reset
@@ -129,9 +135,15 @@ export const DrugComparison = () => {
       {/* Comparison Table */}
       <Tabs defaultValue="effectiveness" className="w-full">
         <TabsList className="mb-6">
-          <TabsTrigger value="effectiveness" className="cursor-pointer">Overview</TabsTrigger>
-          <TabsTrigger value="side-effects" className="cursor-pointer">Side Effects</TabsTrigger>
-          <TabsTrigger value="cost" className="cursor-pointer">Cost & Availability</TabsTrigger>
+          <TabsTrigger value="effectiveness" className="cursor-pointer">
+            Overview
+          </TabsTrigger>
+          <TabsTrigger value="cost" className="cursor-pointer">
+            Cost & Availability
+          </TabsTrigger>
+          <TabsTrigger value="side-effects" className="cursor-pointer">
+            Side Effects
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="effectiveness">
@@ -157,7 +169,12 @@ export const DrugComparison = () => {
                           {med.avgWeightLoss.toFixed(1)}%
                           {med.avgDurationWeeks && (
                             <span className="text-sm text-muted-foreground font-normal">
-                              ({(med.avgWeightLoss / (med.avgDurationWeeks / 4.33)).toFixed(1)}%/mo)
+                              (
+                              {(
+                                med.avgWeightLoss /
+                                (med.avgDurationWeeks / 4.33)
+                              ).toFixed(1)}
+                              %/mo)
                             </span>
                           )}
                         </>
@@ -170,9 +187,7 @@ export const DrugComparison = () => {
                                 <Info className="h-4 w-4 text-muted-foreground" />
                               </button>
                             </TooltipTrigger>
-                            <TooltipContent>
-                              Not enough data available
-                            </TooltipContent>
+                            <TooltipContent>Insufficient data</TooltipContent>
                           </Tooltip>
                         </>
                       )}
@@ -190,9 +205,7 @@ export const DrugComparison = () => {
                                 <Info className="h-3 w-3 text-muted-foreground" />
                               </button>
                             </TooltipTrigger>
-                            <TooltipContent>
-                              Not enough data available
-                            </TooltipContent>
+                            <TooltipContent>Insufficient data</TooltipContent>
                           </Tooltip>
                         </span>
                       )}{" "}
@@ -209,9 +222,7 @@ export const DrugComparison = () => {
                         <div
                           className="h-full bg-primary"
                           style={{
-                            width: `${
-                              (med.avgSentimentPost ?? 0) * 100
-                            }%`,
+                            width: `${(med.avgSentimentPost ?? 0) * 100}%`,
                           }}
                         />
                       </div>
@@ -227,9 +238,7 @@ export const DrugComparison = () => {
                                   <Info className="h-3 w-3 text-muted-foreground" />
                                 </button>
                               </TooltipTrigger>
-                              <TooltipContent>
-                                Not enough data available
-                              </TooltipContent>
+                              <TooltipContent>Insufficient data</TooltipContent>
                             </Tooltip>
                           </>
                         )}
@@ -257,9 +266,7 @@ export const DrugComparison = () => {
                                 <Info className="h-3 w-3 text-muted-foreground" />
                               </button>
                             </TooltipTrigger>
-                            <TooltipContent>
-                              Not enough data available
-                            </TooltipContent>
+                            <TooltipContent>Insufficient data</TooltipContent>
                           </Tooltip>
                         </>
                       )}
@@ -281,7 +288,7 @@ export const DrugComparison = () => {
                   <div className="flex flex-col items-center justify-center py-8 text-center">
                     <AlertCircle className="h-12 w-12 text-muted-foreground mb-3" />
                     <p className="text-sm text-muted-foreground">
-                      Not enough data available
+                      Insufficient data
                     </p>
                   </div>
                 ) : (
@@ -324,14 +331,17 @@ export const DrugComparison = () => {
                       <div className="text-sm font-medium mb-2">
                         Severity Distribution{" "}
                         <span className="text-xs font-normal text-muted-foreground">
-                          (among the {Math.round(med.sideEffectReportingRate)}% who reported side effects)
+                          (among the {Math.round(med.sideEffectReportingRate)}%
+                          who reported side effects)
                         </span>
                       </div>
                       <div className="space-y-1 text-xs">
                         <div className="flex items-center justify-between">
                           <span className="flex items-center gap-2">
                             <span className="w-3 h-3 rounded-full bg-rose-900"></span>
-                            <span className="text-muted-foreground">Severe</span>
+                            <span className="text-muted-foreground">
+                              Severe
+                            </span>
                           </span>
                           <span className="font-semibold">
                             {Math.round(med.sideEffectSeverity.severe)}%
@@ -384,7 +394,7 @@ export const DrugComparison = () => {
                     <div className="flex flex-col items-center justify-center py-8 text-center">
                       <DollarSign className="h-12 w-12 text-muted-foreground mb-3" />
                       <p className="text-sm text-muted-foreground">
-                        Not enough data available
+                        Insufficient data
                       </p>
                     </div>
                   ) : (
@@ -392,7 +402,9 @@ export const DrugComparison = () => {
                       <div>
                         <div className="mb-2 flex items-center gap-2">
                           <DollarSign className="h-4 w-4 text-primary" />
-                          <span className="text-sm font-medium">Monthly Cost</span>
+                          <span className="text-sm font-medium">
+                            Monthly Cost
+                          </span>
                         </div>
                         <div className="text-2xl font-bold flex items-center gap-2">
                           {med.avgCostPerMonth ? (
@@ -407,7 +419,7 @@ export const DrugComparison = () => {
                                   </button>
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                  Not enough data available
+                                  Insufficient data
                                 </TooltipContent>
                               </Tooltip>
                             </>
@@ -423,7 +435,9 @@ export const DrugComparison = () => {
                           {(() => {
                             const coverage =
                               totalSources > 0
-                                ? Math.round((med.drugSources.brand / totalSources) * 100)
+                                ? Math.round(
+                                    (med.drugSources.brand / totalSources) * 100
+                                  )
                                 : 0;
                             return coverage;
                           })()}
@@ -435,13 +449,17 @@ export const DrugComparison = () => {
                       </div>
 
                       <div className="pt-4 border-t border-border/40">
-                        <div className="text-sm font-medium mb-2">Drug Sources</div>
+                        <div className="text-sm font-medium mb-2">
+                          Drug Sources
+                        </div>
                         <div className="space-y-1 text-xs">
                           <div className="flex items-center justify-between">
                             <span className="text-muted-foreground">Brand</span>
                             <span className="font-semibold">
                               {totalSources > 0
-                                ? `${Math.round((med.drugSources.brand / totalSources) * 100)}%`
+                                ? `${Math.round(
+                                    (med.drugSources.brand / totalSources) * 100
+                                  )}%`
                                 : "0%"}
                             </span>
                           </div>
@@ -451,7 +469,11 @@ export const DrugComparison = () => {
                             </span>
                             <span className="font-semibold">
                               {totalSources > 0
-                                ? `${Math.round((med.drugSources.compounded / totalSources) * 100)}%`
+                                ? `${Math.round(
+                                    (med.drugSources.compounded /
+                                      totalSources) *
+                                      100
+                                  )}%`
                                 : "0%"}
                             </span>
                           </div>
@@ -461,7 +483,11 @@ export const DrugComparison = () => {
                             </span>
                             <span className="font-semibold">
                               {totalSources > 0
-                                ? `${Math.round((med.drugSources.outOfPocket / totalSources) * 100)}%`
+                                ? `${Math.round(
+                                    (med.drugSources.outOfPocket /
+                                      totalSources) *
+                                      100
+                                  )}%`
                                 : "0%"}
                             </span>
                           </div>

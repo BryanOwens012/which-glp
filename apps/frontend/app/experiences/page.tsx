@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import { Navigation } from "@/components/navigation"
+import { Footer } from "@/components/footer"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -489,6 +490,8 @@ const ExperiencesPage = () => {
           ) : null}
         </DialogContent>
       </Dialog>
+
+      <Footer />
     </div>
   )
 }
