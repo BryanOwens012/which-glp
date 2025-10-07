@@ -1,3 +1,8 @@
-# This file tells Railway to use Python builder
-# Actual dependencies are installed from ../../requirements.txt via nixpacks.toml
-# Do not add dependencies here - they won't be used
+fastapi==0.118.0
+uvicorn[standard]==0.37.0
+pandas==2.3.3
+numpy==2.3.3
+scikit-learn==1.6.1
+supabase==2.21.1
+python-dotenv==1.1.1
+pydantic==2.11.9
