@@ -24,6 +24,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { Skeleton } from "@/components/ui/skeleton"
 import { RedditLink } from "@/components/reddit-link"
 import { getRedditReference, formatDuration, formatCost, getRatingColor, getSideEffectColor, sortSideEffects } from "@/lib/types"
 import { SortField, SortDirection, SORT_FIELD_LABELS, SORT_DIRECTION_TOOLTIPS, SortFieldType, SortDirectionType } from "@/lib/sort-types"
@@ -87,7 +88,7 @@ const ExperiencesPage = () => {
   const { data: drugs } = trpc.drugs.getAllStats.useQuery()
 
   // Fetch selected experience details
-  const { data: selectedExperience } = trpc.experiences.getById.useQuery(
+  const { data: selectedExperience, isLoading: isLoadingExperience } = trpc.experiences.getById.useQuery(
     { id: selectedExperienceId! },
     { enabled: !!selectedExperienceId }
   )
@@ -300,7 +301,65 @@ const ExperiencesPage = () => {
       {/* Experience Detail Dialog */}
       <Dialog open={!!selectedExperienceId} onOpenChange={() => setSelectedExperienceId(null)}>
         <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto" aria-describedby={undefined}>
-          {selectedExperience && (
+          {isLoadingExperience ? (
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-2xl">User Experience</DialogTitle>
+              </DialogHeader>
+              <Skeleton className="h-6 w-24 mt-2" />
+
+              <div className="space-y-6">
+                {/* Summary skeleton */}
+                <div>
+                  <Skeleton className="h-4 w-24 mb-2" />
+                  <Skeleton className="h-16 w-full" />
+                </div>
+
+                {/* Stats grid skeleton */}
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  <Card className="border-border/40 bg-muted/30 p-4">
+                    <Skeleton className="h-3 w-20 mb-1" />
+                    <Skeleton className="h-6 w-16" />
+                  </Card>
+                  <Card className="border-border/40 bg-muted/30 p-4">
+                    <Skeleton className="h-3 w-20 mb-1" />
+                    <Skeleton className="h-6 w-16" />
+                  </Card>
+                  <Card className="border-border/40 bg-muted/30 p-4">
+                    <Skeleton className="h-3 w-20 mb-1" />
+                    <Skeleton className="h-6 w-16" />
+                  </Card>
+                </div>
+
+                {/* Side effects skeleton */}
+                <div>
+                  <Skeleton className="h-4 w-32 mb-2" />
+                  <div className="flex flex-wrap gap-2">
+                    <Skeleton className="h-6 w-20" />
+                    <Skeleton className="h-6 w-24" />
+                    <Skeleton className="h-6 w-16" />
+                  </div>
+                </div>
+
+                {/* Demographics skeleton */}
+                <div>
+                  <Skeleton className="h-4 w-28 mb-2" />
+                  <div className="flex flex-wrap gap-4">
+                    <Skeleton className="h-4 w-16" />
+                    <Skeleton className="h-4 w-20" />
+                    <Skeleton className="h-4 w-24" />
+                  </div>
+                </div>
+
+                {/* Timestamp skeleton */}
+                <div className="space-y-2">
+                  <Skeleton className="h-3 w-40" />
+                  <Skeleton className="h-3 w-36" />
+                  <Skeleton className="h-4 w-32" />
+                </div>
+              </div>
+            </>
+          ) : selectedExperience ? (
             <>
               <DialogHeader>
                 <DialogTitle className="text-2xl">User Experience</DialogTitle>
@@ -427,7 +486,7 @@ const ExperiencesPage = () => {
                 </div>
               </div>
             </>
-          )}
+          ) : null}
         </DialogContent>
       </Dialog>
     </div>

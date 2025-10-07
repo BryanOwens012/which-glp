@@ -330,7 +330,7 @@ export const DrugComparison = () => {
                       <div className="space-y-1 text-xs">
                         <div className="flex items-center justify-between">
                           <span className="flex items-center gap-2">
-                            <span className="w-3 h-3 rounded-full bg-purple-600"></span>
+                            <span className="w-3 h-3 rounded-full bg-rose-900"></span>
                             <span className="text-muted-foreground">Severe</span>
                           </span>
                           <span className="font-semibold">

@@ -5,7 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Navigation } from "@/components/navigation";
 import { DrugComparison } from "@/components/drug-comparison";
-import { ArrowRight, RefreshCw, Info, Users, Pill, Database } from "lucide-react";
+import {
+  ArrowRight,
+  RefreshCw,
+  Info,
+  Users,
+  Pill,
+  Database,
+} from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import {
   Tooltip,
@@ -44,17 +51,23 @@ const ComparePage = () => {
                     </div>
                     <div>
                       <div className="font-semibold">
-                        {stats ? (
-                          (() => {
-                            const count = stats.totalExperiences;
-                            if (count < 1000) {
-                              return `${Math.floor(count / 100) * 100}+`;
-                            } else {
-                              const magnitude = Math.pow(10, Math.floor(Math.log10(count)) - 1);
-                              return `${Math.floor(count / magnitude) * magnitude}+`;
-                            }
-                          })()
-                        ) : '...'} Real User Experiences
+                        {stats
+                          ? (() => {
+                              const count = stats.totalExperiences;
+                              if (count < 1000) {
+                                return `${Math.floor(count / 100) * 100}+`;
+                              } else {
+                                const magnitude = Math.pow(
+                                  10,
+                                  Math.floor(Math.log10(count)) - 1
+                                );
+                                return `${
+                                  Math.floor(count / magnitude) * magnitude
+                                }+`;
+                              }
+                            })()
+                          : "..."}{" "}
+                        Real User Experiences
                       </div>
                       <div className="text-xs text-muted-foreground">
                         From real people sharing their journeys
@@ -68,7 +81,7 @@ const ComparePage = () => {
                     </div>
                     <div>
                       <div className="font-semibold">
-                        {stats?.uniqueDrugs || '...'} Weight-Loss Drugs
+                        {stats?.uniqueDrugs || "..."} Weight-Loss Drugs
                       </div>
                       <div className="text-xs text-muted-foreground">
                         Comprehensive coverage
@@ -79,13 +92,16 @@ const ComparePage = () => {
                   <div className="pt-2 border-t border-border space-y-2">
                     <div className="flex items-center gap-1.5">
                       <Database className="h-3 w-3 text-muted-foreground" />
-                      <span className="text-xs text-muted-foreground whitespace-nowrap">
-                        Data sourced from dozens of popular<br />Reddit communities
+                      <span className="text-xs text-muted-foreground text-wrap">
+                        Data sourced from r/Wegovy, r/Zepbound, and dozens of
+                        other popular subreddits
                       </span>
                     </div>
                     <div className="flex items-center gap-1.5">
                       <RefreshCw className="h-3 w-3 text-muted-foreground" />
-                      <span className="text-xs text-muted-foreground">Updated weekly</span>
+                      <span className="text-xs text-muted-foreground">
+                        Updated weekly
+                      </span>
                     </div>
                   </div>
                 </div>

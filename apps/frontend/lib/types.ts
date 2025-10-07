@@ -386,8 +386,9 @@ export function getRatingColor(score: number | null): string {
   // Score is 0-1, so convert to 0-10 scale
   const ratingOutOf10 = score * 10
   if (ratingOutOf10 >= 9.0) return "text-green-600"
-  if (ratingOutOf10 >= 7.0) return "text-yellow-600"
-  return "text-red-600"
+  if (ratingOutOf10 >= 7.5) return "text-yellow-600"
+  if (ratingOutOf10 >= 6.0) return "text-red-600"
+  return "text-rose-900"
 }
 
 /**
@@ -405,7 +406,7 @@ export function getSideEffectColor(severity: "mild" | "moderate" | "severe" | "l
   // Map "low" to "mild" for consistency
   if (severity === "low" || severity === "mild") return "bg-yellow-500"
   if (severity === "moderate") return "bg-red-500"
-  if (severity === "severe") return "bg-purple-600"
+  if (severity === "severe") return "bg-rose-900"
   return "bg-gray-500"
 }
 
