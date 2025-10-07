@@ -1,0 +1,3 @@
+# This file tells Railway to use Python builder
+# Actual dependencies are installed from ../../requirements.txt via nixpacks.toml
+# Do not add dependencies here - they won't be used
