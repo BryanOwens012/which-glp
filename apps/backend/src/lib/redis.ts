@@ -28,6 +28,7 @@ function getRedisClient(): Redis | null {
   if (!redisClient) {
     try {
       const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379'
+      console.log('🔌 Redis: Initializing connection to:', redisUrl.replace(/:[^:@]+@/, ':****@')) // Hide password in logs
 
       redisClient = new Redis(redisUrl, {
         // Connection settings
@@ -123,6 +124,7 @@ export async function withCache<T>(
 
   try {
     // Try to get from cache
+    console.log(`🔍 Redis: Attempting GET for key: ${key}`)
     const cached = await client.get(key)
 
     if (cached) {
@@ -136,6 +138,7 @@ export async function withCache<T>(
     const result = await fn()
 
     // Store in cache (fire and forget, don't wait)
+    console.log(`💾 Redis: Setting cache for key: ${key} (TTL: ${ttl}s)`)
     client.setex(key, ttl, JSON.stringify(result)).catch((err) => {
       console.error(`❌ Redis: Failed to set cache for ${key}:`, err.message)
     })
