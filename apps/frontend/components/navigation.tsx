@@ -1,10 +1,18 @@
 import Link from "next/link";
+import Image from "next/image";
 
 export const Navigation = () => {
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 border-b border-border/40 bg-background/80 backdrop-blur-sm">
       <div className="container mx-auto flex items-center justify-between px-4 py-4">
         <Link href="/compare" className="flex items-center gap-2">
+          <Image
+            src="/icon.svg"
+            alt="WhichGLP Logo"
+            width={40}
+            height={40}
+            className="h-10 w-10"
+          />
           <div className="text-2xl font-bold text-foreground">
             Which<span className="text-primary">GLP</span>
           </div>
