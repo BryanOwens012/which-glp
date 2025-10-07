@@ -4,16 +4,16 @@ import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import { Analytics } from "@vercel/analytics/next";
 import { Suspense } from "react";
+import { Providers } from "@/components/providers";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: {
-    default:
-      "WhichGLP - GLP-1 Weight-Loss Drugs - Real-World Reviews & Outcomes",
+    default: "WhichGLP - Weight-Loss Drugs - Real-World Reviews & Outcomes",
     template: "%s | WhichGLP",
   },
   description:
-    "Compare GLP-1 medications like Ozempic, Wegovy, Mounjaro, and Zepbound using real-world data. Make informed decisions based on thousands of user experiences, cost analysis, and outcome predictions.",
+    "Compare weight-loss drugs like Ozempic, Wegovy, Mounjaro, and Zepbound using real-world data. Make informed decisions based on thousands of user experiences, cost analysis, and outcome predictions.",
   keywords: [
     "GLP-1",
     "agonist",
@@ -25,11 +25,11 @@ export const metadata: Metadata = {
     "Saxenda",
     "semaglutide",
     "tirzepatide",
-    "weight loss medication",
+    "weight loss drug",
     "GLP-1 agonist",
     "drug comparison",
     "real user reviews",
-    "medication outcomes",
+    "drug outcomes",
   ],
   authors: [{ name: "WhichGLP" }],
   creator: "WhichGLP",
@@ -40,9 +40,9 @@ export const metadata: Metadata = {
     locale: "en_US",
     url: "https://whichglp.com",
     siteName: "WhichGLP",
-    title: "WhichGLP - Real-World GLP-1 Drug Reviews & Outcomes",
+    title: "WhichGLP - Real-World Weight-Loss Drug Reviews & Outcomes",
     description:
-      "Compare GLP-1 medications using real-world data from thousands of user experiences. Get personalized predictions for weight loss outcomes.",
+      "Compare weight-loss drugs using real-world data from thousands of user experiences. Get personalized recommendations for weight loss outcomes.",
     // images: [
     //   {
     //     url: "/og-image.png",
@@ -76,24 +76,26 @@ export const metadata: Metadata = {
   },
 };
 
-const Scrim = ({ children }: { children: React.ReactNode }) => (
-  <div className="w-full h-full relative">
-    <div className="pointer-events-none fixed inset-0 z-[9999] h-screen w-screen backdrop-blur-[2px] flex items-center justify-center">
-      <div className="pointer-events-auto">
-        <div className="relative overflow-hidden rounded-2xl border border-border/40 px-8 py-6 shadow-2xl" style={{background: 'linear-gradient(135deg, oklch(0.65 0.15 150 / 0.98), oklch(0.55 0.18 240 / 0.98))'}}>
-          <div className="flex items-center gap-3">
-            <div className="h-2 w-2 animate-pulse rounded-full bg-white"></div>
-            <span className="relative inline-block text-lg font-semibold tracking-tight">
-              <span className="text-white">Coming soon!</span>
-              <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent bg-[length:200%_100%] animate-[shimmer_2s_ease-in-out_infinite] bg-clip-text"></span>
-            </span>
-          </div>
-        </div>
-      </div>
-    </div>
-    {children}
-  </div>
-);
+// "Coming Soon" scrim overlay - commented out for development
+// Uncomment to show coming soon message over entire site
+// const Scrim = ({ children }: { children: React.ReactNode }) => (
+//   <div className="w-full h-full relative">
+//     <div className="pointer-events-none fixed inset-0 z-[9999] h-screen w-screen backdrop-blur-[2px] flex items-center justify-center">
+//       <div className="pointer-events-auto">
+//         <div className="relative overflow-hidden rounded-2xl border border-border/40 px-8 py-6 shadow-2xl" style={{background: 'linear-gradient(135deg, oklch(0.65 0.15 150 / 0.98), oklch(0.55 0.18 240 / 0.98))'}}>
+//           <div className="flex items-center gap-3">
+//             <div className="h-2 w-2 animate-pulse rounded-full bg-white"></div>
+//             <span className="relative inline-block text-lg font-semibold tracking-tight">
+//               <span className="text-white">Coming soon!</span>
+//               <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent bg-[length:200%_100%] animate-[shimmer_2s_ease-in-out_infinite] bg-clip-text"></span>
+//             </span>
+//           </div>
+//         </div>
+//       </div>
+//     </div>
+//     {children}
+//   </div>
+// );
 
 const RootLayout = ({
   children,
@@ -103,10 +105,13 @@ const RootLayout = ({
   return (
     <html lang="en">
       <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`}>
-        <Suspense fallback={null}>
-          <Scrim>{children}</Scrim>
-        </Suspense>
-        <Analytics />
+        <Providers>
+          <Suspense fallback={null}>
+            {/* <Scrim>{children}</Scrim> */}
+            {children}
+          </Suspense>
+          <Analytics />
+        </Providers>
       </body>
     </html>
   );
