@@ -2,10 +2,7 @@
 nixPkgs = ["python313", "postgresql.lib"]
 
 [phases.install]
-cmds = ["pip install -r requirements.txt"]
+cmds = ["cd apps/post-ingestion && pip install -r requirements.txt"]
 
 [phases.build]
 cmds = ["echo 'No build step required'"]
-
-[start]
-cmd = "uvicorn api:app --host 0.0.0.0 --port $PORT"

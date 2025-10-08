@@ -1,13 +1,8 @@
 [phases.setup]
-nixPkgs = ["python313", "libpq"]
+nixPkgs = ["python313", "postgresql.lib"]
 
 [phases.install]
-cmds = [
-    "pip install -r requirements.txt"
-]
+cmds = ["cd apps/rec-engine && pip install -r requirements.txt"]
 
 [phases.build]
 cmds = ["echo 'No build step required'"]
-
-[start]
-cmd = "python3 api.py"
