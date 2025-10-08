@@ -17,6 +17,7 @@ import os
 import logging
 from pathlib import Path
 from typing import List, Dict, Any, Optional
+from datetime import datetime
 from dotenv import load_dotenv
 from supabase import create_client, Client
 
@@ -39,6 +40,25 @@ class DatabaseConnectionError(Exception):
 class DatabaseOperationError(Exception):
     """Raised when database operations (insert, query, etc.) fail"""
     pass
+
+
+def _serialize_for_json(data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Convert datetime objects to ISO strings for JSON serialization.
+
+    Args:
+        data: Dictionary that may contain datetime objects
+
+    Returns:
+        Dictionary with datetime objects converted to ISO strings
+    """
+    result = {}
+    for key, value in data.items():
+        if isinstance(value, datetime):
+            result[key] = value.isoformat()
+        else:
+            result[key] = value
+    return result
 
 
 class Database:
@@ -131,10 +151,13 @@ class Database:
             logger.info("No posts to insert")
             return 0
 
+        # Serialize datetime objects to ISO strings
+        clean_data = [_serialize_for_json(post) for post in posts_data]
+
         try:
             # Try batch insert first (most efficient)
             response = self.client.table('reddit_posts').upsert(
-                posts_data,
+                clean_data,
                 on_conflict='post_id',
                 count='exact'
             ).execute()
@@ -151,7 +174,7 @@ class Database:
             successful = 0
             failed = 0
 
-            for post in posts_data:
+            for post in clean_data:
                 try:
                     response = self.client.table('reddit_posts').upsert(
                         post,
@@ -193,10 +216,13 @@ class Database:
             logger.info("No comments to insert")
             return 0
 
+        # Serialize datetime objects to ISO strings
+        clean_data = [_serialize_for_json(comment) for comment in comments_data]
+
         try:
             # Try batch insert first (most efficient)
             response = self.client.table('reddit_comments').upsert(
-                comments_data,
+                clean_data,
                 on_conflict='comment_id',
                 count='exact'
             ).execute()
@@ -213,7 +239,7 @@ class Database:
             successful = 0
             failed = 0
 
-            for comment in comments_data:
+            for comment in clean_data:
                 try:
                     response = self.client.table('reddit_comments').upsert(
                         comment,
