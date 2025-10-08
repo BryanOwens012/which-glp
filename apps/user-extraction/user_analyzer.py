@@ -235,6 +235,10 @@ class RedditUserAnalyzer:
         if not user_data.get('comorbidities'):
             user_data['comorbidities'] = []
 
+        # Convert datetime objects to ISO format strings for JSON serialization
+        if user_data.get('analyzed_at') and hasattr(user_data['analyzed_at'], 'isoformat'):
+            user_data['analyzed_at'] = user_data['analyzed_at'].isoformat()
+
         # Use Supabase upsert (automatically handles conflicts)
         try:
             response = self.db.client.table('reddit_users').upsert(
