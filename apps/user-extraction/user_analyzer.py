@@ -194,8 +194,8 @@ class RedditUserAnalyzer:
             user_data = {
                 'username': username,
                 'height_inches': demographics.height_inches,
-                'start_weight_lbs': demographics.start_weight_lbs,
-                'end_weight_lbs': demographics.end_weight_lbs,
+                'starting_weight_lbs': demographics.start_weight_lbs,
+                'current_weight_lbs': demographics.end_weight_lbs,
                 'state': demographics.state,
                 'country': demographics.country,
                 'age': demographics.age,
