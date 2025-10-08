@@ -116,22 +116,23 @@ class Database:
         Insert multiple posts using Supabase client
 
         Uses upsert for automatic deduplication (ON CONFLICT DO NOTHING equivalent).
+        If batch insert fails, tries individual inserts to skip problematic records.
 
         Args:
             posts_data: List of dictionaries containing post data from parse_post()
 
         Returns:
-            Number of posts actually inserted (excluding duplicates)
+            Number of posts actually inserted (excluding duplicates and failed records)
 
         Raises:
-            DatabaseOperationError: If batch insert operation fails
+            DatabaseOperationError: If all records fail to insert
         """
         if not posts_data:
             logger.info("No posts to insert")
             return 0
 
         try:
-            # Supabase upsert with onConflict: ignore duplicates
+            # Try batch insert first (most efficient)
             response = self.client.table('reddit_posts').upsert(
                 posts_data,
                 on_conflict='post_id',
@@ -143,38 +144,57 @@ class Database:
 
             return inserted
 
-        except Exception as e:
-            logger.error(f"Batch insert operation failed for {len(posts_data)} posts: {e}")
-            raise DatabaseOperationError(
-                f"Failed to insert batch of {len(posts_data)} posts into database: {e}\n"
-                f"Possible causes:\n"
-                f"- Database schema mismatch (check migrations are up to date)\n"
-                f"- Invalid data format in posts\n"
-                f"- Network connectivity issues\n"
-                f"- Insufficient permissions (ensure using SERVICE_KEY not ANON_KEY)"
-            ) from e
+        except Exception as batch_error:
+            logger.warning(f"Batch insert failed, attempting individual inserts: {batch_error}")
+
+            # Fall back to individual inserts
+            successful = 0
+            failed = 0
+
+            for post in posts_data:
+                try:
+                    response = self.client.table('reddit_posts').upsert(
+                        post,
+                        on_conflict='post_id'
+                    ).execute()
+                    successful += 1
+                except Exception as e:
+                    failed += 1
+                    post_id = post.get('post_id', 'unknown')
+                    logger.error(f"Failed to insert post {post_id}: {e}")
+
+            logger.info(f"Individual inserts: {successful} successful, {failed} failed (out of {len(posts_data)} total)")
+
+            if successful == 0:
+                raise DatabaseOperationError(
+                    f"Failed to insert any posts into database. All {len(posts_data)} records failed.\n"
+                    f"Last error: {batch_error}"
+                ) from batch_error
+
+            return successful
 
     def insert_comments_batch(self, comments_data: List[Dict[str, Any]]) -> int:
         """
         Insert multiple comments using Supabase client
 
         Uses upsert for automatic deduplication (ON CONFLICT DO NOTHING equivalent).
+        If batch insert fails, tries individual inserts to skip problematic records.
 
         Args:
             comments_data: List of dictionaries containing comment data from parse_comment()
 
         Returns:
-            Number of comments actually inserted (excluding duplicates)
+            Number of comments actually inserted (excluding duplicates and failed records)
 
         Raises:
-            DatabaseOperationError: If batch insert operation fails
+            DatabaseOperationError: If all records fail to insert
         """
         if not comments_data:
             logger.info("No comments to insert")
             return 0
 
         try:
-            # Supabase upsert with onConflict: ignore duplicates
+            # Try batch insert first (most efficient)
             response = self.client.table('reddit_comments').upsert(
                 comments_data,
                 on_conflict='comment_id',
@@ -186,16 +206,34 @@ class Database:
 
             return inserted
 
-        except Exception as e:
-            logger.error(f"Batch insert operation failed for {len(comments_data)} comments: {e}")
-            raise DatabaseOperationError(
-                f"Failed to insert batch of {len(comments_data)} comments into database: {e}\n"
-                f"Possible causes:\n"
-                f"- Database schema mismatch (check migrations are up to date)\n"
-                f"- Invalid data format in comments\n"
-                f"- Foreign key constraint violation (post_id does not exist)\n"
-                f"- Network connectivity issues"
-            ) from e
+        except Exception as batch_error:
+            logger.warning(f"Batch insert failed, attempting individual inserts: {batch_error}")
+
+            # Fall back to individual inserts
+            successful = 0
+            failed = 0
+
+            for comment in comments_data:
+                try:
+                    response = self.client.table('reddit_comments').upsert(
+                        comment,
+                        on_conflict='comment_id'
+                    ).execute()
+                    successful += 1
+                except Exception as e:
+                    failed += 1
+                    comment_id = comment.get('comment_id', 'unknown')
+                    logger.error(f"Failed to insert comment {comment_id}: {e}")
+
+            logger.info(f"Individual inserts: {successful} successful, {failed} failed (out of {len(comments_data)} total)")
+
+            if successful == 0:
+                raise DatabaseOperationError(
+                    f"Failed to insert any comments into database. All {len(comments_data)} records failed.\n"
+                    f"Last error: {batch_error}"
+                ) from batch_error
+
+            return successful
 
     def get_post_count(self, subreddit: str = None) -> int:
         """

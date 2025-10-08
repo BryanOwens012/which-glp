@@ -287,6 +287,8 @@ class RedditUserAnalyzer:
             logger.info(f"✓ Inserted u/{clean_data['username']} to database")
         except Exception as e:
             logger.error(f"✗ Failed to insert u/{clean_data['username']}: {e}")
+            # Don't raise - let the caller handle the error
+            # This allows the pipeline to continue processing other users
             raise
 
     def run(self, limit: Optional[int] = None, rate_limit_delay: float = 2.0):
