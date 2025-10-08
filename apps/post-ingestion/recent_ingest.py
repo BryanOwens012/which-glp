@@ -127,31 +127,34 @@ def ingest_recent_posts(
     else:
         logger.warning("No posts to insert")
 
-    # Create backup
-    backup_dir = get_backup_dir('post_ingestion') / f"recent_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{subreddit_name}"
-    backup_dir.mkdir(parents=True, exist_ok=True)
+    # Create backup (skip if running in Railway/ephemeral environment)
+    try:
+        backup_dir = get_backup_dir('post_ingestion') / f"recent_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{subreddit_name}"
+        backup_dir.mkdir(parents=True, exist_ok=True)
 
-    import json
+        import json
 
-    # Save posts
-    posts_file = backup_dir / "posts.json"
-    with open(posts_file, 'w') as f:
-        json.dump(posts_data, f, indent=2, default=str)
-    logger.info(f"✓ Backed up posts to: {posts_file}")
+        # Save posts
+        posts_file = backup_dir / "posts.json"
+        with open(posts_file, 'w') as f:
+            json.dump(posts_data, f, indent=2, default=str)
+        logger.info(f"✓ Backed up posts to: {posts_file}")
 
-    # Save summary
-    summary = {
-        'subreddit': subreddit_name,
-        'posts_limit': posts_limit,
-        'total_posts_fetched': len(posts_data),
-        'posts_inserted': posts_inserted if posts_data else 0,
-        'timestamp': datetime.now().isoformat(),
-    }
+        # Save summary
+        summary = {
+            'subreddit': subreddit_name,
+            'posts_limit': posts_limit,
+            'total_posts_fetched': len(posts_data),
+            'posts_inserted': posts_inserted if posts_data else 0,
+            'timestamp': datetime.now().isoformat(),
+        }
 
-    summary_file = backup_dir / "summary.json"
-    with open(summary_file, 'w') as f:
-        json.dump(summary, f, indent=2, default=str)
-    logger.info(f"✓ Saved summary to: {summary_file}")
+        summary_file = backup_dir / "summary.json"
+        with open(summary_file, 'w') as f:
+            json.dump(summary, f, indent=2, default=str)
+        logger.info(f"✓ Saved summary to: {summary_file}")
+    except Exception as e:
+        logger.warning(f"⚠️  Could not create backup (running in ephemeral environment?): {e}")
 
     # Final summary
     logger.info("\n" + "=" * 80)

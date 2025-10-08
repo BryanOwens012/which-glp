@@ -1,0 +1,11 @@
+{
+  "name": "whichglp-cron-triggers",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Railway cron job triggers for WhichGLP services",
+  "scripts": {
+    "trigger:post-ingestion": "node cron-trigger-post-ingestion.js",
+    "trigger:post-extraction": "node cron-trigger-post-extraction.js",
+    "trigger:user-extraction": "node cron-trigger-user-extraction.js"
+  }
+}
