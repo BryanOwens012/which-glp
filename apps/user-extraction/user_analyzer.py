@@ -194,8 +194,8 @@ class RedditUserAnalyzer:
             user_data = {
                 'username': username,
                 'height_inches': demographics.height_inches,
-                'starting_weight_lbs': demographics.start_weight_lbs,
-                'current_weight_lbs': demographics.end_weight_lbs,
+                'start_weight_lbs': demographics.start_weight_lbs,
+                'end_weight_lbs': demographics.end_weight_lbs,
                 'state': demographics.state,
                 'country': demographics.country,
                 'age': demographics.age,
@@ -243,7 +243,7 @@ class RedditUserAnalyzer:
             clean_data['analyzed_at'] = clean_data['analyzed_at'].isoformat()
 
         # Ensure numeric fields are proper types (float or None, not NaN)
-        numeric_fields = ['height_inches', 'starting_weight_lbs', 'current_weight_lbs',
+        numeric_fields = ['height_inches', 'start_weight_lbs', 'end_weight_lbs',
                          'confidence_score', 'processing_cost_usd']
         for field in numeric_fields:
             if field in clean_data and clean_data[field] is not None:
