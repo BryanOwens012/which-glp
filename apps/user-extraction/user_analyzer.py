@@ -3,7 +3,7 @@
 User demographics analyzer for Reddit users.
 
 This script:
-1. Fetches unique usernames from reddit_posts table
+1. Fetches unique usernames from extracted_features table (users with already-extracted posts)
 2. Uses PRAW to get last 20 posts + 20 comments per user
 3. Sends to GLM-4.5-Air for demographic extraction
 4. Inserts results to reddit_users table
@@ -73,7 +73,10 @@ class RedditUserAnalyzer:
 
     def get_unanalyzed_usernames(self, limit: Optional[int] = None) -> List[str]:
         """
-        Get usernames from reddit_posts that haven't been analyzed yet.
+        Get usernames from extracted_features (already-extracted posts) that haven't been analyzed yet.
+
+        Uses a PostgreSQL function with LEFT JOIN to perform all filtering at the database level.
+        This is the most efficient approach - no data is transferred to Python for filtering.
 
         Args:
             limit: Maximum number of usernames to return
@@ -81,40 +84,17 @@ class RedditUserAnalyzer:
         Returns:
             List of usernames (without u/ prefix)
         """
-        query = """
-            SELECT DISTINCT author
-            FROM reddit_posts
-            WHERE author NOT IN (
-                SELECT username FROM reddit_users
-            )
-            AND author IS NOT NULL
-            AND author != '[deleted]'
-            AND author != 'AutoModerator'
-            ORDER BY author
-        """
+        # Call PostgreSQL function that performs LEFT JOIN filtering
+        # Function: get_unanalyzed_users(limit)
+        # SQL: SELECT DISTINCT rp.author FROM extracted_features ef
+        #      INNER JOIN reddit_posts rp ON ef.post_id = rp.post_id
+        #      LEFT JOIN reddit_users ru ON rp.author = ru.username
+        #      WHERE ru.username IS NULL
+        response = self.db.client.rpc('get_unanalyzed_users', {'p_limit': limit}).execute()
 
-        # Get all distinct authors from reddit_posts
-        posts_query = self.db.client.table('reddit_posts') \
-            .select('author') \
-            .not_.is_('author', 'null') \
-            .neq('author', '[deleted]') \
-            .neq('author', 'AutoModerator')
+        unanalyzed = [row['author'] for row in (response.data if response.data else [])]
 
-        posts_response = posts_query.execute()
-        all_authors = {post['author'] for post in (posts_response.data if posts_response.data else [])}
-
-        # Get already analyzed users from reddit_users
-        users_response = self.db.client.table('reddit_users').select('username').execute()
-        analyzed_users = {user['username'] for user in (users_response.data if users_response.data else [])}
-
-        # Get unanalyzed users
-        unanalyzed = sorted(list(all_authors - analyzed_users))
-
-        # Apply limit if specified
-        if limit:
-            unanalyzed = unanalyzed[:limit]
-
-        logger.info(f"Found {len(unanalyzed)} unanalyzed users")
+        logger.info(f"Found {len(unanalyzed)} unanalyzed users (from extracted_features)")
         return unanalyzed
 
     def fetch_user_history(

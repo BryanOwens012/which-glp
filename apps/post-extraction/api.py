@@ -88,31 +88,25 @@ async def trigger_extraction(request: ExtractionRequest, background_tasks: Backg
             glm = get_client()
             logger.info("✅ GLM client initialized")
 
-            # Query unprocessed posts using Supabase client
+            # Query unprocessed posts using PostgreSQL function with LEFT JOIN
+            # This performs all filtering at the database level - most efficient approach
             logger.info("🔍 Querying unprocessed posts from database...")
 
-            # Build query using Supabase client
-            query = db.client.table('reddit_posts').select('post_id, title, body, subreddit, author_flair_text')
+            # Call PostgreSQL function that performs LEFT JOIN filtering
+            # Function: get_unprocessed_posts(subreddit, limit)
+            # SQL: SELECT p.* FROM reddit_posts p
+            #      LEFT JOIN extracted_features ef ON p.post_id = ef.post_id
+            #      WHERE ef.post_id IS NULL
+            response = db.client.rpc('get_unprocessed_posts', {
+                'p_subreddit': request.subreddit,
+                'p_limit': request.limit
+            }).execute()
 
-            if request.subreddit:
-                query = query.eq('subreddit', request.subreddit)
-
-            query = query.order('created_at', desc=True)
-
-            if request.limit:
-                query = query.limit(request.limit)
-
-            response = query.execute()
             all_posts = response.data if response.data else []
 
-            # Filter out already processed posts (those in extracted_features)
-            # Get list of already processed post_ids
-            processed_response = db.client.table('extracted_features').select('post_id').not_.is_('post_id', 'null').execute()
-            processed_ids = {item['post_id'] for item in (processed_response.data if processed_response.data else [])}
-
-            # Filter unprocessed posts
+            # Convert to tuple format for processing
             posts = [(p['post_id'], p['title'], p['body'], p['subreddit'], p['author_flair_text'])
-                     for p in all_posts if p['post_id'] not in processed_ids]
+                     for p in all_posts]
 
             logger.info(f"📊 Found {len(posts)} unprocessed posts")
 
@@ -133,11 +127,71 @@ async def trigger_extraction(request: ExtractionRequest, background_tasks: Backg
 
                     cost = metadata.get('cost_usd', 0)
                     total_cost += cost
-                    processed += 1
 
-                    logger.info(f"✅ Extracted {post_id} - Cost: ${cost:.6f}, Total cost: ${total_cost:.6f}")
-                    # Insert to database (simplified)
-                    # Full implementation would use same insert logic as data-ingestion/extraction
+                    # Prepare data for database insertion
+                    feature_data = {
+                        'post_id': post_id,
+                        'comment_id': None,
+                        'summary': features.summary,
+                        'beginning_weight': features.beginning_weight.model_dump() if features.beginning_weight else None,
+                        'end_weight': features.end_weight.model_dump() if features.end_weight else None,
+                        'duration_weeks': features.duration_weeks,
+                        'cost_per_month': features.cost_per_month,
+                        'currency': features.currency,
+                        'drugs_mentioned': features.drugs_mentioned,
+                        'primary_drug': features.primary_drug,
+                        'drug_sentiments': features.drug_sentiments,
+                        'sentiment_pre': features.sentiment_pre,
+                        'sentiment_post': features.sentiment_post,
+                        'has_insurance': features.has_insurance,
+                        'insurance_provider': features.insurance_provider,
+                        'comorbidities': features.comorbidities,
+                        'location': features.location,
+                        'age': features.age,
+                        'sex': features.sex,
+                        'state': features.state,
+                        'country': features.country,
+                        'model_used': metadata.get('model'),
+                        'confidence_score': features.confidence_score,
+                        'processing_cost_usd': cost,
+                        'tokens_input': metadata.get('tokens_input'),
+                        'tokens_output': metadata.get('tokens_output'),
+                        'processing_time_ms': metadata.get('processing_time_ms'),
+                        'processed_at': datetime.now().isoformat(),  # Supabase client handles datetime serialization
+                        'raw_response': metadata.get('raw_response'),
+                        'side_effects': [se.model_dump() for se in features.side_effects] if features.side_effects else [],
+                        'dosage_progression': features.dosage_progression,
+                        'exercise_frequency': features.exercise_frequency,
+                        'dietary_changes': features.dietary_changes,
+                        'previous_weight_loss_attempts': features.previous_weight_loss_attempts,
+                        'drug_source': features.drug_source,
+                        'switching_drugs': features.switching_drugs,
+                        'side_effect_timing': features.side_effect_timing,
+                        'food_intolerances': features.food_intolerances,
+                        'plateau_mentioned': features.plateau_mentioned,
+                        'rebound_weight_gain': features.rebound_weight_gain,
+                        'labs_improvement': features.labs_improvement,
+                        'medication_reduction': features.medication_reduction,
+                        'nsv_mentioned': features.nsv_mentioned,
+                        'support_system': features.support_system,
+                        'pharmacy_access_issues': features.pharmacy_access_issues,
+                        'mental_health_impact': features.mental_health_impact,
+                        'side_effect_resolution': features.side_effect_resolution,
+                        'recommendation_score': features.recommendation_score,
+                    }
+
+                    # Insert to database
+                    try:
+                        db.client.table('extracted_features').upsert(
+                            feature_data,
+                            on_conflict='post_id'
+                        ).execute()
+                        logger.info(f"✅ Extracted & saved {post_id} - Cost: ${cost:.6f}, Total cost: ${total_cost:.6f}")
+                        processed += 1
+                    except Exception as insert_error:
+                        logger.error(f"❌ Failed to insert {post_id} to database: {insert_error}")
+                        failed += 1
+
                 except Exception as e:
                     failed += 1
                     logger.error(f"❌ Failed to extract {post_id}: {str(e)}", exc_info=True)

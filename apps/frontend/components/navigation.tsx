@@ -4,11 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
 import { Menu } from "lucide-react";
-import {
-  Sheet,
-  SheetContent,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 
 export const Navigation = () => {
@@ -17,7 +13,7 @@ export const Navigation = () => {
   const navLinks = [
     { href: "/compare", label: "Compare" },
     { href: "/experiences", label: "Experiences" },
-    { href: "/recommendations", label: "Recommend for Me" },
+    { href: "/recommendations", label: "Recommend for Me (AI)" },
     { href: "/about", label: "About" },
   ];
 
@@ -78,4 +74,4 @@ export const Navigation = () => {
       </div>
     </nav>
   );
-}
+};
