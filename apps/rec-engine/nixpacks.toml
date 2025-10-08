@@ -6,3 +6,6 @@ cmds = ["cd apps/rec-engine && pip install -r requirements.txt"]
 
 [phases.build]
 cmds = ["echo 'No build step required'"]
+
+[start]
+cmd = "cd apps/rec-engine && python3 api.py"
