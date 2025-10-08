@@ -66,18 +66,18 @@ class Database:
             DatabaseConfigurationError: If required environment variables are missing or invalid
             DatabaseConnectionError: If connection to database fails
         """
-        # Load environment variables
+        # Load environment variables from .env if it exists
+        # In Railway/production, environment variables are set via Railway UI
         # Path traversal: reddit_ingestion (module) -> data-ingestion (app) -> apps (dir) -> repo root
         # parents[3] navigates up 3 directory levels from this file
-        env_path = Path(__file__).resolve().parents[3] / ".env"
-        if not env_path.exists():
-            raise DatabaseConfigurationError(
-                f"Database configuration error: .env file not found at expected location: {env_path}\n"
-                f"Please create a .env file in the repository root with your Supabase credentials.\n"
-                f"See README.md for setup instructions."
-            )
-
-        load_dotenv(env_path)
+        try:
+            env_path = Path(__file__).resolve().parents[3] / ".env"
+            if env_path.exists():
+                load_dotenv(env_path)
+        except Exception:
+            # In Railway/production, .env may not exist or path resolution may fail
+            # Environment variables should be set via Railway UI
+            pass
 
         # Validate required environment variables
         required_vars = ["SUPABASE_URL", "SUPABASE_DB_PASSWORD"]

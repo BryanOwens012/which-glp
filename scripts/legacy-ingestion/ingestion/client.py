@@ -61,25 +61,18 @@ class RedditClient:
             RedditClientConfigurationError: If .env file or required credentials are missing
             RedditAPIError: If PRAW initialization or authentication fails
         """
-        # Load environment variables from monorepo root
+        # Load environment variables from monorepo root (if .env exists)
+        # In Railway/production, environment variables are set via Railway UI
         # Uses shared.config.get_monorepo_root() for robust path resolution
         # that works regardless of whether module is run directly or as editable install
         try:
             env_path = get_monorepo_root() / ".env"
-        except RuntimeError as e:
-            raise RedditClientConfigurationError(
-                f"Configuration error: Could not locate monorepo root: {e}\n"
-                f"Please ensure you are running from within the git repository."
-            )
-
-        if not env_path.exists():
-            raise RedditClientConfigurationError(
-                f"Configuration error: .env file not found at expected location: {env_path}\n"
-                f"Please create a .env file in the repository root with your Reddit API credentials.\n"
-                f"See README.md for setup instructions."
-            )
-
-        load_dotenv(env_path)
+            if env_path.exists():
+                load_dotenv(env_path)
+        except RuntimeError:
+            # In Railway/production without .git, .env loading is optional
+            # Environment variables should be set via Railway UI
+            pass
 
         # Check for required environment variables
         needed_vars = [
