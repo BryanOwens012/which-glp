@@ -231,20 +231,64 @@ class RedditUserAnalyzer:
         Args:
             user_data: Dictionary with user data
         """
+        # Create a copy to avoid modifying the original
+        clean_data = user_data.copy()
+
         # Ensure comorbidities is a list (not None)
-        if not user_data.get('comorbidities'):
-            user_data['comorbidities'] = []
+        if not clean_data.get('comorbidities'):
+            clean_data['comorbidities'] = []
+
+        # Convert datetime objects to ISO format strings for JSON serialization
+        if clean_data.get('analyzed_at') and hasattr(clean_data['analyzed_at'], 'isoformat'):
+            clean_data['analyzed_at'] = clean_data['analyzed_at'].isoformat()
+
+        # Ensure numeric fields are proper types (float or None, not NaN)
+        numeric_fields = ['height_inches', 'start_weight_lbs', 'end_weight_lbs',
+                         'confidence_score', 'processing_cost_usd']
+        for field in numeric_fields:
+            if field in clean_data and clean_data[field] is not None:
+                # Convert to float and check for NaN
+                try:
+                    val = float(clean_data[field])
+                    # Check for NaN or infinity
+                    if val != val or val == float('inf') or val == float('-inf'):
+                        clean_data[field] = None
+                    else:
+                        clean_data[field] = val
+                except (ValueError, TypeError):
+                    clean_data[field] = None
+
+        # Ensure integer fields are proper types (int or None)
+        integer_fields = ['age', 'post_count', 'comment_count']
+        for field in integer_fields:
+            if field in clean_data and clean_data[field] is not None:
+                try:
+                    clean_data[field] = int(clean_data[field])
+                except (ValueError, TypeError):
+                    clean_data[field] = None
+
+        # Ensure boolean fields are proper types (bool or None)
+        if 'has_insurance' in clean_data and clean_data['has_insurance'] is not None:
+            clean_data['has_insurance'] = bool(clean_data['has_insurance'])
+
+        # Ensure string fields are strings or None
+        string_fields = ['username', 'state', 'country', 'sex', 'insurance_provider', 'model_used']
+        for field in string_fields:
+            if field in clean_data and clean_data[field] is not None:
+                clean_data[field] = str(clean_data[field])
 
         # Use Supabase upsert (automatically handles conflicts)
         try:
             response = self.db.client.table('reddit_users').upsert(
-                user_data,
+                clean_data,
                 on_conflict='username'
             ).execute()
 
-            logger.info(f"✓ Inserted u/{user_data['username']} to database")
+            logger.info(f"✓ Inserted u/{clean_data['username']} to database")
         except Exception as e:
-            logger.error(f"✗ Failed to insert u/{user_data['username']}: {e}")
+            logger.error(f"✗ Failed to insert u/{clean_data['username']}: {e}")
+            # Don't raise - let the caller handle the error
+            # This allows the pipeline to continue processing other users
             raise
 
     def run(self, limit: Optional[int] = None, rate_limit_delay: float = 2.0):
