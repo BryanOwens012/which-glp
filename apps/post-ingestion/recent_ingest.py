@@ -117,6 +117,7 @@ def ingest_recent_posts(
     logger.info(f"Parsed {len(posts_data)} posts")
 
     # Insert posts to database
+    posts_inserted = 0
     if posts_data:
         logger.info(f"Inserting {len(posts_data)} posts to database...")
         try:
