@@ -382,7 +382,6 @@ cache/
 # DEPLOYMENT & INFRASTRUCTURE
 # ============================================
 # Railway
-railway.json
 .railway/
 
 # Vercel

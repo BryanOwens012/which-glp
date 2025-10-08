@@ -219,7 +219,7 @@ Push to GitHub → All services auto-deploy
 1. [ ] Monitor Railway logs for 24 hours
 2. [ ] Check ML API response times
 3. [ ] Verify no regression in recommendation quality
-4. [ ] Clean up old `apps/api/ml/` directory if desired
+4. [x] Clean up old `apps/ml/` directory (deleted 2025-10-07)
 
 ### Future Enhancements
 - [ ] Add Redis caching to ML API
