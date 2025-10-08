@@ -146,7 +146,7 @@ const RecommendationsPage = () => {
 
       <div className="container mx-auto px-4 pt-24 pb-12">
         <div className="mb-8">
-          <h1 className="mb-3 text-4xl font-bold">Recommend for Me</h1>
+          <h1 className="mb-3 text-4xl font-bold">Recommend for Me (AI)</h1>
           <p className="text-lg text-muted-foreground">
             Find the best drug for your profile based on similar user
             experiences

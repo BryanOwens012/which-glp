@@ -28,7 +28,7 @@ const ComparePage = () => {
 
   // Prefetch related pages during idle time to avoid impacting page performance
   useEffect(() => {
-    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
       requestIdleCallback(() => {
         router.prefetch("/recommendations");
         router.prefetch("/about");
@@ -160,7 +160,7 @@ const ComparePage = () => {
             </p>
             <Button size="lg" className="gap-2" asChild>
               <Link href="/recommendations">
-                Recommend for Me <ArrowRight className="h-4 w-4" />
+                Recommend for Me (AI) <ArrowRight className="h-4 w-4" />
               </Link>
             </Button>
           </div>
