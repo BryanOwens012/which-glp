@@ -110,30 +110,46 @@ class Database:
         user = "postgres"
         password = os.getenv("SUPABASE_DB_PASSWORD")
 
-        try:
-            conn = psycopg2.connect(
-                host=host,
-                port=port,
-                database=database,
-                user=user,
-                password=password,
-                sslmode="require"
-            )
-            return conn
-        except psycopg2.OperationalError as e:
-            raise DatabaseConnectionError(
-                f"Failed to establish connection to Supabase database: {e}\n"
-                f"Connection details:\n"
-                f"  Host: {host}\n"
-                f"  Port: {port}\n"
-                f"  Database: {database}\n"
-                f"  User: {user}\n"
-                f"Possible causes:\n"
-                f"- Incorrect SUPABASE_DB_PASSWORD in .env\n"
-                f"- Database not accessible (check Supabase dashboard)\n"
-                f"- Network connectivity issues\n"
-                f"- Database migration not yet run"
-            ) from e
+        # Retry connection with exponential backoff for transient network issues
+        max_retries = 3
+        retry_delay = 1  # seconds
+
+        for attempt in range(max_retries):
+            try:
+                conn = psycopg2.connect(
+                    host=host,
+                    port=port,
+                    database=database,
+                    user=user,
+                    password=password,
+                    sslmode="require",
+                    connect_timeout=10  # 10 second timeout
+                )
+                if attempt > 0:
+                    logger.info(f"✓ Database connection successful on attempt {attempt + 1}")
+                return conn
+            except psycopg2.OperationalError as e:
+                if attempt < max_retries - 1:
+                    logger.warning(f"Database connection attempt {attempt + 1} failed: {e}")
+                    logger.info(f"Retrying in {retry_delay} seconds...")
+                    import time
+                    time.sleep(retry_delay)
+                    retry_delay *= 2  # Exponential backoff
+                else:
+                    # Final attempt failed
+                    raise DatabaseConnectionError(
+                        f"Failed to establish connection to Supabase database after {max_retries} attempts: {e}\n"
+                        f"Connection details:\n"
+                        f"  Host: {host}\n"
+                        f"  Port: {port}\n"
+                        f"  Database: {database}\n"
+                        f"  User: {user}\n"
+                        f"Possible causes:\n"
+                        f"- Incorrect SUPABASE_DB_PASSWORD in environment variables\n"
+                        f"- Database not accessible (check Supabase dashboard)\n"
+                        f"- Network connectivity issues\n"
+                        f"- Database migration not yet run"
+                    ) from e
 
     def insert_posts_batch(self, posts_data: List[Dict[str, Any]]) -> int:
         """
