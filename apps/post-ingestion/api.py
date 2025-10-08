@@ -13,7 +13,7 @@ from pydantic import BaseModel
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from recent_ingest import ingest_recent_posts, ingest_multiple_subreddits, TIER1_SUBREDDITS
+from recent_ingest import ingest_recent_posts, ingest_multiple_subreddits, TIER1_SUBREDDITS, TIER2_SUBREDDITS, TIER3_SUBREDDITS
 from shared.config import get_logger
 
 logger = get_logger(__name__)
@@ -44,6 +44,9 @@ class IngestRequest(BaseModel):
     subreddit: Optional[str] = None
     posts_limit: int = 100
     tier1: bool = False
+    tier2: bool = False
+    tier3: bool = False
+    all_tiers: bool = False
 
 _ingestion_running = False
 
@@ -57,11 +60,11 @@ async def trigger_ingestion(request: IngestRequest, background_tasks: Background
 
     logger.info("=" * 80)
     logger.info("📥 INGESTION REQUEST RECEIVED")
-    logger.info(f"   Tier 1 mode: {request.tier1}")
-    if request.tier1:
-        logger.info(f"   Subreddits: {', '.join(TIER1_SUBREDDITS)}")
-    else:
-        logger.info(f"   Subreddit: {request.subreddit or 'none specified'}")
+    logger.info(f"   All tiers: {request.all_tiers}")
+    logger.info(f"   Tier 1: {request.tier1}")
+    logger.info(f"   Tier 2: {request.tier2}")
+    logger.info(f"   Tier 3: {request.tier3}")
+    logger.info(f"   Subreddit: {request.subreddit or 'none specified'}")
     logger.info(f"   Posts limit: {request.posts_limit}")
     logger.info("=" * 80)
 
@@ -75,13 +78,26 @@ async def trigger_ingestion(request: IngestRequest, background_tasks: Background
         start_time = datetime.now()
 
         try:
-            if request.tier1:
-                logger.info(f"🎯 Starting Tier 1 ingestion for {len(TIER1_SUBREDDITS)} subreddits...")
-                logger.info(f"   Subreddits: {', '.join(TIER1_SUBREDDITS)}")
-                result = ingest_multiple_subreddits(TIER1_SUBREDDITS, request.posts_limit)
+            subreddits_to_process = []
+
+            if request.all_tiers:
+                subreddits_to_process = TIER1_SUBREDDITS + TIER2_SUBREDDITS + TIER3_SUBREDDITS
+                logger.info(f"🎯 Starting ALL TIERS ingestion for {len(subreddits_to_process)} subreddits...")
+            else:
+                if request.tier1:
+                    subreddits_to_process.extend(TIER1_SUBREDDITS)
+                if request.tier2:
+                    subreddits_to_process.extend(TIER2_SUBREDDITS)
+                if request.tier3:
+                    subreddits_to_process.extend(TIER3_SUBREDDITS)
+
+            if subreddits_to_process:
+                logger.info(f"🎯 Starting multi-tier ingestion for {len(subreddits_to_process)} subreddits...")
+                logger.info(f"   Subreddits: {', '.join(subreddits_to_process)}")
+                result = ingest_multiple_subreddits(subreddits_to_process, request.posts_limit)
                 logger.info("=" * 80)
-                logger.info("✨ TIER 1 INGESTION COMPLETED")
-                logger.info(f"   Subreddits processed: {len(TIER1_SUBREDDITS)}")
+                logger.info("✨ MULTI-TIER INGESTION COMPLETED")
+                logger.info(f"   Subreddits processed: {len(subreddits_to_process)}")
                 logger.info(f"   Duration: {(datetime.now() - start_time).total_seconds():.2f}s")
                 logger.info("=" * 80)
             elif request.subreddit:
@@ -93,7 +109,7 @@ async def trigger_ingestion(request: IngestRequest, background_tasks: Background
                 logger.info(f"   Duration: {(datetime.now() - start_time).total_seconds():.2f}s")
                 logger.info("=" * 80)
             else:
-                logger.error("❌ No subreddit specified and tier1=False")
+                logger.error("❌ No subreddit or tier specified")
 
         except Exception as e:
             logger.error("=" * 80)

@@ -8,4 +8,4 @@ cmds = ["cd apps/user-extraction && pip install -r requirements.txt"]
 cmds = ["echo 'No build step required'"]
 
 [start]
-cmd = "cd apps/user-extraction && uvicorn api:app --host 0.0.0.0 --port $PORT"
+cmd = "cd apps/user-extraction && uvicorn api:app --host 0.0.0.0 --port $PORT --log-level info"
