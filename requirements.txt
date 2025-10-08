@@ -22,7 +22,6 @@ comm==0.2.3
 contourpy==1.3.3
 cryptography==46.0.2
 cycler==0.12.1
--e git+ssh://git@github.com/BryanOwens012/which-glp.git@ada9d7f0c3f51a479d3122484c2b149d2ed59293#egg=data_ingestion&subdirectory=scripts/legacy-ingestion
 debugpy==1.8.17
 decorator==5.2.1
 defusedxml==0.7.1
