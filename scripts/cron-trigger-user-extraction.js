@@ -5,12 +5,10 @@
  * Schedule: Every 2 days at noon UTC (0 12 */2 * *)
  */
 
-import { execSync } from "child_process";
-
-const SERVICE_URL = process.env.USER_EXTRACTION_URL || "https://user-extraction.railway.internal";
+const SERVICE_URL = process.env.USER_EXTRACTION_URL ? `https://${process.env.USER_EXTRACTION_URL}` : "https://user-extraction.railway.internal";
 const ENDPOINT = "/api/analyze";
 
-const analyzeUsers = () => {
+const analyzeUsers = async () => {
   console.log("=".repeat(80));
   console.log("🕐 CRON JOB STARTED - User Extraction Trigger");
   console.log(`   Time: ${new Date().toISOString()}`);
@@ -18,13 +16,23 @@ const analyzeUsers = () => {
   console.log("=".repeat(80));
 
   try {
-    const command = `curl -X POST ${SERVICE_URL}${ENDPOINT} -H "Content-Type: application/json"`;
-
     console.log("📡 Sending request to user-extraction service...");
-    const output = execSync(command, { encoding: 'utf-8' });
+    console.log(`   Method: POST`);
+
+    const response = await fetch(`${SERVICE_URL}${ENDPOINT}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    });
+
+    console.log(`📥 Response Status: ${response.status} ${response.statusText}`);
+    console.log(`   Headers: ${JSON.stringify(Object.fromEntries(response.headers))}`);
+
+    const data = await response.json();
 
     console.log("✅ Request successful!");
-    console.log("Response:", output);
+    console.log("Response Body:", JSON.stringify(data, null, 2));
     console.log("=".repeat(80));
     console.log("🏁 CRON JOB COMPLETED");
     console.log("=".repeat(80));
@@ -34,6 +42,7 @@ const analyzeUsers = () => {
     console.error("=".repeat(80));
     console.error("❌ CRON JOB FAILED");
     console.error("Error:", error.message);
+    console.error("Stack:", error.stack);
     console.error("=".repeat(80));
     process.exit(1);
   }

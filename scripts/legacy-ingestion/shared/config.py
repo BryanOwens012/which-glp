@@ -36,7 +36,13 @@ def get_monorepo_root() -> Path:
         if (parent / '.git').exists():
             return parent
 
-    # Fallback: if .git not found, raise error
+    # Fallback for Railway/ephemeral environments without .git
+    # Look for apps/ directory which indicates monorepo root
+    for parent in [current] + list(current.parents):
+        if (parent / 'apps').exists() and (parent / 'apps').is_dir():
+            return parent
+
+    # Final fallback: if nothing found, raise error
     raise RuntimeError(
         "Could not locate monorepo root. "
         "Expected to find .git directory in parent directories."
