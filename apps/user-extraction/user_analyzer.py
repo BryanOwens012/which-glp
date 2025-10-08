@@ -93,19 +93,29 @@ class RedditUserAnalyzer:
             ORDER BY author
         """
 
-        params = []
+        # Get all distinct authors from reddit_posts
+        posts_query = self.db.client.table('reddit_posts') \
+            .select('author') \
+            .not_.is_('author', 'null') \
+            .neq('author', '[deleted]') \
+            .neq('author', 'AutoModerator')
+
+        posts_response = posts_query.execute()
+        all_authors = {post['author'] for post in (posts_response.data if posts_response.data else [])}
+
+        # Get already analyzed users from reddit_users
+        users_response = self.db.client.table('reddit_users').select('username').execute()
+        analyzed_users = {user['username'] for user in (users_response.data if users_response.data else [])}
+
+        # Get unanalyzed users
+        unanalyzed = sorted(list(all_authors - analyzed_users))
+
+        # Apply limit if specified
         if limit:
-            query += " LIMIT %s"
-            params.append(limit)
+            unanalyzed = unanalyzed[:limit]
 
-        with self.db.conn.cursor() as cursor:
-            cursor.execute(query, params)
-            rows = cursor.fetchall()
-
-        usernames = [row[0] for row in rows]
-        logger.info(f"Found {len(usernames)} unanalyzed users")
-
-        return usernames
+        logger.info(f"Found {len(unanalyzed)} unanalyzed users")
+        return unanalyzed
 
     def fetch_user_history(
         self,
@@ -216,60 +226,26 @@ class RedditUserAnalyzer:
 
     def insert_user(self, user_data: Dict[str, Any]):
         """
-        Insert user demographics to database.
+        Insert user demographics to database using Supabase client.
 
         Args:
             user_data: Dictionary with user data
         """
-        import psycopg2.extras
-
-        insert_query = """
-            INSERT INTO reddit_users (
-                username, height_inches, start_weight_lbs, end_weight_lbs,
-                state, country, age, sex, comorbidities, has_insurance, insurance_provider,
-                analyzed_at, post_count, comment_count, confidence_score,
-                model_used, processing_cost_usd, raw_response
-            ) VALUES (
-                %(username)s, %(height_inches)s, %(start_weight_lbs)s, %(end_weight_lbs)s,
-                %(state)s, %(country)s, %(age)s, %(sex)s, %(comorbidities)s, %(has_insurance)s, %(insurance_provider)s,
-                %(analyzed_at)s, %(post_count)s, %(comment_count)s, %(confidence_score)s,
-                %(model_used)s, %(processing_cost_usd)s, %(raw_response)s
-            )
-            ON CONFLICT (username) DO UPDATE SET
-                height_inches = EXCLUDED.height_inches,
-                start_weight_lbs = EXCLUDED.start_weight_lbs,
-                end_weight_lbs = EXCLUDED.end_weight_lbs,
-                state = EXCLUDED.state,
-                country = EXCLUDED.country,
-                age = EXCLUDED.age,
-                sex = EXCLUDED.sex,
-                comorbidities = EXCLUDED.comorbidities,
-                has_insurance = EXCLUDED.has_insurance,
-                insurance_provider = EXCLUDED.insurance_provider,
-                analyzed_at = EXCLUDED.analyzed_at,
-                post_count = EXCLUDED.post_count,
-                comment_count = EXCLUDED.comment_count,
-                confidence_score = EXCLUDED.confidence_score,
-                model_used = EXCLUDED.model_used,
-                processing_cost_usd = EXCLUDED.processing_cost_usd,
-                raw_response = EXCLUDED.raw_response
-        """
-
-        # Convert comorbidities list to PostgreSQL array format
-        if user_data['comorbidities']:
-            user_data['comorbidities'] = user_data['comorbidities']
-        else:
+        # Ensure comorbidities is a list (not None)
+        if not user_data.get('comorbidities'):
             user_data['comorbidities'] = []
 
-        # Convert raw_response to JSON
-        if user_data['raw_response']:
-            user_data['raw_response'] = psycopg2.extras.Json(user_data['raw_response'])
+        # Use Supabase upsert (automatically handles conflicts)
+        try:
+            response = self.db.client.table('reddit_users').upsert(
+                user_data,
+                on_conflict='username'
+            ).execute()
 
-        with self.db.conn.cursor() as cursor:
-            cursor.execute(insert_query, user_data)
-            self.db.conn.commit()
-
-        logger.info(f"✓ Inserted u/{user_data['username']} to database")
+            logger.info(f"✓ Inserted u/{user_data['username']} to database")
+        except Exception as e:
+            logger.error(f"✗ Failed to insert u/{user_data['username']}: {e}")
+            raise
 
     def run(self, limit: Optional[int] = None, rate_limit_delay: float = 2.0):
         """
