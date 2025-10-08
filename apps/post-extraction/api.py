@@ -88,28 +88,31 @@ async def trigger_extraction(request: ExtractionRequest, background_tasks: Backg
             glm = get_client()
             logger.info("✅ GLM client initialized")
 
-            # Query unprocessed posts (with parameterized query to prevent SQL injection)
+            # Query unprocessed posts using Supabase client
             logger.info("🔍 Querying unprocessed posts from database...")
-            query = """
-                SELECT post_id, title, body, subreddit, author_flair_text
-                FROM reddit_posts
-                WHERE post_id NOT IN (SELECT post_id FROM extracted_features WHERE post_id IS NOT NULL)
-            """
-            params = []
+
+            # Build query using Supabase client
+            query = db.client.table('reddit_posts').select('post_id, title, body, subreddit, author_flair_text')
 
             if request.subreddit:
-                query += " AND subreddit = %s"
-                params.append(request.subreddit)
+                query = query.eq('subreddit', request.subreddit)
 
-            query += " ORDER BY created_at DESC"
+            query = query.order('created_at', desc=True)
 
             if request.limit:
-                query += " LIMIT %s"
-                params.append(request.limit)
+                query = query.limit(request.limit)
 
-            with db.conn.cursor() as cursor:
-                cursor.execute(query, params)
-                posts = cursor.fetchall()
+            response = query.execute()
+            all_posts = response.data if response.data else []
+
+            # Filter out already processed posts (those in extracted_features)
+            # Get list of already processed post_ids
+            processed_response = db.client.table('extracted_features').select('post_id').not_.is_('post_id', 'null').execute()
+            processed_ids = {item['post_id'] for item in (processed_response.data if processed_response.data else [])}
+
+            # Filter unprocessed posts
+            posts = [(p['post_id'], p['title'], p['body'], p['subreddit'], p['author_flair_text'])
+                     for p in all_posts if p['post_id'] not in processed_ids]
 
             logger.info(f"📊 Found {len(posts)} unprocessed posts")
 

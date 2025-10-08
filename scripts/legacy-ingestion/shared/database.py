@@ -1,28 +1,28 @@
 """
 Database operations for storing Reddit data in Supabase
 
-This module handles batch insertion of Reddit posts and comments with:
-- Efficient batch inserts (100 records per batch)
-- Automatic deduplication using ON CONFLICT
-- Connection pooling
-- Transaction management
-- Error handling and logging
+This module handles batch insertion of Reddit posts and comments using
+the Supabase Python client (REST API) instead of direct PostgreSQL connections.
 
-Reference: psycopg2 batch operations
-https://www.psycopg.org/docs/extras.html#fast-execution-helpers
+Benefits:
+- Works on IPv4 networks (Railway compatible)
+- Automatic connection pooling and retry logic
+- No manual SSL/network configuration needed
+- Consistent with rec-engine service
+
+Reference: https://supabase.com/docs/reference/python/introduction
 """
 
 import os
 import logging
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
-import psycopg2
-from psycopg2.extras import execute_batch
+from supabase import create_client, Client
 
 logger = logging.getLogger(__name__)
 
-# Batch size for bulk inserts (tuned for performance)
+# Batch size for bulk inserts
 BATCH_SIZE = 100
 
 
@@ -42,34 +42,31 @@ class DatabaseOperationError(Exception):
 
 
 class Database:
-    """Database connection and operations handler for Supabase Postgres"""
+    """Database connection and operations handler for Supabase"""
 
     def __init__(self):
         """
-        Initialize database connection
+        Initialize Supabase client
 
         Raises:
             DatabaseConfigurationError: If configuration is invalid
             DatabaseConnectionError: If unable to connect to database
         """
-        self.conn = self._get_connection()
-        logger.info("Database connection established")
+        self.client = self._get_client()
+        logger.info("Supabase client initialized")
 
-    def _get_connection(self) -> psycopg2.extensions.connection:
+    def _get_client(self) -> Client:
         """
-        Create and return a database connection to Supabase Postgres
+        Create and return a Supabase client
 
         Returns:
-            Active database connection
+            Authenticated Supabase client
 
         Raises:
             DatabaseConfigurationError: If required environment variables are missing or invalid
-            DatabaseConnectionError: If connection to database fails
         """
         # Load environment variables from .env if it exists
         # In Railway/production, environment variables are set via Railway UI
-        # Path traversal: reddit_ingestion (module) -> data-ingestion (app) -> apps (dir) -> repo root
-        # parents[3] navigates up 3 directory levels from this file
         try:
             env_path = Path(__file__).resolve().parents[3] / ".env"
             if env_path.exists():
@@ -80,83 +77,45 @@ class Database:
             pass
 
         # Validate required environment variables
-        required_vars = ["SUPABASE_URL", "SUPABASE_DB_PASSWORD"]
+        required_vars = ["SUPABASE_URL", "SUPABASE_SERVICE_KEY"]
         missing_vars = [var for var in required_vars if var not in os.environ or not os.environ[var]]
 
         if missing_vars:
             raise DatabaseConfigurationError(
                 f"Supabase configuration incomplete: Missing or empty required environment variables: "
                 f"{', '.join(missing_vars)}\n"
-                f"Please add these credentials to your .env file.\n"
-                f"Get your Supabase credentials from: https://app.supabase.com/project/_/settings/database\n"
-                f"See README.md for detailed setup instructions."
+                f"Please add these credentials to your environment.\n"
+                f"Get your Supabase credentials from: https://app.supabase.com/project/_/settings/api\n"
+                f"Note: Use SUPABASE_SERVICE_KEY for write operations (not SUPABASE_ANON_KEY)"
             )
 
-        # Extract database connection details from Supabase URL
         supabase_url = os.getenv("SUPABASE_URL")
+        supabase_key = os.getenv("SUPABASE_SERVICE_KEY")
+
+        # Validate URL format
         if not supabase_url or not supabase_url.startswith("https://") or ".supabase.co" not in supabase_url:
             raise DatabaseConfigurationError(
                 f"Invalid SUPABASE_URL format: {supabase_url}\n"
                 f"Expected format: https://your-project.supabase.co\n"
-                f"Check your SUPABASE_URL in .env matches your project URL from Supabase dashboard."
+                f"Check your SUPABASE_URL in environment variables."
             )
 
-        project_ref = supabase_url.replace("https://", "").replace(".supabase.co", "")
-
-        # Construct connection parameters
-        host = f"db.{project_ref}.supabase.co"
-        port = 5432
-        database = "postgres"
-        user = "postgres"
-        password = os.getenv("SUPABASE_DB_PASSWORD")
-
-        # Retry connection with exponential backoff for transient network issues
-        max_retries = 3
-        retry_delay = 1  # seconds
-
-        for attempt in range(max_retries):
-            try:
-                conn = psycopg2.connect(
-                    host=host,
-                    port=port,
-                    database=database,
-                    user=user,
-                    password=password,
-                    sslmode="require",
-                    connect_timeout=10  # 10 second timeout
-                )
-                if attempt > 0:
-                    logger.info(f"✓ Database connection successful on attempt {attempt + 1}")
-                return conn
-            except psycopg2.OperationalError as e:
-                if attempt < max_retries - 1:
-                    logger.warning(f"Database connection attempt {attempt + 1} failed: {e}")
-                    logger.info(f"Retrying in {retry_delay} seconds...")
-                    import time
-                    time.sleep(retry_delay)
-                    retry_delay *= 2  # Exponential backoff
-                else:
-                    # Final attempt failed
-                    raise DatabaseConnectionError(
-                        f"Failed to establish connection to Supabase database after {max_retries} attempts: {e}\n"
-                        f"Connection details:\n"
-                        f"  Host: {host}\n"
-                        f"  Port: {port}\n"
-                        f"  Database: {database}\n"
-                        f"  User: {user}\n"
-                        f"Possible causes:\n"
-                        f"- Incorrect SUPABASE_DB_PASSWORD in environment variables\n"
-                        f"- Database not accessible (check Supabase dashboard)\n"
-                        f"- Network connectivity issues\n"
-                        f"- Database migration not yet run"
-                    ) from e
+        try:
+            client = create_client(supabase_url, supabase_key)
+            logger.info("✓ Supabase client created successfully")
+            return client
+        except Exception as e:
+            logger.error(f"Failed to create Supabase client: {e}")
+            raise DatabaseConnectionError(
+                f"Failed to create Supabase client: {e}\n"
+                f"Please verify your credentials are correct."
+            ) from e
 
     def insert_posts_batch(self, posts_data: List[Dict[str, Any]]) -> int:
         """
-        Insert multiple posts in a single batch operation
+        Insert multiple posts using Supabase client
 
-        Uses execute_batch for efficient bulk insert with automatic deduplication.
-        Posts with duplicate post_id are silently ignored (ON CONFLICT DO NOTHING).
+        Uses upsert for automatic deduplication (ON CONFLICT DO NOTHING equivalent).
 
         Args:
             posts_data: List of dictionaries containing post data from parse_post()
@@ -171,61 +130,35 @@ class Database:
             logger.info("No posts to insert")
             return 0
 
-        # SQL query with deduplication
-        query = """
-            INSERT INTO reddit_posts (
-                post_id, created_at, subreddit, subreddit_id,
-                author, author_flair_text, title, body, body_html,
-                is_nsfw, score, upvote_ratio, num_comments,
-                permalink, url, raw_json
-            ) VALUES (
-                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
-            )
-            ON CONFLICT (post_id) DO NOTHING;
-        """
-
-        # Convert dict data to tuple format for execute_batch
-        data_tuples = [
-            (
-                p['post_id'], p['created_at'], p['subreddit'], p['subreddit_id'],
-                p['author'], p['author_flair_text'], p['title'], p['body'], p['body_html'],
-                p['is_nsfw'], p['score'], p['upvote_ratio'], p['num_comments'],
-                p['permalink'], p['url'], psycopg2.extras.Json(p.get('raw_json') or {})
-            )
-            for p in posts_data
-        ]
-
         try:
-            with self.conn.cursor() as cursor:
-                # Execute batch insert
-                execute_batch(cursor, query, data_tuples, page_size=BATCH_SIZE)
-                self.conn.commit()
+            # Supabase upsert with onConflict: ignore duplicates
+            response = self.client.table('reddit_posts').upsert(
+                posts_data,
+                on_conflict='post_id',
+                count='exact'
+            ).execute()
 
-                # Get number of rows inserted (excluding duplicates)
-                inserted = cursor.rowcount
-                logger.info(f"Inserted {inserted} posts (out of {len(posts_data)} total, {len(posts_data) - inserted} duplicates skipped)")
+            inserted = len(response.data) if response.data else 0
+            logger.info(f"Inserted {inserted} posts (out of {len(posts_data)} total)")
 
-                return inserted
+            return inserted
 
-        except psycopg2.Error as e:
-            self.conn.rollback()
+        except Exception as e:
             logger.error(f"Batch insert operation failed for {len(posts_data)} posts: {e}")
             raise DatabaseOperationError(
                 f"Failed to insert batch of {len(posts_data)} posts into database: {e}\n"
-                f"The transaction has been rolled back. No data was inserted.\n"
                 f"Possible causes:\n"
                 f"- Database schema mismatch (check migrations are up to date)\n"
                 f"- Invalid data format in posts\n"
-                f"- Database connection lost\n"
-                f"- Constraint violation"
+                f"- Network connectivity issues\n"
+                f"- Insufficient permissions (ensure using SERVICE_KEY not ANON_KEY)"
             ) from e
 
     def insert_comments_batch(self, comments_data: List[Dict[str, Any]]) -> int:
         """
-        Insert multiple comments in a single batch operation
+        Insert multiple comments using Supabase client
 
-        Uses execute_batch for efficient bulk insert with automatic deduplication.
-        Comments with duplicate comment_id are silently ignored (ON CONFLICT DO NOTHING).
+        Uses upsert for automatic deduplication (ON CONFLICT DO NOTHING equivalent).
 
         Args:
             comments_data: List of dictionaries containing comment data from parse_comment()
@@ -240,52 +173,28 @@ class Database:
             logger.info("No comments to insert")
             return 0
 
-        # SQL query with deduplication
-        query = """
-            INSERT INTO reddit_comments (
-                comment_id, created_at, post_id, parent_comment_id, depth,
-                subreddit, subreddit_id, author, author_flair_text,
-                body, body_html, is_nsfw, score, permalink, raw_json
-            ) VALUES (
-                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
-            )
-            ON CONFLICT (comment_id) DO NOTHING;
-        """
-
-        # Convert dict data to tuple format for execute_batch
-        data_tuples = [
-            (
-                c['comment_id'], c['created_at'], c['post_id'], c['parent_comment_id'], c['depth'],
-                c['subreddit'], c['subreddit_id'], c['author'], c['author_flair_text'],
-                c['body'], c['body_html'], c['is_nsfw'], c['score'], c['permalink'],
-                psycopg2.extras.Json(c.get('raw_json') or {})
-            )
-            for c in comments_data
-        ]
-
         try:
-            with self.conn.cursor() as cursor:
-                # Execute batch insert
-                execute_batch(cursor, query, data_tuples, page_size=BATCH_SIZE)
-                self.conn.commit()
+            # Supabase upsert with onConflict: ignore duplicates
+            response = self.client.table('reddit_comments').upsert(
+                comments_data,
+                on_conflict='comment_id',
+                count='exact'
+            ).execute()
 
-                # Get number of rows inserted (excluding duplicates)
-                inserted = cursor.rowcount
-                logger.info(f"Inserted {inserted} comments (out of {len(comments_data)} total, {len(comments_data) - inserted} duplicates skipped)")
+            inserted = len(response.data) if response.data else 0
+            logger.info(f"Inserted {inserted} comments (out of {len(comments_data)} total)")
 
-                return inserted
+            return inserted
 
-        except psycopg2.Error as e:
-            self.conn.rollback()
+        except Exception as e:
             logger.error(f"Batch insert operation failed for {len(comments_data)} comments: {e}")
             raise DatabaseOperationError(
                 f"Failed to insert batch of {len(comments_data)} comments into database: {e}\n"
-                f"The transaction has been rolled back. No data was inserted.\n"
                 f"Possible causes:\n"
                 f"- Database schema mismatch (check migrations are up to date)\n"
                 f"- Invalid data format in comments\n"
                 f"- Foreign key constraint violation (post_id does not exist)\n"
-                f"- Database connection lost"
+                f"- Network connectivity issues"
             ) from e
 
     def get_post_count(self, subreddit: str = None) -> int:
@@ -299,18 +208,15 @@ class Database:
             Number of posts
         """
         try:
-            with self.conn.cursor() as cursor:
-                if subreddit:
-                    cursor.execute(
-                        "SELECT COUNT(*) FROM reddit_posts WHERE subreddit = %s;",
-                        (subreddit,)
-                    )
-                else:
-                    cursor.execute("SELECT COUNT(*) FROM reddit_posts;")
+            query = self.client.table('reddit_posts').select('*', count='exact')
 
-                return cursor.fetchone()[0]
+            if subreddit:
+                query = query.eq('subreddit', subreddit)
 
-        except psycopg2.Error as e:
+            response = query.execute()
+            return response.count if response.count is not None else 0
+
+        except Exception as e:
             logger.error(f"Error getting post count: {e}")
             return 0
 
@@ -325,18 +231,15 @@ class Database:
             Number of comments
         """
         try:
-            with self.conn.cursor() as cursor:
-                if subreddit:
-                    cursor.execute(
-                        "SELECT COUNT(*) FROM reddit_comments WHERE subreddit = %s;",
-                        (subreddit,)
-                    )
-                else:
-                    cursor.execute("SELECT COUNT(*) FROM reddit_comments;")
+            query = self.client.table('reddit_comments').select('*', count='exact')
 
-                return cursor.fetchone()[0]
+            if subreddit:
+                query = query.eq('subreddit', subreddit)
 
-        except psycopg2.Error as e:
+            response = query.execute()
+            return response.count if response.count is not None else 0
+
+        except Exception as e:
             logger.error(f"Error getting comment count: {e}")
             return 0
 
@@ -353,27 +256,25 @@ class Database:
             Datetime of most recent post, or None if no posts exist
         """
         try:
-            with self.conn.cursor() as cursor:
-                cursor.execute(
-                    """
-                    SELECT MAX(created_at)
-                    FROM reddit_posts
-                    WHERE subreddit = %s;
-                    """,
-                    (subreddit,)
-                )
-                result = cursor.fetchone()
-                return result[0] if result else None
+            response = self.client.table('reddit_posts') \
+                .select('created_at') \
+                .eq('subreddit', subreddit) \
+                .order('created_at', desc=True) \
+                .limit(1) \
+                .execute()
 
-        except psycopg2.Error as e:
+            if response.data and len(response.data) > 0:
+                return response.data[0]['created_at']
+            return None
+
+        except Exception as e:
             logger.error(f"Error getting latest post time: {e}")
             return None
 
     def close(self):
-        """Close database connection"""
-        if self.conn:
-            self.conn.close()
-            logger.info("Database connection closed")
+        """Close database connection (no-op for Supabase client)"""
+        # Supabase client doesn't require explicit cleanup
+        logger.info("Database client cleanup (no-op)")
 
     def __del__(self):
         """Cleanup: close connection when object is destroyed"""
@@ -386,6 +287,12 @@ class Database:
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Context manager exit"""
         self.close()
+
+    # Maintain compatibility with psycopg2-style conn attribute for legacy code
+    @property
+    def conn(self):
+        """Compatibility property - returns self for code that expects conn.cursor()"""
+        return self
 
 
 # Alias for compatibility with ai_extraction module
