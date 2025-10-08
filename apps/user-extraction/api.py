@@ -97,9 +97,9 @@ async def get_stats():
         analyzer = RedditUserAnalyzer()
 
         # Get total users using Supabase client
-        # Count distinct authors from reddit_posts
-        response = analyzer.db.client.table('reddit_posts').select('author').not_.is_('author', 'null').neq('author', '[deleted]').execute()
-        unique_authors = {post['author'] for post in (response.data if response.data else [])}
+        # Count distinct authors from extracted_features (posts that have been AI-extracted)
+        response = analyzer.db.client.table('extracted_features').select('author').not_.is_('author', 'null').neq('author', '[deleted]').execute()
+        unique_authors = {feature['author'] for feature in (response.data if response.data else [])}
         total_users = len(unique_authors)
 
         # Get unanalyzed users
@@ -146,8 +146,6 @@ async def trigger_analysis(
             global _analysis_running
             _analysis_running = True
             start_time = datetime.now()
-            users_processed = 0
-            users_failed = 0
 
             try:
                 logger.info("🔧 Initializing user analyzer...")
