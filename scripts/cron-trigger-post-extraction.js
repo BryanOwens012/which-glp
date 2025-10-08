@@ -5,7 +5,7 @@
  * Schedule: Every 2 days at noon UTC (0 12 */2 * *)
  */
 
-const SERVICE_URL = process.env.POST_EXTRACTION_URL ? `https://${process.env.POST_EXTRACTION_URL}` : "http://post-extraction.railway.internal";
+const SERVICE_URL = process.env.POST_EXTRACTION_URL ? `https://${process.env.POST_EXTRACTION_URL}` : "https://post-extraction.railway.internal";
 const ENDPOINT = "/api/extract";
 
 const extractPosts = async () => {

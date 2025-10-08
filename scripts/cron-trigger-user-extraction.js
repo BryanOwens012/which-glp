@@ -5,7 +5,7 @@
  * Schedule: Every 2 days at noon UTC (0 12 */2 * *)
  */
 
-const SERVICE_URL = process.env.USER_EXTRACTION_URL ? `https://${process.env.USER_EXTRACTION_URL}` : "http://user-extraction.railway.internal";
+const SERVICE_URL = process.env.USER_EXTRACTION_URL ? `https://${process.env.USER_EXTRACTION_URL}` : "https://user-extraction.railway.internal";
 const ENDPOINT = "/api/analyze";
 
 const analyzeUsers = async () => {
