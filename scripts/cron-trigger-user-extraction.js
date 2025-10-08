@@ -18,12 +18,17 @@ const analyzeUsers = async () => {
   try {
     console.log("📡 Sending request to user-extraction service...");
     console.log(`   Method: POST`);
+    console.log(`   Body: ${JSON.stringify({ limit: 10, rate_limit_delay: 2.0 })}`);
 
     const response = await fetch(`${SERVICE_URL}${ENDPOINT}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-      }
+      },
+      body: JSON.stringify({
+        limit: 10,
+        rate_limit_delay: 2.0
+      })
     });
 
     console.log(`📥 Response Status: ${response.status} ${response.statusText}`);
