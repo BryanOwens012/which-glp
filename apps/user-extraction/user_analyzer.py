@@ -86,8 +86,9 @@ class RedditUserAnalyzer:
         """
         # Call PostgreSQL function that performs LEFT JOIN filtering
         # Function: get_unanalyzed_users(limit)
-        # SQL: SELECT DISTINCT ef.author FROM extracted_features ef
-        #      LEFT JOIN reddit_users ru ON ef.author = ru.username
+        # SQL: SELECT DISTINCT rp.author FROM extracted_features ef
+        #      INNER JOIN reddit_posts rp ON ef.post_id = rp.post_id
+        #      LEFT JOIN reddit_users ru ON rp.author = ru.username
         #      WHERE ru.username IS NULL
         response = self.db.client.rpc('get_unanalyzed_users', {'p_limit': limit}).execute()
 

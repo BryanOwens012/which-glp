@@ -97,9 +97,15 @@ async def get_stats():
         analyzer = RedditUserAnalyzer()
 
         # Get total users using Supabase client
-        # Count distinct authors from extracted_features (posts that have been AI-extracted)
-        response = analyzer.db.client.table('extracted_features').select('author').not_.is_('author', 'null').neq('author', '[deleted]').execute()
-        unique_authors = {feature['author'] for feature in (response.data if response.data else [])}
+        # Count distinct authors from posts that have been AI-extracted
+        # Need to join extracted_features with reddit_posts to get author (ef doesn't have author column)
+        response = analyzer.db.client.table('extracted_features').select('post_id').execute()
+        extracted_post_ids = {feature['post_id'] for feature in (response.data if response.data else [])}
+
+        # Get authors for these posts
+        posts_response = analyzer.db.client.table('reddit_posts').select('author').in_('post_id', list(extracted_post_ids)).execute()
+        unique_authors = {post['author'] for post in (posts_response.data if posts_response.data else [])
+                         if post['author'] and post['author'] != '[deleted]' and post['author'] != 'AutoModerator'}
         total_users = len(unique_authors)
 
         # Get unanalyzed users

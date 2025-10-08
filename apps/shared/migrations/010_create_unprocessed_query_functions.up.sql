@@ -31,7 +31,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Function to get unanalyzed users (authors with extracted features but not in reddit_users)
--- Note: extracted_features has post_id, need to join with reddit_posts to get author
+-- Note: extracted_features only has post_id (not author), so we join with reddit_posts to get author
 CREATE OR REPLACE FUNCTION get_unanalyzed_users(
     p_limit INTEGER DEFAULT NULL
 )
