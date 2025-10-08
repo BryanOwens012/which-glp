@@ -96,10 +96,11 @@ async def get_stats():
     try:
         analyzer = RedditUserAnalyzer()
 
-        # Get total users
-        with analyzer.db.conn.cursor() as cursor:
-            cursor.execute("SELECT COUNT(DISTINCT author) FROM reddit_posts WHERE author IS NOT NULL AND author != '[deleted]'")
-            total_users = cursor.fetchone()[0]
+        # Get total users using Supabase client
+        # Count distinct authors from reddit_posts
+        response = analyzer.db.client.table('reddit_posts').select('author').not_.is_('author', 'null').neq('author', '[deleted]').execute()
+        unique_authors = {post['author'] for post in (response.data if response.data else [])}
+        total_users = len(unique_authors)
 
         # Get unanalyzed users
         unanalyzed = analyzer.get_unanalyzed_usernames()
