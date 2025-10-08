@@ -8,7 +8,7 @@
  * Schedule: Every 2 days at noon UTC (0 12 */2 * *)
  */
 
-const SERVICE_URL = process.env.POST_INGESTION_URL ? `https://${process.env.POST_INGESTION_URL}` : "https://post-ingestion.railway.internal";
+const SERVICE_URL = process.env.POST_INGESTION_URL ? `https://${process.env.POST_INGESTION_URL}` : "http://post-ingestion.railway.internal";
 const ENDPOINT = "/api/ingest";
 
 const ingestPosts = async () => {
