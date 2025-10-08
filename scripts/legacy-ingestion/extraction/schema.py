@@ -70,11 +70,11 @@ class ExtractedFeatures(BaseModel):
     with GLP-1 medications.
     """
 
-    # Summary (required)
+    # Summary (required but with fallback)
     summary: str = Field(
-        ...,
+        default="",
         description="First-person faithful summary of the user's experience",
-        min_length=10,
+        min_length=0,
         max_length=5000
     )
 
