@@ -161,6 +161,21 @@ class RedditUserAnalyzer:
 
         if not posts and not comments:
             logger.warning(f"No content found for u/{username}, skipping")
+
+            # Mark all extracted_features for this user as skipped
+            # Query all post_ids for this author, then update extracted_features
+            try:
+                posts_response = self.db.client.table('reddit_posts').select('post_id').eq('author', username).execute()
+                if posts_response.data:
+                    post_ids = [p['post_id'] for p in posts_response.data]
+                    self.db.client.table('extracted_features').update({
+                        'user_extraction_status': 'skipped',
+                        'user_extraction_log_message': 'no content found for user',
+                        'user_extraction_attempted_at': datetime.now().isoformat()
+                    }).in_('post_id', post_ids).execute()
+            except Exception as e:
+                logger.debug(f"Could not mark user as skipped: {e}")
+
             return None
 
         # Build prompt
@@ -202,6 +217,21 @@ class RedditUserAnalyzer:
 
         except Exception as e:
             logger.error(f"✗ Failed to analyze u/{username}: {e}")
+
+            # Mark all extracted_features for this user as failed
+            try:
+                posts_response = self.db.client.table('reddit_posts').select('post_id').eq('author', username).execute()
+                if posts_response.data:
+                    post_ids = [p['post_id'] for p in posts_response.data]
+                    error_msg = f"extraction_error: {str(e)[:200]}"
+                    self.db.client.table('extracted_features').update({
+                        'user_extraction_status': 'failed',
+                        'user_extraction_log_message': error_msg,
+                        'user_extraction_attempted_at': datetime.now().isoformat()
+                    }).in_('post_id', post_ids).execute()
+            except Exception as mark_error:
+                logger.debug(f"Could not mark user as failed: {mark_error}")
+
             return None
 
     def insert_user(self, user_data: Dict[str, Any]):
@@ -265,8 +295,37 @@ class RedditUserAnalyzer:
             ).execute()
 
             logger.info(f"✓ Inserted u/{clean_data['username']} to database")
+
+            # Mark all extracted_features for this user as processed
+            try:
+                posts_response = self.db.client.table('reddit_posts').select('post_id').eq('author', clean_data['username']).execute()
+                if posts_response.data:
+                    post_ids = [p['post_id'] for p in posts_response.data]
+                    self.db.client.table('extracted_features').update({
+                        'user_extraction_status': 'processed',
+                        'user_extraction_log_message': None,
+                        'user_extraction_attempted_at': datetime.now().isoformat()
+                    }).in_('post_id', post_ids).execute()
+            except Exception as mark_error:
+                logger.debug(f"Could not mark user as processed: {mark_error}")
+
         except Exception as e:
             logger.error(f"✗ Failed to insert u/{clean_data['username']}: {e}")
+
+            # Mark all extracted_features for this user as failed
+            try:
+                posts_response = self.db.client.table('reddit_posts').select('post_id').eq('author', clean_data['username']).execute()
+                if posts_response.data:
+                    post_ids = [p['post_id'] for p in posts_response.data]
+                    error_msg = f"database_insert_error: {str(e)[:200]}"
+                    self.db.client.table('extracted_features').update({
+                        'user_extraction_status': 'failed',
+                        'user_extraction_log_message': error_msg,
+                        'user_extraction_attempted_at': datetime.now().isoformat()
+                    }).in_('post_id', post_ids).execute()
+            except Exception as mark_error:
+                logger.debug(f"Could not mark user as failed: {mark_error}")
+
             # Don't raise - let the caller handle the error
             # This allows the pipeline to continue processing other users
             raise
