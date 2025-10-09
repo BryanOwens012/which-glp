@@ -217,6 +217,10 @@ CREATE INDEX IF NOT EXISTS idx_mv_experiences_sentiment_post
 CREATE INDEX IF NOT EXISTS idx_mv_experiences_post_id
   ON mv_experiences_denormalized(post_id);
 
+-- Index on author for filtering by user
+CREATE INDEX IF NOT EXISTS idx_mv_experiences_author
+  ON mv_experiences_denormalized(author);
+
 -- Composite index for drug + location filtering
 CREATE INDEX IF NOT EXISTS idx_mv_experiences_drug_location
   ON mv_experiences_denormalized(primary_drug, location);
@@ -231,6 +235,64 @@ CREATE INDEX IF NOT EXISTS idx_mv_experiences_side_effects
 
 CREATE INDEX IF NOT EXISTS idx_mv_experiences_comorbidities
   ON mv_experiences_denormalized USING gin(comorbidities);
+
+-- ============================================================================
+-- Stats optimization indexes (from migration 019)
+-- ============================================================================
+
+-- Partial indexes for boolean columns used in FILTER clauses
+CREATE INDEX IF NOT EXISTS idx_mv_experiences_plateau_mentioned
+  ON mv_experiences_denormalized(plateau_mentioned)
+  WHERE plateau_mentioned = true;
+
+CREATE INDEX IF NOT EXISTS idx_mv_experiences_rebound_weight_gain
+  ON mv_experiences_denormalized(rebound_weight_gain)
+  WHERE rebound_weight_gain = true;
+
+CREATE INDEX IF NOT EXISTS idx_mv_experiences_has_insurance
+  ON mv_experiences_denormalized(has_insurance)
+  WHERE has_insurance IS NOT NULL;
+
+-- Index on drug_source for filtering brand/compounded counts
+CREATE INDEX IF NOT EXISTS idx_mv_experiences_drug_source
+  ON mv_experiences_denormalized(drug_source)
+  WHERE drug_source IS NOT NULL;
+
+-- Covering index for primary_drug GROUP BY with commonly aggregated columns
+CREATE INDEX IF NOT EXISTS idx_mv_experiences_drug_covering
+  ON mv_experiences_denormalized(
+    primary_drug,
+    weight_loss_percentage,
+    weight_loss_lbs,
+    duration_weeks,
+    cost_per_month,
+    sentiment_pre,
+    sentiment_post,
+    recommendation_score
+  ) WHERE primary_drug IS NOT NULL;
+
+-- Index on age for age distribution bucketing
+CREATE INDEX IF NOT EXISTS idx_mv_experiences_age
+  ON mv_experiences_denormalized(age)
+  WHERE age IS NOT NULL;
+
+-- Index on sex for sex distribution
+CREATE INDEX IF NOT EXISTS idx_mv_experiences_sex
+  ON mv_experiences_denormalized(LOWER(sex))
+  WHERE sex IS NOT NULL;
+
+-- Index on beginning_weight_lbs for weight distribution bucketing
+CREATE INDEX IF NOT EXISTS idx_mv_experiences_beginning_weight
+  ON mv_experiences_denormalized(beginning_weight_lbs)
+  WHERE beginning_weight_lbs IS NOT NULL;
+
+-- Covering index for location GROUP BY with aggregated columns
+CREATE INDEX IF NOT EXISTS idx_mv_experiences_location_covering
+  ON mv_experiences_denormalized(
+    location,
+    cost_per_month,
+    has_insurance
+  ) WHERE location IS NOT NULL;
 
 -- Comment explaining refresh strategy and new filter
 COMMENT ON MATERIALIZED VIEW mv_experiences_denormalized IS
