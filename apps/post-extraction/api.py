@@ -80,7 +80,8 @@ async def trigger_extraction(request: ExtractionRequest, background_tasks: Backg
             # Import here to avoid circular dependencies
             from shared.database import DatabaseManager
             from prompts import build_post_prompt
-            from filters import should_process_post
+            from keyword_filters import should_process_post
+            from minimum_field_filters import filter_post, diagnose_post
 
             db = DatabaseManager()
             logger.info("✅ Database connection established")
@@ -110,13 +111,22 @@ async def trigger_extraction(request: ExtractionRequest, background_tasks: Backg
 
             logger.info(f"📊 Found {len(posts)} unprocessed posts")
 
-            # Process each post (simplified - full logic would use extraction pipeline)
+            # Process each post with two-stage filtering
             for i, (post_id, title, body, subreddit, flair) in enumerate(posts, 1):
                 try:
                     logger.info(f"📝 Processing post {i}/{len(posts)}: {post_id} from r/{subreddit}")
 
+                    # Stage 1: Keyword-based filter (fast, checks drug/topic relevance)
                     if not should_process_post((post_id, title, body, subreddit, flair), subreddit):
-                        logger.info(f"⏭️  Skipping post {post_id} (filtered out)")
+                        logger.info(f"⏭️  Skipping post {post_id} (keyword filter: not drug-related)")
+                        skipped += 1
+                        continue
+
+                    # Stage 2: Minimum data filter (checks for required fields)
+                    post_row = (post_id, title, body, subreddit, flair)
+                    if not filter_post(post_row):
+                        diagnosis = diagnose_post(title or "", body or "", flair or "")
+                        logger.info(f"⏭️  Skipping post {post_id} (minimum data filter: {diagnosis})")
                         skipped += 1
                         continue
 
@@ -203,11 +213,13 @@ async def trigger_extraction(request: ExtractionRequest, background_tasks: Backg
             duration = (datetime.now() - start_time).total_seconds()
             logger.info("=" * 80)
             logger.info("✨ EXTRACTION BATCH COMPLETED")
-            logger.info(f"   Total posts: {len(posts)}")
-            logger.info(f"   Processed: {processed}")
+            logger.info(f"   Total posts queried: {len(posts)}")
+            logger.info(f"   Processed by GLM: {processed}")
             logger.info(f"   Failed: {failed}")
-            logger.info(f"   Skipped: {skipped}")
+            logger.info(f"   Skipped (filtered): {skipped}")
+            logger.info(f"   Filter efficiency: {(skipped / len(posts) * 100):.1f}% posts filtered out" if len(posts) > 0 else "   Filter efficiency: N/A")
             logger.info(f"   Total cost: ${total_cost:.6f}")
+            logger.info(f"   Cost savings from filtering: ~${skipped * 0.01:.6f}")
             logger.info(f"   Duration: {duration:.2f}s")
             logger.info("=" * 80)
 
