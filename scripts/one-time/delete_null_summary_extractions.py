@@ -95,7 +95,7 @@ def main():
             .is_('summary', 'null') \
             .execute()
 
-        null_deleted = len(delete_null_response.data) if delete_null_response.data else 0
+        null_deleted = delete_null_response.count if delete_null_response.count is not None else (len(delete_null_response.data) if delete_null_response.data else 0)
         print(f"   Deleted {null_deleted} rows with null summaries")
 
     except Exception as e:
@@ -110,7 +110,7 @@ def main():
             .eq('summary', '') \
             .execute()
 
-        empty_deleted = len(delete_empty_response.data) if delete_empty_response.data else 0
+        empty_deleted = delete_empty_response.count if delete_empty_response.count is not None else (len(delete_empty_response.data) if delete_empty_response.data else 0)
         print(f"   Deleted {empty_deleted} rows with empty summaries")
 
     except Exception as e:
