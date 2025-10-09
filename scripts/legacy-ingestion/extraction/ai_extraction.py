@@ -25,9 +25,9 @@ from shared.config import get_logger
 from shared.drug_standardization import standardize_drug_name
 from extraction.context import build_context_from_db_rows, ContextBuilder
 from extraction.ai_client import get_client
-from extraction.prompts import build_post_prompt, build_comment_prompt
+from extraction.prompts import build_post_prompt  # , build_comment_prompt  # DISABLED: no longer extracting comments
 from extraction.schema import ExtractionResult, ProcessingStats
-from extraction.filters import should_process_post, should_process_comment
+from extraction.filters import should_process_post  # , should_process_comment  # DISABLED: no longer extracting comments
 
 logger = get_logger(__name__)
 
@@ -118,7 +118,12 @@ class AIExtractionPipeline:
 
             posts_rows = cursor.fetchall()
 
+            # DISABLED: We no longer extract from comments
             # Query unprocessed comments
+            comments_rows = []
+            all_comments_rows = []
+
+            """
             if self.subreddit:
                 comments_query = """
                     SELECT
@@ -195,11 +200,12 @@ class AIExtractionPipeline:
                 all_comments_rows = cursor.fetchall()
             else:
                 all_comments_rows = []
+            """
 
         logger.info(
-            f"Exported {len(posts_rows)} unprocessed posts, "
-            f"{len(comments_rows)} unprocessed comments, "
-            f"{len(all_comments_rows)} total comments for context"
+            f"Exported {len(posts_rows)} unprocessed posts"
+            # f", {len(comments_rows)} unprocessed comments, "
+            # f"{len(all_comments_rows)} total comments for context"
         )
 
         return posts_rows, comments_rows, all_comments_rows
@@ -294,8 +300,10 @@ class AIExtractionPipeline:
             logger.error(f"✗ Failed to process post {post_id}: {e}")
             return None
 
+    # DISABLED: We no longer extract from comments
+    """
     def process_comment(self, comment_row: tuple) -> Optional[ExtractionResult]:
-        """
+        '''
         Process a single comment with Claude AI.
 
         Args:
@@ -303,7 +311,7 @@ class AIExtractionPipeline:
 
         Returns:
             ExtractionResult or None if failed
-        """
+        '''
         comment_id, post_id, parent_comment_id, body, author, depth, author_flair = (
             comment_row
         )
@@ -350,6 +358,7 @@ class AIExtractionPipeline:
         except Exception as e:
             logger.error(f"✗ Failed to process comment {comment_id}: {e}")
             return None
+    """
 
     def save_backup(self, results: List[ExtractionResult]):
         """
@@ -619,6 +628,11 @@ class AIExtractionPipeline:
         if skipped_count > 0:
             logger.info(f"Skipped {skipped_count} posts without drug/medical keywords")
 
+        # DISABLED: We no longer extract from comments
+        comment_results = []
+        logger.info("Comment extraction is disabled (we only process posts)")
+
+        """
         # Process comments (unless posts_only mode)
         comment_results = []
         if not self.posts_only:
@@ -643,6 +657,7 @@ class AIExtractionPipeline:
                 time.sleep(1)
         else:
             logger.info("Skipping comment processing (posts_only=True)")
+        """
 
         # Insert all results
         all_results = post_results + comment_results

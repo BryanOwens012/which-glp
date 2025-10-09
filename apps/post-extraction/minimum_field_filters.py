@@ -218,18 +218,29 @@ def filter_comment(comment_row: tuple) -> bool:
     """
     Filter function for comments (compatible with comment_row format).
 
+    NOTE: Comment extraction is currently disabled. This function is preserved
+    but not actively used.
+
     Args:
         comment_row: (comment_id, post_id, parent_comment_id, body, author, depth, author_flair_text)
 
     Returns:
         True if should process, False to skip
+
+    Note: Comment rows don't contain subreddit directly. To enable this function,
+    you would need to either:
+    1. Pass subreddit as a separate parameter, or
+    2. Join with reddit_posts table to fetch subreddit
     """
     body = comment_row[3] or ""
     flair = comment_row[6] or ""
-    subreddit = comment_row[2] or ""
+
+    # Comments don't have subreddit in the row - would need to be passed separately
+    # For now, pass empty string (comment extraction is disabled anyway)
+    subreddit = ""
 
     # Comments don't have separate title, so use body as both
-    return passes_minimum_field_filter("", body, flair)
+    return passes_minimum_field_filter("", body, flair, subreddit)
 
 
 # ============================================================================

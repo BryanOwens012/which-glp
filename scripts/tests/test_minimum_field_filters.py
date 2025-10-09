@@ -342,7 +342,7 @@ def test_individual_functions():
     assert has_drug_mention("semaglutide journey") == True
     assert has_drug_mention("using sema") == True
     assert has_drug_mention("compounded tirzepatide") == True
-    assert has_drug_mention("generic keyword like drug counts") == True  # "drug" is in DRUG_KEYWORDS
+    assert has_drug_mention("generic keyword like drug count") == True  # "drug" is in DRUG_KEYWORDS
     assert has_drug_mention("no glp mentioned here") == False
     print("✅ Drug detection tests passed")
 
