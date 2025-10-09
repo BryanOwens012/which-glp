@@ -94,13 +94,18 @@ EXTRACTION GUIDELINES:
   - 0.7-0.9: Positive (working well, would recommend, manageable sides)
   - 0.9-1.0: Very positive (life-changing drug, no issues, highly recommend)
   - Example: {"Ozempic": 0.85, "Compounded Semaglutide": 0.40}
-- **recommendation_score**: Likelihood they'd recommend this drug to a stranger in similar circumstances (0-1)
+- **recommendation_score (REQUIRED - NEVER null)**: Likelihood they'd recommend this drug to a stranger in similar circumstances (0-1)
   - 0.0-0.3: Would not recommend, warn others against it
   - 0.3-0.5: Hesitant, mixed recommendation
   - 0.5-0.7: Cautious recommendation, "worth trying"
   - 0.7-0.9: Recommend, "worked for me"
   - 0.9-1.0: Strong recommendation, "life-changing, everyone should try"
   - Usually close to drug_sentiments but may differ (e.g., worked well but too expensive/hard to get)
+  - **CRITICAL**: If not explicitly stated, ESTIMATE from sentiment_pre and sentiment_post:
+    - If sentiment improved significantly (pre<0.4, post>0.7): recommendation_score ≈ 0.7-0.9
+    - If sentiment improved moderately (post - pre > 0.2): recommendation_score ≈ 0.5-0.7
+    - If sentiment stayed same or worsened: recommendation_score ≈ 0.2-0.4
+  - ALWAYS provide a value - this field is CRITICAL for the recommendation engine
 
 **IMPORTANT:** Don't conflate pre-drug misery with drug negativity!
 - "I was 400 lbs and hated life, but Ozempic saved me" → pre=0.1, post=0.9, drug=0.95, rec=0.95
@@ -720,7 +725,7 @@ Before submitting your extraction, verify EVERY item:
 □ Extracted location, state, country if ANY geographic mention
 □ Extracted age, sex from text OR flair
 □ Set sentiment_pre (BEFORE drug), sentiment_post (AFTER/current), drug_sentiments (about drug)
-□ Set recommendation_score based on whether they'd recommend to others
+□ Set recommendation_score based on whether they'd recommend to others (NEVER null - estimate if needed)
 □ Extracted dosage_progression with timeline if mentioned
 □ Extracted exercise_frequency, dietary_changes if mentioned
 □ Extracted previous_weight_loss_attempts as array

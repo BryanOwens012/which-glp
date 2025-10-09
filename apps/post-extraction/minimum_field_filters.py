@@ -1,0 +1,259 @@
+"""
+Minimum field filters for AI extraction pipeline.
+
+These filters run AFTER keyword_filters.py to check if a post contains the
+minimum required fields for a useful extraction. This reduces GLM API costs
+by skipping posts that won't produce complete data.
+
+Minimum required fields:
+- Weight mention (beginning or end weight)
+- Duration/time period
+- Drug name (already validated by keyword_filters.py, but checked here too)
+
+Note: We don't check for sentiment/recommendation here - the GLM prompt is
+designed to always produce a recommendation_score by estimating from context.
+
+Cost savings: By filtering out posts lacking these fields, we avoid ~$0.01 per
+post in GLM API costs.
+"""
+
+import re
+from typing import Set
+
+# ============================================================================
+# DRUG DETECTION - Specific GLP-1 drug names only
+# ============================================================================
+
+# Only specific drug names (not generic terms like "drug", "medication")
+# This is more restrictive than keyword_filters.DRUG_KEYWORDS
+SPECIFIC_DRUG_KEYWORDS: set[str] = {
+    # GLP-1 Agonists - Brand Names
+    "ozempic", "wegovy", "rybelsus",  # semaglutide
+    "mounjaro", "zepbound",  # tirzepatide
+    "victoza", "saxenda",  # liraglutide
+    "trulicity",  # dulaglutide
+    "byetta", "bydureon",  # exenatide
+    "adlyxin",  # lixisenatide
+
+    # Generic drug names
+    "semaglutide", "tirzepatide", "liraglutide",
+    "dulaglutide", "exenatide", "lixisenatide",
+
+    # Common abbreviations
+    "sema", "tirz", "lira",
+
+    # GLP-1 general terms
+    "glp-1", "glp1", "glp 1",
+}
+
+# ============================================================================
+# WEIGHT DETECTION - Simple word-based matching
+# ============================================================================
+
+WEIGHT_KEYWORDS: Set[str] = {
+    # English units
+    "pound", "pounds", "lb", "lbs",
+
+    # Metric units
+    "kg", "kgs", "kilo", "kilos", "kilogram", "kilograms",
+
+    # Flair abbreviations (common in Reddit weight loss communities)
+    "sw", "cw", "gw", "hw",  # starting/current/goal/highest weight
+}
+
+# Pattern to match numbers that could be weights (80-500 range is reasonable for adult humans)
+WEIGHT_NUMBER_PATTERN = re.compile(r'\b([89]\d|[1-4]\d{2}|500)\b')
+
+def has_weight_mention(text_lower: str, text_original: str) -> bool:
+    """
+    Check if text contains any weight-related words or plausible weight numbers.
+
+    Args:
+        text_lower: Lowercased text for keyword matching
+        text_original: Original text for regex matching (case-sensitive)
+
+    Returns:
+        True if weight is likely mentioned, False otherwise
+    """
+    # Check for explicit weight keywords
+    for keyword in WEIGHT_KEYWORDS:
+        if keyword in text_lower:
+            return True
+
+    # Check for numbers in plausible weight range (80-500)
+    # This catches cases like "I'm 200 and trying to get to 180"
+    if WEIGHT_NUMBER_PATTERN.search(text_original):
+        return True
+
+    return False
+
+
+# ============================================================================
+# DURATION DETECTION - Simple word-based matching
+# ============================================================================
+
+DURATION_KEYWORDS: Set[str] = {
+    # Time units
+    "day", "days",
+    "week", "weeks", "wk", "wks",
+    "month", "months", "mo", "mos",
+    "year", "years", "yr", "yrs",
+
+    # Common phrases
+    "started", "began", "starting",
+    "ago", "now", "so far", "update",
+}
+
+def has_duration_mention(text_lower: str) -> bool:
+    """
+    Check if text contains any duration/time period indicators.
+
+    Args:
+        text_lower: Lowercased text for keyword matching
+
+    Returns:
+        True if duration is mentioned, False otherwise
+    """
+    # Check for any duration-related keywords
+    for keyword in DURATION_KEYWORDS:
+        if keyword in text_lower:
+            return True
+
+    return False
+
+
+# ============================================================================
+# DRUG DETECTION - Reuse from keyword_filters.py
+# ============================================================================
+
+def has_drug_mention(text_lower: str) -> bool:
+    """
+    Check if text mentions a specific GLP-1 drug by name.
+
+    Only checks for specific drug names, not generic terms like "drug" or "medication".
+
+    Args:
+        text_lower: Lowercased text for keyword matching
+
+    Returns:
+        True if a specific drug is mentioned, False otherwise
+    """
+    # Check for any specific drug keyword (all already lowercase in set)
+    for drug in SPECIFIC_DRUG_KEYWORDS:
+        if drug in text_lower:
+            return True
+
+    return False
+
+
+# ============================================================================
+# MAIN FILTER FUNCTION
+# ============================================================================
+
+def passes_minimum_field_filter(
+    title: str,
+    body: str,
+    flair: str = ""
+) -> bool:
+    """
+    Check if a post/comment contains the minimum required fields.
+
+    Minimum requirements (all must be present):
+    - Weight mention (keywords or plausible number)
+    - Duration/time period
+    - Drug name
+
+    Note: We don't check for sentiment - GLM prompt ensures recommendation_score
+    is always generated by estimating from context if not explicit.
+
+    Args:
+        title: Post title
+        body: Post body (selftext) or comment body
+        flair: Author flair text (may contain structured data like SW, CW, etc.)
+
+    Returns:
+        True if post should be processed by GLM, False to skip
+    """
+    # Combine all text for comprehensive checking
+    # Flair is often the most structured and reliable source
+    full_text = f"{flair} {title} {body}"
+
+    # Lowercase once for all keyword matching
+    full_text_lower = full_text.lower()
+
+    # Check each minimum requirement
+    has_weight = has_weight_mention(full_text_lower, full_text)
+    has_duration = has_duration_mention(full_text_lower)
+    has_drug = has_drug_mention(full_text_lower)
+
+    # All three criteria must be met
+    return has_weight and has_duration and has_drug
+
+
+# ============================================================================
+# CONVENIENCE FUNCTIONS FOR PIPELINE INTEGRATION
+# ============================================================================
+
+def filter_post(post_row: tuple) -> bool:
+    """
+    Filter function for posts (compatible with post_row format from database).
+
+    Args:
+        post_row: (post_id, title, body, subreddit, author_flair_text)
+
+    Returns:
+        True if should process, False to skip
+    """
+    title = post_row[1] or ""
+    body = post_row[2] or ""
+    flair = post_row[4] or ""
+
+    return passes_minimum_field_filter(title, body, flair)
+
+
+def filter_comment(comment_row: tuple) -> bool:
+    """
+    Filter function for comments (compatible with comment_row format).
+
+    Args:
+        comment_row: (comment_id, post_id, parent_comment_id, body, author, depth, author_flair_text)
+
+    Returns:
+        True if should process, False to skip
+    """
+    body = comment_row[3] or ""
+    flair = comment_row[6] or ""
+
+    # Comments don't have separate title, so use body as both
+    return passes_minimum_field_filter("", body, flair)
+
+
+# ============================================================================
+# DIAGNOSTIC FUNCTIONS (for testing/debugging)
+# ============================================================================
+
+def diagnose_post(title: str, body: str, flair: str = "") -> dict:
+    """
+    Diagnose why a post passes or fails the minimum field filter.
+
+    Useful for debugging and understanding filter behavior.
+
+    Args:
+        title: Post title
+        body: Post body
+        flair: Author flair
+
+    Returns:
+        Dict with detailed breakdown of what was found
+    """
+    full_text = f"{flair} {title} {body}"
+    full_text_lower = full_text.lower()
+
+    return {
+        "passes_filter": passes_minimum_field_filter(title, body, flair),
+        "has_weight": has_weight_mention(full_text_lower, full_text),
+        "has_duration": has_duration_mention(full_text_lower),
+        "has_drug": has_drug_mention(full_text_lower),
+        "text_length": len(full_text),
+        "flair_length": len(flair),
+    }
