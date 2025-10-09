@@ -89,15 +89,14 @@ async def trigger_extraction(request: ExtractionRequest, background_tasks: Backg
             glm = get_client()
             logger.info("✅ GLM client initialized")
 
-            # Query unprocessed posts using PostgreSQL function with LEFT JOIN
-            # This performs all filtering at the database level - most efficient approach
+            # Query unprocessed posts using PostgreSQL function
+            # This uses extraction_status flag for efficient filtering
             logger.info("🔍 Querying unprocessed posts from database...")
 
-            # Call PostgreSQL function that performs LEFT JOIN filtering
+            # Call PostgreSQL function that filters by extraction_status
             # Function: get_unprocessed_posts(subreddit, limit)
             # SQL: SELECT p.* FROM reddit_posts p
-            #      LEFT JOIN extracted_features ef ON p.post_id = ef.post_id
-            #      WHERE ef.post_id IS NULL
+            #      WHERE p.extraction_status = 'pending'
             response = db.client.rpc('get_unprocessed_posts', {
                 'p_subreddit': request.subreddit,
                 'p_limit': request.limit
@@ -118,7 +117,16 @@ async def trigger_extraction(request: ExtractionRequest, background_tasks: Backg
 
                     # Stage 1: Keyword-based filter (fast, checks drug/topic relevance)
                     if not should_process_post((post_id, title, body, subreddit, flair), subreddit):
-                        logger.info(f"⏭️  Skipping post {post_id} (keyword filter: not drug-related)")
+                        log_message = "keyword_filter: not drug-related"
+                        logger.info(f"⏭️  Skipping post {post_id} ({log_message})")
+
+                        # Mark post as skipped in database
+                        db.client.table('reddit_posts').update({
+                            'extraction_status': 'skipped',
+                            'extraction_log_message': log_message,
+                            'extraction_attempted_at': datetime.now().isoformat()
+                        }).eq('post_id', post_id).execute()
+
                         skipped += 1
                         continue
 
@@ -126,7 +134,16 @@ async def trigger_extraction(request: ExtractionRequest, background_tasks: Backg
                     post_row = (post_id, title, body, subreddit, flair)
                     if not filter_post(post_row):
                         diagnosis = diagnose_post(title or "", body or "", flair or "")
-                        logger.info(f"⏭️  Skipping post {post_id} (minimum data filter: {diagnosis})")
+                        log_message = f"minimum_field_filter: {diagnosis}"
+                        logger.info(f"⏭️  Skipping post {post_id} ({log_message})")
+
+                        # Mark post as skipped in database
+                        db.client.table('reddit_posts').update({
+                            'extraction_status': 'skipped',
+                            'extraction_log_message': log_message,
+                            'extraction_attempted_at': datetime.now().isoformat()
+                        }).eq('post_id', post_id).execute()
+
                         skipped += 1
                         continue
 
@@ -196,13 +213,40 @@ async def trigger_extraction(request: ExtractionRequest, background_tasks: Backg
                             feature_data,
                             on_conflict='post_id'
                         ).execute()
+
+                        # Mark post as successfully processed in reddit_posts
+                        db.client.table('reddit_posts').update({
+                            'extraction_status': 'processed',
+                            'extraction_log_message': None,
+                            'extraction_attempted_at': datetime.now().isoformat()
+                        }).eq('post_id', post_id).execute()
+
                         logger.info(f"✅ Extracted & saved {post_id} - Cost: ${cost:.6f}, Total cost: ${total_cost:.6f}")
                         processed += 1
                     except Exception as insert_error:
+                        # Mark post as failed in database
+                        error_msg = f"database_insert_error: {str(insert_error)[:200]}"
+                        db.client.table('reddit_posts').update({
+                            'extraction_status': 'failed',
+                            'extraction_log_message': error_msg,
+                            'extraction_attempted_at': datetime.now().isoformat()
+                        }).eq('post_id', post_id).execute()
+
                         logger.error(f"❌ Failed to insert {post_id} to database: {insert_error}")
                         failed += 1
 
                 except Exception as e:
+                    # Mark post as failed in database
+                    error_msg = f"extraction_error: {str(e)[:200]}"
+                    try:
+                        db.client.table('reddit_posts').update({
+                            'extraction_status': 'failed',
+                            'extraction_log_message': error_msg,
+                            'extraction_attempted_at': datetime.now().isoformat()
+                        }).eq('post_id', post_id).execute()
+                    except Exception as db_error:
+                        logger.error(f"❌ Failed to mark {post_id} as failed: {db_error}")
+
                     failed += 1
                     logger.error(f"❌ Failed to extract {post_id}: {str(e)}", exc_info=True)
 
