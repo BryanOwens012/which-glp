@@ -17,166 +17,109 @@ export const drugsRouter = router({
 })
 
 /**
- * Fetch all drug statistics from database
- * This is the core logic extracted for caching
+ * Fetch all drug statistics from database using SQL aggregations
+ * This performs all calculations in the database rather than in TypeScript
  */
 async function fetchAllDrugStats() {
-    // Get all experiences grouped by drug
-    const { data: experiences } = await supabase
-      .from('mv_experiences_denormalized')
-      .select('*')
-      .not('primary_drug', 'is', null)
+  // Build SQL query to aggregate all stats per drug in a single query
+  // This uses GROUP BY to compute statistics directly in PostgreSQL
+  const { data, error } = await supabase.rpc('get_drug_stats')
 
-    if (!experiences || experiences.length === 0) {
-      return []
+  if (error) {
+    console.error('Error fetching drug stats:', error)
+    throw new Error('Failed to fetch drug statistics')
+  }
+
+  if (!data || data.length === 0) {
+    return []
+  }
+
+  // For side effects and severity, we still need to do some post-processing
+  // because we need to parse JSON arrays and aggregate across all experiences
+  const drugStats = await Promise.all(data.map(async (drugData: any) => {
+    // Fetch side effects for this drug to parse and aggregate
+    const { data: sideEffectsData } = await supabase
+      .from('mv_experiences_denormalized')
+      .select('top_side_effects')
+      .eq('primary_drug', drugData.drug)
+      .not('top_side_effects', 'is', null)
+
+    // Parse and aggregate side effects
+    const allSideEffects = (sideEffectsData || []).flatMap(e => e.top_side_effects || [])
+    const sideEffectCounts: Record<string, number> = {}
+    const severityCounts = { mild: 0, moderate: 0, severe: 0 }
+
+    allSideEffects.forEach(effect => {
+      try {
+        const parsed = typeof effect === 'string' ? JSON.parse(effect) : effect
+        const effectName = parsed.name || effect
+
+        // Count effect occurrences
+        sideEffectCounts[effectName] = (sideEffectCounts[effectName] || 0) + 1
+
+        // Count severity
+        const severity = parsed.severity?.toLowerCase()
+        if (severity === 'mild') severityCounts.mild++
+        else if (severity === 'moderate') severityCounts.moderate++
+        else if (severity === 'severe') severityCounts.severe++
+      } catch {
+        // If parsing fails, try to use the raw effect string
+        const effectName = typeof effect === 'string' ? effect : String(effect)
+        sideEffectCounts[effectName] = (sideEffectCounts[effectName] || 0) + 1
+      }
+    })
+
+    // Calculate side effect reporting rate
+    const usersWithSideEffects = sideEffectsData?.length || 0
+    const sideEffectReportingRate = (usersWithSideEffects / drugData.count) * 100
+
+    // Get top 10 common side effects
+    const commonSideEffects = Object.entries(sideEffectCounts)
+      .map(([name, count]) => ({
+        name,
+        count,
+        percentage: (count / drugData.count) * 100
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10)
+
+    // Calculate side effect severity distribution
+    const totalSeverity = severityCounts.mild + severityCounts.moderate + severityCounts.severe
+    const sideEffectSeverity = totalSeverity > 0 ? {
+      mild: (severityCounts.mild / totalSeverity) * 100,
+      moderate: (severityCounts.moderate / totalSeverity) * 100,
+      severe: (severityCounts.severe / totalSeverity) * 100
+    } : {
+      mild: 0,
+      moderate: 0,
+      severe: 0
     }
 
-    // Group by drug and calculate stats
-    const drugMap = new Map<string, any[]>()
-    experiences.forEach(exp => {
-      const drug = exp.primary_drug
-      if (!drugMap.has(drug)) {
-        drugMap.set(drug, [])
-      }
-      drugMap.get(drug)!.push(exp)
-    })
-
-    const drugStats = Array.from(drugMap.entries()).map(([drug, exps]) => {
-      // Weight loss stats
-      const weightLossData = exps.filter(e => e.weight_loss_percentage !== null && e.weight_loss_percentage !== undefined)
-      const avgWeightLoss = weightLossData.length > 0
-        ? weightLossData.reduce((sum, e) => sum + e.weight_loss_percentage, 0) / weightLossData.length
-        : null
-
-      const weightLossLbsData = exps.filter(e => e.weight_loss_lbs !== null && e.weight_loss_lbs !== undefined)
-      const avgWeightLossLbs = weightLossLbsData.length > 0
-        ? weightLossLbsData.reduce((sum, e) => sum + e.weight_loss_lbs, 0) / weightLossLbsData.length
-        : null
-
-      // Duration stats
-      const durationData = exps.filter(e => e.duration_weeks)
-      const avgDurationWeeks = durationData.length > 0
-        ? durationData.reduce((sum, e) => sum + e.duration_weeks, 0) / durationData.length
-        : null
-
-      // Cost stats
-      const costData = exps.filter(e => e.cost_per_month)
-      const avgCostPerMonth = costData.length > 0
-        ? costData.reduce((sum, e) => sum + e.cost_per_month, 0) / costData.length
-        : null
-
-      // Sentiment stats
-      const sentimentPreData = exps.filter(e => e.sentiment_pre !== null)
-      const avgSentimentPre = sentimentPreData.length > 0
-        ? sentimentPreData.reduce((sum, e) => sum + e.sentiment_pre, 0) / sentimentPreData.length
-        : null
-
-      const sentimentPostData = exps.filter(e => e.sentiment_post !== null)
-      const avgSentimentPost = sentimentPostData.length > 0
-        ? sentimentPostData.reduce((sum, e) => sum + e.sentiment_post, 0) / sentimentPostData.length
-        : null
-
-      // Recommendation stats
-      const recommendationData = exps.filter(e => e.recommendation_score !== null)
-      const avgRecommendationScore = recommendationData.length > 0
-        ? recommendationData.reduce((sum, e) => sum + e.recommendation_score, 0) / recommendationData.length
-        : null
-
-      // Plateau and rebound rates
-      const plateauCount = exps.filter(e => e.plateau).length
-      const reboundCount = exps.filter(e => e.rebound).length
-      const plateauRate = (plateauCount / exps.length) * 100
-      const reboundRate = (reboundCount / exps.length) * 100
-
-      // Side effects
-      // Parse JSON strings to extract actual effect names and combine duplicates
-      const allSideEffects = exps.flatMap(e => e.top_side_effects || [])
-      const sideEffectCounts = allSideEffects.reduce((acc, effect) => {
-        // Parse JSON string to get the effect name
-        let effectName = effect
-        try {
-          const parsed = typeof effect === 'string' ? JSON.parse(effect) : effect
-          effectName = parsed.name || effect
-        } catch {
-          // If parsing fails, use the raw effect string
-        }
-        acc[effectName] = (acc[effectName] || 0) + 1
-        return acc
-      }, {} as Record<string, number>)
-
-      // Calculate percentage of users who reported side effects
-      const usersWithSideEffects = exps.filter(e => e.top_side_effects && e.top_side_effects.length > 0).length
-      const sideEffectReportingRate = (usersWithSideEffects / exps.length) * 100
-
-      const commonSideEffects = Object.entries(sideEffectCounts)
-        .map(([name, count]): { name: string; count: number; percentage: number } => ({
-          name,
-          count: count as number,
-          percentage: ((count as number) / exps.length) * 100
-        }))
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 10)
-
-      // Side effect severity - calculate from actual data
-      const severityCounts = { mild: 0, moderate: 0, severe: 0 }
-      allSideEffects.forEach(effect => {
-        try {
-          const parsed = typeof effect === 'string' ? JSON.parse(effect) : effect
-          const severity = parsed.severity?.toLowerCase()
-          if (severity === 'mild') severityCounts.mild++
-          else if (severity === 'moderate') severityCounts.moderate++
-          else if (severity === 'severe') severityCounts.severe++
-        } catch {
-          // If parsing fails, skip this effect
-        }
-      })
-
-      const totalSeverity = severityCounts.mild + severityCounts.moderate + severityCounts.severe
-      const sideEffectSeverity = totalSeverity > 0 ? {
-        mild: (severityCounts.mild / totalSeverity) * 100,
-        moderate: (severityCounts.moderate / totalSeverity) * 100,
-        severe: (severityCounts.severe / totalSeverity) * 100
-      } : {
-        mild: 0,
-        moderate: 0,
-        severe: 0
-      }
-
-      // Insurance coverage
-      const insuranceCount = exps.filter(e => e.insurance_coverage).length
-      const insuranceCoverage = (insuranceCount / exps.length) * 100
-
-      // Drug sources (placeholder - need to add to extraction)
-      const drugSources = {
-        brand: exps.filter(e => e.drug_source === 'brand').length,
-        compounded: exps.filter(e => e.drug_source === 'compounded').length,
-        outOfPocket: exps.filter(e => e.out_of_pocket_cost).length,
+    return {
+      drug: drugData.drug,
+      count: drugData.count,
+      avgWeightLoss: drugData.avg_weight_loss_percentage,
+      avgWeightLossLbs: drugData.avg_weight_loss_lbs,
+      avgDurationWeeks: drugData.avg_duration_weeks,
+      avgCostPerMonth: drugData.avg_cost_per_month,
+      avgSentimentPre: drugData.avg_sentiment_pre,
+      avgSentimentPost: drugData.avg_sentiment_post,
+      avgRecommendationScore: drugData.avg_recommendation_score,
+      plateauRate: drugData.plateau_rate,
+      reboundRate: drugData.rebound_rate,
+      commonSideEffects,
+      sideEffectSeverity,
+      sideEffectReportingRate,
+      insuranceCoverage: drugData.insurance_coverage_rate,
+      drugSources: {
+        brand: drugData.brand_count,
+        compounded: drugData.compounded_count,
+        outOfPocket: drugData.out_of_pocket_count,
         other: 0
-      }
+      },
+      pharmacyAccessIssues: 15 // Placeholder value
+    }
+  }))
 
-      // Pharmacy access issues (placeholder)
-      const pharmacyAccessIssues = 15
-
-      return {
-        drug,
-        count: exps.length,
-        avgWeightLoss,
-        avgWeightLossLbs,
-        avgDurationWeeks,
-        avgCostPerMonth,
-        avgSentimentPre,
-        avgSentimentPost,
-        avgRecommendationScore,
-        plateauRate,
-        reboundRate,
-        commonSideEffects,
-        sideEffectSeverity,
-        sideEffectReportingRate,
-        insuranceCoverage,
-        drugSources,
-        pharmacyAccessIssues
-      }
-    })
-
-    return drugStats.sort((a, b) => b.count - a.count)
+  return drugStats.sort((a, b) => b.count - a.count)
 }

@@ -4,46 +4,31 @@ import { z } from 'zod'
 
 export const platformRouter = router({
   getStats: publicProcedure.query(async () => {
-    // Get total experiences
-    const { count: totalExperiences } = await supabase
-      .from('mv_experiences_denormalized')
-      .select('*', { count: 'exact', head: true })
+    // Use SQL aggregation function to compute platform stats in the database
+    const { data, error } = await supabase.rpc('get_platform_stats')
 
-    // Get unique drugs
-    const { data: drugs } = await supabase
-      .from('mv_experiences_denormalized')
-      .select('primary_drug')
-      .not('primary_drug', 'is', null)
+    if (error) {
+      console.error('Error fetching platform stats:', error)
+      throw new Error('Failed to fetch platform statistics')
+    }
 
-    const uniqueDrugs = new Set(drugs?.map(d => d.primary_drug) || []).size
+    // The function returns a single row, so take the first element
+    const stats = data?.[0]
 
-    // Get unique locations
-    const { data: locations } = await supabase
-      .from('mv_experiences_denormalized')
-      .select('location')
-      .not('location', 'is', null)
-
-    const locationsTracked = new Set(locations?.map(l => l.location) || []).size
-
-    // Get average weight loss percentage
-    const { data: weightLossData } = await supabase
-      .from('mv_experiences_denormalized')
-      .select('weightLoss, weightLossUnit')
-      .not('weightLoss', 'is', null)
-      .not('weightLossUnit', 'is', null)
-
-    const avgWeightLossPercentage = weightLossData && weightLossData.length > 0
-      ? weightLossData
-          .filter(w => w.weightLossUnit === 'percent')
-          .reduce((sum, w) => sum + (w.weightLoss || 0), 0) / 
-          weightLossData.filter(w => w.weightLossUnit === 'percent').length || 0
-      : 0
+    if (!stats) {
+      return {
+        totalExperiences: 0,
+        uniqueDrugs: 0,
+        locationsTracked: 0,
+        avgWeightLossPercentage: 0,
+      }
+    }
 
     return {
-      totalExperiences: totalExperiences || 0,
-      uniqueDrugs,
-      locationsTracked,
-      avgWeightLossPercentage,
+      totalExperiences: Number(stats.total_experiences) || 0,
+      uniqueDrugs: Number(stats.unique_drugs) || 0,
+      locationsTracked: Number(stats.locations_tracked) || 0,
+      avgWeightLossPercentage: 0, // Placeholder - not calculated in SQL function yet
     }
   }),
 
