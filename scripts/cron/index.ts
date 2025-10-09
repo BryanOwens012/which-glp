@@ -18,22 +18,27 @@ async function runCronJob() {
   switch (CRON_TYPE) {
     case 'post-ingestion':
       console.log("📥 Running post-ingestion trigger...");
-      await import('./cron-trigger-post-ingestion.js');
+      await import('./post-ingestion-cron.ts');
       break;
 
     case 'post-extraction':
       console.log("🔍 Running post-extraction trigger...");
-      await import('./cron-trigger-post-extraction.js');
+      await import('./post-extraction-cron.ts');
       break;
 
     case 'user-extraction':
       console.log("👤 Running user-extraction trigger...");
-      await import('./cron-trigger-user-extraction.js');
+      await import('./user-extraction-cron.ts');
+      break;
+
+    case 'view-refresher':
+      console.log("🔄 Running view-refresher trigger...");
+      await import('./view-refresher-cron.ts');
       break;
 
     default:
       console.error(`❌ Unknown CRON_TYPE: ${CRON_TYPE}`);
-      console.error("   Valid values: post-ingestion, post-extraction, user-extraction");
+      console.error("   Valid values: post-ingestion, post-extraction, user-extraction, view-refresher");
       process.exit(1);
   }
 }
