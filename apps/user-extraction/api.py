@@ -99,7 +99,12 @@ async def get_stats():
         # Get total users using Supabase client
         # Count distinct authors from posts that have been AI-extracted
         # Need to join extracted_features with reddit_posts to get author (ef doesn't have author column)
-        response = analyzer.db.client.table('extracted_features').select('post_id').execute()
+        # IMPORTANT: Only include posts with non-empty summaries (successfully extracted)
+        response = analyzer.db.client.table('extracted_features') \
+            .select('post_id') \
+            .not_.is_('summary', 'null') \
+            .neq('summary', '') \
+            .execute()
         extracted_post_ids = {feature['post_id'] for feature in (response.data if response.data else [])}
 
         # Get authors for these posts
