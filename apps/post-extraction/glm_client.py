@@ -45,16 +45,38 @@ class GLMClient:
         pricing = MODEL_PRICING.get(model, MODEL_PRICING[DEFAULT_MODEL])
         return (tokens_input / 1_000_000) * pricing["input"] + (tokens_output / 1_000_000) * pricing["output"]
 
-    def extract_features(self, user_prompt: str, model: Optional[str] = None, max_retries: int = 3) -> Tuple[ExtractedFeatures, Dict[str, Any]]:
+    def extract_features(self, prompts: tuple[str, str] | str, model: Optional[str] = None, max_retries: int = 3) -> Tuple[ExtractedFeatures, Dict[str, Any]]:
+        """
+        Extract features using GLM-4.5-Air.
+
+        Args:
+            prompts: Either a tuple of (system_prompt, user_prompt) or just user_prompt string
+            model: GLM model to use (defaults to glm-4.5-air)
+            max_retries: Number of retry attempts on failure
+
+        Returns:
+            Tuple of (ExtractedFeatures, metadata_dict)
+        """
         if model is None:
             model = DEFAULT_MODEL
+
+        # Handle both old format (single string) and new format (tuple)
+        if isinstance(prompts, tuple):
+            system_prompt, user_prompt = prompts
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ]
+        else:
+            user_prompt = prompts
+            messages = [{"role": "user", "content": user_prompt}]
 
         for attempt in range(max_retries):
             try:
                 start_time = time.time()
                 response = self.client.chat.completions.create(
                     model=model,
-                    messages=[{"role": "user", "content": user_prompt}],
+                    messages=messages,
                     temperature=0,
                     stream=False  # Disable streaming to get full response with usage
                 )

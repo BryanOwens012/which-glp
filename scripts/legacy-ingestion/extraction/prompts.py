@@ -292,15 +292,17 @@ def build_post_prompt(title: str, body: str, author_flair: str = "") -> str:
     """
     flair_section = f"\nAUTHOR FLAIR: {author_flair}\n" if author_flair else ""
 
-    return f"""Extract structured data from this Reddit post.
+    user_prompt = f"""Extract structured data from this Reddit post.
 
 POST TITLE: {title}
 {flair_section}
 POST BODY:
 {body}
 
-Extract the data and return JSON.
-"""
+Extract the data and return JSON."""
+
+    # Return both system prompt and user prompt as a tuple
+    return SYSTEM_PROMPT, user_prompt
 
 
 def build_comment_prompt(
@@ -309,7 +311,7 @@ def build_comment_prompt(
     comment_chain: list[dict],
     target_comment_id: str,
     post_author_flair: str = ""
-) -> str:
+) -> tuple[str, str]:
     """
     Build extraction prompt for a Reddit comment with full context chain.
 
@@ -329,7 +331,7 @@ def build_comment_prompt(
         post_author_flair: Author flair from original post
 
     Returns:
-        Formatted user prompt for Claude
+        Tuple of (system_prompt, user_prompt)
     """
     # Format the comment chain with indentation for readability
     chain_text = []
@@ -344,7 +346,7 @@ def build_comment_prompt(
     chain_str = "\n\n".join(chain_text)
     post_flair_section = f"\nORIGINAL POST AUTHOR FLAIR: {post_author_flair}\n" if post_author_flair else ""
 
-    return f"""Extract structured data from the TARGET comment in this Reddit conversation.
+    user_prompt = f"""Extract structured data from the TARGET comment in this Reddit conversation.
 
 ORIGINAL POST TITLE: {post_title}
 {post_flair_section}
@@ -358,8 +360,10 @@ Extract data from the TARGET comment only, but use the full context to understan
 For example, if the target comment says "I'm on week 8 now" and an earlier comment mentions "I started Ozempic", include "Ozempic" in drugs_mentioned.
 Check the TARGET comment's author flair for structured data (SW, CW, age, sex, etc.).
 
-Return JSON.
-"""
+Return JSON."""
+
+    # Return both system prompt and user prompt as a tuple
+    return SYSTEM_PROMPT, user_prompt
 
 
 def build_context_summary(
