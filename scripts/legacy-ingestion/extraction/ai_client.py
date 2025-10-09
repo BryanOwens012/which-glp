@@ -135,7 +135,7 @@ class ClaudeClient:
 
     def extract_features(
         self,
-        user_prompt: str,
+        prompts: tuple[str, str] | str,
         model: Optional[str] = None,
         max_retries: int = 3
     ) -> Tuple[ExtractedFeatures, dict]:
@@ -143,7 +143,7 @@ class ClaudeClient:
         Extract structured features from a Reddit post/comment.
 
         Args:
-            user_prompt: Formatted prompt with post/comment text
+            prompts: Either a tuple of (system_prompt, user_prompt) or just user_prompt string
             model: Claude model to use (auto-selected if None)
             max_retries: Number of retries on failure
 
@@ -154,6 +154,13 @@ class ClaudeClient:
         Raises:
             AIExtractionError: If extraction fails after retries
         """
+        # Handle both tuple and string inputs
+        if isinstance(prompts, tuple):
+            system_prompt, user_prompt = prompts
+        else:
+            system_prompt = SYSTEM_PROMPT
+            user_prompt = prompts
+
         # Auto-select model if not specified
         if model is None:
             model = self.select_model(user_prompt)
@@ -170,7 +177,7 @@ class ClaudeClient:
                     model=model,
                     max_tokens=2048,
                     temperature=0,  # Deterministic extraction
-                    system=SYSTEM_PROMPT,
+                    system=system_prompt,
                     messages=[
                         {"role": "user", "content": user_prompt}
                     ]
