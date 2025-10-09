@@ -5,7 +5,6 @@ These templates guide Claude to extract weight loss features, costs, and experie
 in a structured format while maintaining accuracy and not hallucinating data.
 """
 
-
 # System prompt that defines Claude's role and extraction rules
 SYSTEM_PROMPT = """You are analyzing Reddit posts and comments about GLP-1 weight loss medications (Ozempic, Wegovy, Mounjaro, Zepbound, semaglutide, tirzepatide, liraglutide, etc.).
 
@@ -739,7 +738,9 @@ THIS IS EXPENSIVE. GET IT RIGHT THE FIRST TIME. EXTRACT EVERYTHING AVAILABLE.
 """
 
 
-def build_post_prompt(title: str, body: str, author_flair: str = "") -> str:
+def build_post_prompt(
+    subreddit: str, title: str, body: str, author_flair: str = ""
+) -> str:
     """
     Build extraction prompt for a Reddit post (no comment chain).
 
@@ -755,9 +756,10 @@ def build_post_prompt(title: str, body: str, author_flair: str = "") -> str:
 
     user_prompt = f"""Extract structured data from this Reddit post.
 
-POST TITLE: {title}
-{flair_section}
-POST BODY:
+SUBREDDIT NAME: {subreddit} 
+POST TITLE: {title} 
+{flair_section} 
+POST BODY: 
 {body}
 
 Extract the data and return JSON."""
@@ -771,7 +773,7 @@ def build_comment_prompt(
     post_body: str,
     comment_chain: list[dict],
     target_comment_id: str,
-    post_author_flair: str = ""
+    post_author_flair: str = "",
 ) -> tuple[str, str]:
     """
     Build extraction prompt for a Reddit comment with full context chain.
@@ -799,13 +801,21 @@ def build_comment_prompt(
     for comment in comment_chain:
         indent = "  " * (comment["depth"] - 1)
         marker = "TARGET → " if comment["comment_id"] == target_comment_id else ""
-        flair = f" [Flair: {comment.get('author_flair', '')}]" if comment.get("author_flair") else ""
+        flair = (
+            f" [Flair: {comment.get('author_flair', '')}]"
+            if comment.get("author_flair")
+            else ""
+        )
         chain_text.append(
             f"{indent}[Depth {comment['depth']} - u/{comment['author']}]{flair} {marker}\n{indent}{comment['body']}"
         )
 
     chain_str = "\n\n".join(chain_text)
-    post_flair_section = f"\nORIGINAL POST AUTHOR FLAIR: {post_author_flair}\n" if post_author_flair else ""
+    post_flair_section = (
+        f"\nORIGINAL POST AUTHOR FLAIR: {post_author_flair}\n"
+        if post_author_flair
+        else ""
+    )
 
     user_prompt = f"""Extract structured data from the TARGET comment in this Reddit conversation.
 
@@ -827,11 +837,7 @@ Return JSON."""
     return SYSTEM_PROMPT, user_prompt
 
 
-def build_context_summary(
-    post_title: str,
-    num_comments: int,
-    subreddit: str
-) -> str:
+def build_context_summary(post_title: str, num_comments: int, subreddit: str) -> str:
     """
     Build a brief context summary for logging/debugging.
 

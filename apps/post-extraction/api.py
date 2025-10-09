@@ -19,7 +19,14 @@ from shared.config import get_logger
 logger = get_logger(__name__)
 
 app = FastAPI(title="WhichGLP Post Extraction API", version="0.1.0")
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 # Startup/shutdown event handlers
 @app.on_event("startup")
@@ -32,6 +39,7 @@ async def startup_event():
     logger.info(f"   Time: {datetime.now().isoformat()}")
     logger.info("=" * 80)
 
+
 @app.on_event("shutdown")
 async def shutdown_event():
     logger.info("=" * 80)
@@ -39,19 +47,25 @@ async def shutdown_event():
     logger.info(f"   Time: {datetime.now().isoformat()}")
     logger.info("=" * 80)
 
+
 class ExtractionRequest(BaseModel):
     subreddit: str | None = None
     limit: int | None = None
     posts_only: bool = True
 
+
 _extraction_running = False
+
 
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "service": "post-extraction", "model": "glm-4.5-air"}
 
+
 @app.post("/api/extract")
-async def trigger_extraction(request: ExtractionRequest, background_tasks: BackgroundTasks):
+async def trigger_extraction(
+    request: ExtractionRequest, background_tasks: BackgroundTasks
+):
     global _extraction_running
 
     logger.info("=" * 80)
@@ -97,35 +111,49 @@ async def trigger_extraction(request: ExtractionRequest, background_tasks: Backg
             # Function: get_unprocessed_posts(subreddit, limit)
             # SQL: SELECT p.* FROM reddit_posts p
             #      WHERE p.extraction_status = 'pending'
-            response = db.client.rpc('get_unprocessed_posts', {
-                'p_subreddit': request.subreddit,
-                'p_limit': request.limit
-            }).execute()
+            response = db.client.rpc(
+                "get_unprocessed_posts",
+                {"p_subreddit": request.subreddit, "p_limit": request.limit},
+            ).execute()
 
             all_posts = response.data if response.data else []
 
             # Convert to tuple format for processing
-            posts = [(p['post_id'], p['title'], p['body'], p['subreddit'], p['author_flair_text'])
-                     for p in all_posts]
+            posts = [
+                (
+                    p["post_id"],
+                    p["title"],
+                    p["body"],
+                    p["subreddit"],
+                    p["author_flair_text"],
+                )
+                for p in all_posts
+            ]
 
             logger.info(f"📊 Found {len(posts)} unprocessed posts")
 
             # Process each post with two-stage filtering
             for i, (post_id, title, body, subreddit, flair) in enumerate(posts, 1):
                 try:
-                    logger.info(f"📝 Processing post {i}/{len(posts)}: {post_id} from r/{subreddit}")
+                    logger.info(
+                        f"📝 Processing post {i}/{len(posts)}: {post_id} from r/{subreddit}"
+                    )
 
                     # Stage 1: Keyword-based filter (fast, checks drug/topic relevance)
-                    if not should_process_post((post_id, title, body, subreddit, flair), subreddit):
+                    if not should_process_post(
+                        (post_id, title, body, subreddit, flair), subreddit
+                    ):
                         log_message = "keyword_filter: not drug-related"
                         logger.info(f"⏭️  Skipping post {post_id} ({log_message})")
 
                         # Mark post as skipped in database
-                        db.client.table('reddit_posts').update({
-                            'extraction_status': 'skipped',
-                            'extraction_log_message': log_message,
-                            'extraction_attempted_at': datetime.now().isoformat()
-                        }).eq('post_id', post_id).execute()
+                        db.client.table("reddit_posts").update(
+                            {
+                                "extraction_status": "skipped",
+                                "extraction_log_message": log_message,
+                                "extraction_attempted_at": datetime.now().isoformat(),
+                            }
+                        ).eq("post_id", post_id).execute()
 
                         skipped += 1
                         continue
@@ -133,122 +161,153 @@ async def trigger_extraction(request: ExtractionRequest, background_tasks: Backg
                     # Stage 2: Minimum data filter (checks for required fields)
                     post_row = (post_id, title, body, subreddit, flair)
                     if not filter_post(post_row):
-                        diagnosis = diagnose_post(title or "", body or "", flair or "")
+                        diagnosis = diagnose_post(
+                            title or "", body or "", flair or "", subreddit
+                        )
                         log_message = f"minimum_field_filter: {diagnosis}"
                         logger.info(f"⏭️  Skipping post {post_id} ({log_message})")
 
                         # Mark post as skipped in database
-                        db.client.table('reddit_posts').update({
-                            'extraction_status': 'skipped',
-                            'extraction_log_message': log_message,
-                            'extraction_attempted_at': datetime.now().isoformat()
-                        }).eq('post_id', post_id).execute()
+                        db.client.table("reddit_posts").update(
+                            {
+                                "extraction_status": "skipped",
+                                "extraction_log_message": log_message,
+                                "extraction_attempted_at": datetime.now().isoformat(),
+                            }
+                        ).eq("post_id", post_id).execute()
 
                         skipped += 1
                         continue
 
-                    prompt = build_post_prompt(title, body or "", flair or "")
+                    prompt = build_post_prompt(
+                        subreddit, title, body or "", flair or ""
+                    )
                     logger.debug(f"🤖 Sending to GLM for extraction: {post_id}")
 
                     features, metadata = glm.extract_features(prompt)
 
-                    cost = metadata.get('cost_usd', 0)
+                    cost = metadata.get("cost_usd", 0)
                     total_cost += cost
 
                     # Prepare data for database insertion
                     feature_data = {
-                        'post_id': post_id,
-                        'comment_id': None,
-                        'summary': features.summary,
-                        'beginning_weight': features.beginning_weight.model_dump() if features.beginning_weight else None,
-                        'end_weight': features.end_weight.model_dump() if features.end_weight else None,
-                        'duration_weeks': features.duration_weeks,
-                        'cost_per_month': features.cost_per_month,
-                        'currency': features.currency,
-                        'drugs_mentioned': features.drugs_mentioned,
-                        'primary_drug': features.primary_drug,
-                        'drug_sentiments': features.drug_sentiments,
-                        'sentiment_pre': features.sentiment_pre,
-                        'sentiment_post': features.sentiment_post,
-                        'has_insurance': features.has_insurance,
-                        'insurance_provider': features.insurance_provider,
-                        'comorbidities': features.comorbidities,
-                        'location': features.location,
-                        'age': features.age,
-                        'sex': features.sex,
-                        'state': features.state,
-                        'country': features.country,
-                        'model_used': metadata.get('model'),
-                        'confidence_score': features.confidence_score,
-                        'processing_cost_usd': cost,
-                        'tokens_input': metadata.get('tokens_input'),
-                        'tokens_output': metadata.get('tokens_output'),
-                        'processing_time_ms': metadata.get('processing_time_ms'),
-                        'processed_at': datetime.now().isoformat(),  # Supabase client handles datetime serialization
-                        'raw_response': metadata.get('raw_response'),
-                        'side_effects': [se.model_dump() for se in features.side_effects] if features.side_effects else [],
-                        'dosage_progression': features.dosage_progression,
-                        'exercise_frequency': features.exercise_frequency,
-                        'dietary_changes': features.dietary_changes,
-                        'previous_weight_loss_attempts': features.previous_weight_loss_attempts,
-                        'drug_source': features.drug_source,
-                        'switching_drugs': features.switching_drugs,
-                        'side_effect_timing': features.side_effect_timing,
-                        'food_intolerances': features.food_intolerances,
-                        'plateau_mentioned': features.plateau_mentioned,
-                        'rebound_weight_gain': features.rebound_weight_gain,
-                        'labs_improvement': features.labs_improvement,
-                        'medication_reduction': features.medication_reduction,
-                        'nsv_mentioned': features.nsv_mentioned,
-                        'support_system': features.support_system,
-                        'pharmacy_access_issues': features.pharmacy_access_issues,
-                        'mental_health_impact': features.mental_health_impact,
-                        'side_effect_resolution': features.side_effect_resolution,
-                        'recommendation_score': features.recommendation_score,
+                        "post_id": post_id,
+                        "comment_id": None,
+                        "summary": features.summary,
+                        "beginning_weight": (
+                            features.beginning_weight.model_dump()
+                            if features.beginning_weight
+                            else None
+                        ),
+                        "end_weight": (
+                            features.end_weight.model_dump()
+                            if features.end_weight
+                            else None
+                        ),
+                        "duration_weeks": features.duration_weeks,
+                        "cost_per_month": features.cost_per_month,
+                        "currency": features.currency,
+                        "drugs_mentioned": features.drugs_mentioned,
+                        "primary_drug": features.primary_drug,
+                        "drug_sentiments": features.drug_sentiments,
+                        "sentiment_pre": features.sentiment_pre,
+                        "sentiment_post": features.sentiment_post,
+                        "has_insurance": features.has_insurance,
+                        "insurance_provider": features.insurance_provider,
+                        "comorbidities": features.comorbidities,
+                        "location": features.location,
+                        "age": features.age,
+                        "sex": features.sex,
+                        "state": features.state,
+                        "country": features.country,
+                        "model_used": metadata.get("model"),
+                        "confidence_score": features.confidence_score,
+                        "processing_cost_usd": cost,
+                        "tokens_input": metadata.get("tokens_input"),
+                        "tokens_output": metadata.get("tokens_output"),
+                        "processing_time_ms": metadata.get("processing_time_ms"),
+                        "processed_at": datetime.now().isoformat(),  # Supabase client handles datetime serialization
+                        "raw_response": metadata.get("raw_response"),
+                        "side_effects": (
+                            [se.model_dump() for se in features.side_effects]
+                            if features.side_effects
+                            else []
+                        ),
+                        "dosage_progression": features.dosage_progression,
+                        "exercise_frequency": features.exercise_frequency,
+                        "dietary_changes": features.dietary_changes,
+                        "previous_weight_loss_attempts": features.previous_weight_loss_attempts,
+                        "drug_source": features.drug_source,
+                        "switching_drugs": features.switching_drugs,
+                        "side_effect_timing": features.side_effect_timing,
+                        "food_intolerances": features.food_intolerances,
+                        "plateau_mentioned": features.plateau_mentioned,
+                        "rebound_weight_gain": features.rebound_weight_gain,
+                        "labs_improvement": features.labs_improvement,
+                        "medication_reduction": features.medication_reduction,
+                        "nsv_mentioned": features.nsv_mentioned,
+                        "support_system": features.support_system,
+                        "pharmacy_access_issues": features.pharmacy_access_issues,
+                        "mental_health_impact": features.mental_health_impact,
+                        "side_effect_resolution": features.side_effect_resolution,
+                        "recommendation_score": features.recommendation_score,
                     }
 
                     # Insert to database
                     try:
-                        db.client.table('extracted_features').upsert(
-                            feature_data,
-                            on_conflict='post_id'
+                        db.client.table("extracted_features").upsert(
+                            feature_data, on_conflict="post_id"
                         ).execute()
 
                         # Mark post as successfully processed in reddit_posts
-                        db.client.table('reddit_posts').update({
-                            'extraction_status': 'processed',
-                            'extraction_log_message': None,
-                            'extraction_attempted_at': datetime.now().isoformat()
-                        }).eq('post_id', post_id).execute()
+                        db.client.table("reddit_posts").update(
+                            {
+                                "extraction_status": "processed",
+                                "extraction_log_message": None,
+                                "extraction_attempted_at": datetime.now().isoformat(),
+                            }
+                        ).eq("post_id", post_id).execute()
 
-                        logger.info(f"✅ Extracted & saved {post_id} - Cost: ${cost:.6f}, Total cost: ${total_cost:.6f}")
+                        logger.info(
+                            f"✅ Extracted & saved {post_id} - Cost: ${cost:.6f}, Total cost: ${total_cost:.6f}"
+                        )
                         processed += 1
                     except Exception as insert_error:
                         # Mark post as failed in database
                         error_msg = f"database_insert_error: {str(insert_error)[:200]}"
-                        db.client.table('reddit_posts').update({
-                            'extraction_status': 'failed',
-                            'extraction_log_message': error_msg,
-                            'extraction_attempted_at': datetime.now().isoformat()
-                        }).eq('post_id', post_id).execute()
+                        db.client.table("reddit_posts").update(
+                            {
+                                "extraction_status": "failed",
+                                "extraction_log_message": error_msg,
+                                "extraction_attempted_at": datetime.now().isoformat(),
+                            }
+                        ).eq("post_id", post_id).execute()
 
-                        logger.error(f"❌ Failed to insert {post_id} to database: {insert_error}")
+                        logger.error(
+                            f"❌ Failed to insert {post_id} to database: {insert_error}"
+                        )
                         failed += 1
 
                 except Exception as e:
                     # Mark post as failed in database
                     error_msg = f"extraction_error: {str(e)[:200]}"
                     try:
-                        db.client.table('reddit_posts').update({
-                            'extraction_status': 'failed',
-                            'extraction_log_message': error_msg,
-                            'extraction_attempted_at': datetime.now().isoformat()
-                        }).eq('post_id', post_id).execute()
+                        db.client.table("reddit_posts").update(
+                            {
+                                "extraction_status": "failed",
+                                "extraction_log_message": error_msg,
+                                "extraction_attempted_at": datetime.now().isoformat(),
+                            }
+                        ).eq("post_id", post_id).execute()
                     except Exception as db_error:
-                        logger.error(f"❌ Failed to mark {post_id} as failed: {db_error}")
+                        logger.error(
+                            f"❌ Failed to mark {post_id} as failed: {db_error}"
+                        )
 
                     failed += 1
-                    logger.error(f"❌ Failed to extract {post_id}: {str(e)}", exc_info=True)
+                    logger.error(
+                        f"❌ Failed to extract {post_id}: {str(e)}", exc_info=True
+                    )
 
             db.close()
             logger.info("🔌 Database connection closed")
@@ -261,7 +320,11 @@ async def trigger_extraction(request: ExtractionRequest, background_tasks: Backg
             logger.info(f"   Processed by GLM: {processed}")
             logger.info(f"   Failed: {failed}")
             logger.info(f"   Skipped (filtered): {skipped}")
-            logger.info(f"   Filter efficiency: {(skipped / len(posts) * 100):.1f}% posts filtered out" if len(posts) > 0 else "   Filter efficiency: N/A")
+            logger.info(
+                f"   Filter efficiency: {(skipped / len(posts) * 100):.1f}% posts filtered out"
+                if len(posts) > 0
+                else "   Filter efficiency: N/A"
+            )
             logger.info(f"   Total cost: ${total_cost:.6f}")
             logger.info(f"   Cost savings from filtering: ~${skipped * 0.01:.6f}")
             logger.info(f"   Duration: {duration:.2f}s")
@@ -284,11 +347,14 @@ async def trigger_extraction(request: ExtractionRequest, background_tasks: Backg
     logger.info("✅ Extraction task queued successfully")
     return {"status": "started", "message": f"Extraction started with GLM-4.5-Air"}
 
+
 @app.get("/api/status")
 async def get_status():
     return {"extraction_running": _extraction_running}
 
+
 if __name__ == "__main__":
     import uvicorn
+
     port = int(os.getenv("PORT", "8004"))
     uvicorn.run("api:app", host="0.0.0.0", port=port, reload=True)

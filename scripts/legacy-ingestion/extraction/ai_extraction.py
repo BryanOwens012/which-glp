@@ -44,7 +44,7 @@ class AIExtractionPipeline:
         subreddit: Optional[str] = None,
         limit: Optional[int] = None,
         dry_run: bool = False,
-        posts_only: bool = False
+        posts_only: bool = False,
     ):
         """
         Initialize extraction pipeline.
@@ -205,9 +205,7 @@ class AIExtractionPipeline:
         return posts_rows, comments_rows, all_comments_rows
 
     def build_context_lookup(
-        self,
-        posts_rows: List[tuple],
-        all_comments_rows: List[tuple]
+        self, posts_rows: List[tuple], all_comments_rows: List[tuple]
     ):
         """
         Build in-memory context lookup from exported data.
@@ -225,7 +223,9 @@ class AIExtractionPipeline:
         missing_post_ids = comment_post_ids - existing_post_ids
 
         if missing_post_ids:
-            logger.info(f"Fetching {len(missing_post_ids)} missing posts for comment context...")
+            logger.info(
+                f"Fetching {len(missing_post_ids)} missing posts for comment context..."
+            )
             with self.db.conn.cursor() as cursor:
                 fetch_posts_query = """
                     SELECT post_id, title, body, subreddit, author_flair_text
@@ -263,11 +263,13 @@ class AIExtractionPipeline:
             # Skip posts with insufficient content (title + body < 20 chars)
             content_length = len((title or "").strip()) + len((body or "").strip())
             if content_length < 20:
-                logger.info(f"Skipping post {post_id} - insufficient content ({content_length} chars)")
+                logger.info(
+                    f"Skipping post {post_id} - insufficient content ({content_length} chars)"
+                )
                 return None
 
             # Build prompt
-            prompt = build_post_prompt(title, body or "", author_flair or "")
+            prompt = build_post_prompt(subreddit, title, body or "", author_flair or "")
 
             # Call Claude API
             features, metadata = self.ai_client.extract_features(prompt)
@@ -302,7 +304,9 @@ class AIExtractionPipeline:
         Returns:
             ExtractionResult or None if failed
         """
-        comment_id, post_id, parent_comment_id, body, author, depth, author_flair = comment_row
+        comment_id, post_id, parent_comment_id, body, author, depth, author_flair = (
+            comment_row
+        )
 
         try:
             # Get context
@@ -321,7 +325,7 @@ class AIExtractionPipeline:
                 post_body=context["post_body"],
                 comment_chain=context["comment_chain"],
                 target_comment_id=comment_id,
-                post_author_flair=post_author_flair
+                post_author_flair=post_author_flair,
             )
 
             # Call Claude API
@@ -360,11 +364,12 @@ class AIExtractionPipeline:
 
         # Create extraction backups directory if it doesn't exist
         # Use environment variable if set, otherwise use helper function to find monorepo root
-        backup_path = os.getenv('EXTRACTION_BACKUP_DIR')
+        backup_path = os.getenv("EXTRACTION_BACKUP_DIR")
         if backup_path:
             backup_dir = Path(backup_path)
         else:
             from shared.config import get_backup_dir
+
             backup_dir = get_backup_dir("extraction")
         backup_dir.mkdir(exist_ok=True, parents=True)
 
@@ -385,27 +390,32 @@ class AIExtractionPipeline:
                     "total_success": self.stats.total_success,
                     "total_failed": self.stats.total_failed,
                     "total_cost_usd": self.stats.total_cost_usd,
-                    "total_tokens": self.stats.total_tokens_input + self.stats.total_tokens_output,
-                }
+                    "total_tokens": self.stats.total_tokens_input
+                    + self.stats.total_tokens_output,
+                },
             },
-            "results": []
+            "results": [],
         }
 
         for result in results:
-            backup_data["results"].append({
-                "post_id": result.post_id,
-                "comment_id": result.comment_id,
-                "features": result.features.model_dump(),
-                "model_used": result.model_used,
-                "processing_cost_usd": result.processing_cost_usd,
-                "tokens_input": result.tokens_input,
-                "tokens_output": result.tokens_output,
-                "processing_time_ms": result.processing_time_ms,
-                "processed_at": result.processed_at.isoformat() if result.processed_at else None,
-            })
+            backup_data["results"].append(
+                {
+                    "post_id": result.post_id,
+                    "comment_id": result.comment_id,
+                    "features": result.features.model_dump(),
+                    "model_used": result.model_used,
+                    "processing_cost_usd": result.processing_cost_usd,
+                    "tokens_input": result.tokens_input,
+                    "tokens_output": result.tokens_output,
+                    "processing_time_ms": result.processing_time_ms,
+                    "processed_at": (
+                        result.processed_at.isoformat() if result.processed_at else None
+                    ),
+                }
+            )
 
         # Write to file
-        with open(filepath, 'w') as f:
+        with open(filepath, "w") as f:
             json.dump(backup_data, f, indent=2)
 
         logger.info(f"✓ Backup saved to {filepath} ({len(results)} results)")
@@ -471,58 +481,78 @@ class AIExtractionPipeline:
             # Convert side_effects list of SideEffectData to JSON
             side_effects_json = None
             if f.side_effects:
-                side_effects_json = psycopg2.extras.Json([se.model_dump() for se in f.side_effects])
+                side_effects_json = psycopg2.extras.Json(
+                    [se.model_dump() for se in f.side_effects]
+                )
 
-            rows.append((
-                result.post_id,
-                result.comment_id,
-                f.summary,
-                psycopg2.extras.Json(f.beginning_weight.model_dump()) if f.beginning_weight else None,
-                psycopg2.extras.Json(f.end_weight.model_dump()) if f.end_weight else None,
-                f.duration_weeks,
-                f.cost_per_month,
-                f.currency,
-                f.drugs_mentioned,
-                standardize_drug_name(f.primary_drug),  # Apply standardization
-                psycopg2.extras.Json(f.drug_sentiments) if f.drug_sentiments else None,
-                f.sentiment_pre,
-                f.sentiment_post,
-                f.recommendation_score,
-                f.has_insurance,
-                f.insurance_provider,
-                side_effects_json,
-                f.comorbidities,
-                f.location,
-                f.age,
-                f.sex,
-                f.state,
-                f.country,
-                f.dosage_progression,
-                f.exercise_frequency,
-                f.dietary_changes,
-                f.previous_weight_loss_attempts,
-                f.drug_source,
-                f.switching_drugs,
-                f.side_effect_timing,
-                f.side_effect_resolution,
-                f.food_intolerances,
-                f.plateau_mentioned,
-                f.rebound_weight_gain,
-                f.labs_improvement,
-                f.medication_reduction,
-                f.nsv_mentioned,
-                f.support_system,
-                f.pharmacy_access_issues,
-                f.mental_health_impact,
-                result.model_used,
-                f.confidence_score,
-                result.processing_cost_usd,
-                result.tokens_input,
-                result.tokens_output,
-                result.processing_time_ms,
-                result.processed_at,
-                psycopg2.extras.Json(result.raw_response) if result.raw_response else None,
-            ))
+            rows.append(
+                (
+                    result.post_id,
+                    result.comment_id,
+                    f.summary,
+                    (
+                        psycopg2.extras.Json(f.beginning_weight.model_dump())
+                        if f.beginning_weight
+                        else None
+                    ),
+                    (
+                        psycopg2.extras.Json(f.end_weight.model_dump())
+                        if f.end_weight
+                        else None
+                    ),
+                    f.duration_weeks,
+                    f.cost_per_month,
+                    f.currency,
+                    f.drugs_mentioned,
+                    standardize_drug_name(f.primary_drug),  # Apply standardization
+                    (
+                        psycopg2.extras.Json(f.drug_sentiments)
+                        if f.drug_sentiments
+                        else None
+                    ),
+                    f.sentiment_pre,
+                    f.sentiment_post,
+                    f.recommendation_score,
+                    f.has_insurance,
+                    f.insurance_provider,
+                    side_effects_json,
+                    f.comorbidities,
+                    f.location,
+                    f.age,
+                    f.sex,
+                    f.state,
+                    f.country,
+                    f.dosage_progression,
+                    f.exercise_frequency,
+                    f.dietary_changes,
+                    f.previous_weight_loss_attempts,
+                    f.drug_source,
+                    f.switching_drugs,
+                    f.side_effect_timing,
+                    f.side_effect_resolution,
+                    f.food_intolerances,
+                    f.plateau_mentioned,
+                    f.rebound_weight_gain,
+                    f.labs_improvement,
+                    f.medication_reduction,
+                    f.nsv_mentioned,
+                    f.support_system,
+                    f.pharmacy_access_issues,
+                    f.mental_health_impact,
+                    result.model_used,
+                    f.confidence_score,
+                    result.processing_cost_usd,
+                    result.tokens_input,
+                    result.tokens_output,
+                    result.processing_time_ms,
+                    result.processed_at,
+                    (
+                        psycopg2.extras.Json(result.raw_response)
+                        if result.raw_response
+                        else None
+                    ),
+                )
+            )
 
         with self.db.conn.cursor() as cursor:
             cursor.executemany(insert_query, rows)
@@ -563,7 +593,9 @@ class AIExtractionPipeline:
 
             # Apply content filter to save API costs
             if not should_process_post(post_row, post_subreddit):
-                logger.info(f"Skipping post {i}/{len(posts_rows)} (no drug/medical keywords)")
+                logger.info(
+                    f"Skipping post {i}/{len(posts_rows)} (no drug/medical keywords)"
+                )
                 skipped_count += 1
                 continue
 
@@ -599,7 +631,9 @@ class AIExtractionPipeline:
                     self.stats.total_cost_usd += result.processing_cost_usd or 0
                     self.stats.total_tokens_input += result.tokens_input or 0
                     self.stats.total_tokens_output += result.tokens_output or 0
-                    self.stats.total_time_seconds += (result.processing_time_ms or 0) / 1000
+                    self.stats.total_time_seconds += (
+                        result.processing_time_ms or 0
+                    ) / 1000
                 else:
                     self.stats.total_failed += 1
 
@@ -629,7 +663,9 @@ class AIExtractionPipeline:
         logger.info(f"Successful: {self.stats.total_success}")
         logger.info(f"Failed: {self.stats.total_failed}")
         logger.info(f"Total cost: ${self.stats.total_cost_usd:.4f}")
-        logger.info(f"Total tokens: {self.stats.total_tokens_input + self.stats.total_tokens_output:,}")
+        logger.info(
+            f"Total tokens: {self.stats.total_tokens_input + self.stats.total_tokens_output:,}"
+        )
         logger.info(f"Avg cost per item: ${avg['avg_cost_per_item']:.6f}")
         logger.info(f"Avg tokens per item: {avg['avg_tokens_per_item']:.0f}")
         logger.info(f"Total time: {elapsed:.1f}s")
@@ -645,23 +681,16 @@ def main():
         "--subreddit",
         type=str,
         default=None,
-        help="Filter by subreddit (e.g., 'Zepbound')"
+        help="Filter by subreddit (e.g., 'Zepbound')",
     )
     parser.add_argument(
-        "--limit",
-        type=int,
-        default=None,
-        help="Max items to process (for testing)"
+        "--limit", type=int, default=None, help="Max items to process (for testing)"
     )
     parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Don't insert results to database"
+        "--dry-run", action="store_true", help="Don't insert results to database"
     )
     parser.add_argument(
-        "--posts-only",
-        action="store_true",
-        help="Only process posts, skip comments"
+        "--posts-only", action="store_true", help="Only process posts, skip comments"
     )
 
     args = parser.parse_args()
@@ -671,7 +700,7 @@ def main():
         subreddit=args.subreddit,
         limit=args.limit,
         dry_run=args.dry_run,
-        posts_only=args.posts_only
+        posts_only=args.posts_only,
     )
 
     try:

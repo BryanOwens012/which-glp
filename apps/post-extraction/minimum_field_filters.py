@@ -8,7 +8,7 @@ by skipping posts that won't produce complete data.
 Minimum required fields:
 - Weight mention (beginning or end weight)
 - Duration/time period
-- Drug name (already validated by keyword_filters.py, but checked here too)
+- Drug name (re-check based on keyword_filters.py)
 
 Note: We don't check for sentiment/recommendation here - the GLM prompt is
 designed to always produce a recommendation_score by estimating from context.
@@ -20,31 +20,7 @@ post in GLM API costs.
 import re
 from typing import Set
 
-# ============================================================================
-# DRUG DETECTION - Specific GLP-1 drug names only
-# ============================================================================
-
-# Only specific drug names (not generic terms like "drug", "medication")
-# This is more restrictive than keyword_filters.DRUG_KEYWORDS
-SPECIFIC_DRUG_KEYWORDS: set[str] = {
-    # GLP-1 Agonists - Brand Names
-    "ozempic", "wegovy", "rybelsus",  # semaglutide
-    "mounjaro", "zepbound",  # tirzepatide
-    "victoza", "saxenda",  # liraglutide
-    "trulicity",  # dulaglutide
-    "byetta", "bydureon",  # exenatide
-    "adlyxin",  # lixisenatide
-
-    # Generic drug names
-    "semaglutide", "tirzepatide", "liraglutide",
-    "dulaglutide", "exenatide", "lixisenatide",
-
-    # Common abbreviations
-    "sema", "tirz", "lira",
-
-    # GLP-1 general terms
-    "glp-1", "glp1", "glp 1",
-}
+from keyword_filters import DRUG_KEYWORDS
 
 # ============================================================================
 # WEIGHT DETECTION - Simple word-based matching
@@ -52,17 +28,27 @@ SPECIFIC_DRUG_KEYWORDS: set[str] = {
 
 WEIGHT_KEYWORDS: Set[str] = {
     # English units
-    "pound", "pounds", "lb", "lbs",
-
+    "pound",
+    "pounds",
+    "lb",
+    "lbs",
     # Metric units
-    "kg", "kgs", "kilo", "kilos", "kilogram", "kilograms",
-
+    "kg",
+    "kgs",
+    "kilo",
+    "kilos",
+    "kilogram",
+    "kilograms",
     # Flair abbreviations (common in Reddit weight loss communities)
-    "sw", "cw", "gw", "hw",  # starting/current/goal/highest weight
+    "sw",
+    "cw",
+    "gw",
+    "hw",  # starting/current/goal/highest weight
 }
 
 # Pattern to match numbers that could be weights (80-500 range is reasonable for adult humans)
-WEIGHT_NUMBER_PATTERN = re.compile(r'\b([89]\d|[1-4]\d{2}|500)\b')
+WEIGHT_NUMBER_PATTERN = re.compile(r"\b([89]\d|[1-4]\d{2}|500)\b")
+
 
 def has_weight_mention(text_lower: str, text_original: str) -> bool:
     """
@@ -94,15 +80,30 @@ def has_weight_mention(text_lower: str, text_original: str) -> bool:
 
 DURATION_KEYWORDS: Set[str] = {
     # Time units
-    "day", "days",
-    "week", "weeks", "wk", "wks",
-    "month", "months", "mo", "mos",
-    "year", "years", "yr", "yrs",
-
+    "day",
+    "days",
+    "week",
+    "weeks",
+    "wk",
+    "wks",
+    "month",
+    "months",
+    "mo",
+    "mos",
+    "year",
+    "years",
+    "yr",
+    "yrs",
     # Common phrases
-    "started", "began", "starting",
-    "ago", "now", "so far", "update",
+    "started",
+    "began",
+    "starting",
+    "ago",
+    "now",
+    "so far",
+    "update",
 }
+
 
 def has_duration_mention(text_lower: str) -> bool:
     """
@@ -126,6 +127,7 @@ def has_duration_mention(text_lower: str) -> bool:
 # DRUG DETECTION - Reuse from keyword_filters.py
 # ============================================================================
 
+
 def has_drug_mention(text_lower: str) -> bool:
     """
     Check if text mentions a specific GLP-1 drug by name.
@@ -139,7 +141,7 @@ def has_drug_mention(text_lower: str) -> bool:
         True if a specific drug is mentioned, False otherwise
     """
     # Check for any specific drug keyword (all already lowercase in set)
-    for drug in SPECIFIC_DRUG_KEYWORDS:
+    for drug in DRUG_KEYWORDS:
         if drug in text_lower:
             return True
 
@@ -150,10 +152,9 @@ def has_drug_mention(text_lower: str) -> bool:
 # MAIN FILTER FUNCTION
 # ============================================================================
 
+
 def passes_minimum_field_filter(
-    title: str,
-    body: str,
-    flair: str = ""
+    title: str, body: str, flair: str = "", subreddit: str = ""
 ) -> bool:
     """
     Check if a post/comment contains the minimum required fields.
@@ -176,7 +177,7 @@ def passes_minimum_field_filter(
     """
     # Combine all text for comprehensive checking
     # Flair is often the most structured and reliable source
-    full_text = f"{flair} {title} {body}"
+    full_text = f"{subreddit} {flair} {title} {body}"
 
     # Lowercase once for all keyword matching
     full_text_lower = full_text.lower()
@@ -194,6 +195,7 @@ def passes_minimum_field_filter(
 # CONVENIENCE FUNCTIONS FOR PIPELINE INTEGRATION
 # ============================================================================
 
+
 def filter_post(post_row: tuple) -> bool:
     """
     Filter function for posts (compatible with post_row format from database).
@@ -207,8 +209,9 @@ def filter_post(post_row: tuple) -> bool:
     title = post_row[1] or ""
     body = post_row[2] or ""
     flair = post_row[4] or ""
+    subreddit = post_row[3] or ""
 
-    return passes_minimum_field_filter(title, body, flair)
+    return passes_minimum_field_filter(title, body, flair, subreddit)
 
 
 def filter_comment(comment_row: tuple) -> bool:
@@ -223,6 +226,7 @@ def filter_comment(comment_row: tuple) -> bool:
     """
     body = comment_row[3] or ""
     flair = comment_row[6] or ""
+    subreddit = comment_row[2] or ""
 
     # Comments don't have separate title, so use body as both
     return passes_minimum_field_filter("", body, flair)
@@ -232,7 +236,8 @@ def filter_comment(comment_row: tuple) -> bool:
 # DIAGNOSTIC FUNCTIONS (for testing/debugging)
 # ============================================================================
 
-def diagnose_post(title: str, body: str, flair: str = "") -> dict:
+
+def diagnose_post(title: str, body: str, flair: str = "", subreddit: str = "") -> dict:
     """
     Diagnose why a post passes or fails the minimum field filter.
 
@@ -246,11 +251,11 @@ def diagnose_post(title: str, body: str, flair: str = "") -> dict:
     Returns:
         Dict with detailed breakdown of what was found
     """
-    full_text = f"{flair} {title} {body}"
+    full_text = f"{subreddit} {flair} {title} {body}"
     full_text_lower = full_text.lower()
 
     return {
-        "passes_filter": passes_minimum_field_filter(title, body, flair),
+        "passes_filter": passes_minimum_field_filter(title, body, flair, subreddit),
         "has_weight": has_weight_mention(full_text_lower, full_text),
         "has_duration": has_duration_mention(full_text_lower),
         "has_drug": has_drug_mention(full_text_lower),
