@@ -13,11 +13,16 @@ from prompts import build_user_prompt
 
 # Test data
 test_posts = [
-    {"title": "Started Ozempic 3 months ago", "body": "I'm a 45 year old female, started at 220 lbs, now down to 195 lbs on 1mg weekly. Some nausea but manageable."}
+    {
+        "title": "Started Ozempic 3 months ago",
+        "body": "I'm a 45 year old female, started at 220 lbs, now down to 195 lbs on 1mg weekly. Some nausea but manageable.",
+    }
 ]
 
 test_comments = [
-    {"body": "I live in California and pay $25/month with insurance through Blue Cross."}
+    {
+        "body": "I live in California and pay $25/month with insurance through Blue Cross."
+    }
 ]
 
 print("Testing GLM client...")

@@ -5,7 +5,6 @@ These templates guide Claude to extract weight loss features, costs, and experie
 in a structured format while maintaining accuracy and not hallucinating data.
 """
 
-
 # System prompt that defines Claude's role and extraction rules
 SYSTEM_PROMPT = """You are analyzing Reddit posts and comments about GLP-1 weight loss medications (Ozempic, Wegovy, Mounjaro, Zepbound, semaglutide, tirzepatide, liraglutide, etc.).
 
@@ -86,13 +85,17 @@ EXTRACTION GUIDELINES:
 - **sentiment_post**: Quality of life/feelings AFTER/while taking the drug (0-1)
   - How do they feel NOW after treatment?
   - Example: "I lost 100 lbs and feel amazing" → 0.95 (very positive post-state)
-- **drug_sentiments**: Sentiment toward EACH SPECIFIC DRUG mentioned (0-1)
+- **drug_sentiments (CRITICAL - NEVER use null)**: Sentiment toward EACH SPECIFIC DRUG mentioned (0-1)
   - How do they feel about the drug itself (not their life situation)?
   - 0.0-0.3: Very negative (severe side effects, didn't work, regret taking it)
   - 0.3-0.5: Somewhat negative (more downsides than upsides, considering stopping)
   - 0.5-0.7: Neutral/mixed (pros and cons balance out)
   - 0.7-0.9: Positive (working well, would recommend, manageable sides)
   - 0.9-1.0: Very positive (life-changing drug, no issues, highly recommend)
+  - **CRITICAL**: For EVERY drug mentioned, you MUST provide a sentiment score (0-1)
+    - If explicit sentiment is unclear, ESTIMATE based on context, tone, and overall experience
+    - Use 0.5 (neutral) as baseline if truly ambiguous
+    - NEVER return null/None for any drug - always estimate a numeric value
   - Example: {"Ozempic": 0.85, "Compounded Semaglutide": 0.40}
 - **recommendation_score (REQUIRED - NEVER null)**: Likelihood they'd recommend this drug to a stranger in similar circumstances (0-1)
   - 0.0-0.3: Would not recommend, warn others against it
@@ -739,7 +742,9 @@ THIS IS EXPENSIVE. GET IT RIGHT THE FIRST TIME. EXTRACT EVERYTHING AVAILABLE.
 """
 
 
-def build_post_prompt(title: str, body: str, author_flair: str = "") -> str:
+def build_post_prompt(
+    subreddit: str, title: str, body: str, author_flair: str = ""
+) -> str:
     """
     Build extraction prompt for a Reddit post (no comment chain).
 
@@ -755,9 +760,10 @@ def build_post_prompt(title: str, body: str, author_flair: str = "") -> str:
 
     user_prompt = f"""Extract structured data from this Reddit post.
 
-POST TITLE: {title}
-{flair_section}
-POST BODY:
+SUBREDDIT NAME: {subreddit} 
+POST TITLE: {title} 
+{flair_section} 
+POST BODY: 
 {body}
 
 Extract the data and return JSON."""
@@ -771,7 +777,7 @@ def build_comment_prompt(
     post_body: str,
     comment_chain: list[dict],
     target_comment_id: str,
-    post_author_flair: str = ""
+    post_author_flair: str = "",
 ) -> tuple[str, str]:
     """
     Build extraction prompt for a Reddit comment with full context chain.
@@ -799,13 +805,21 @@ def build_comment_prompt(
     for comment in comment_chain:
         indent = "  " * (comment["depth"] - 1)
         marker = "TARGET → " if comment["comment_id"] == target_comment_id else ""
-        flair = f" [Flair: {comment.get('author_flair', '')}]" if comment.get("author_flair") else ""
+        flair = (
+            f" [Flair: {comment.get('author_flair', '')}]"
+            if comment.get("author_flair")
+            else ""
+        )
         chain_text.append(
             f"{indent}[Depth {comment['depth']} - u/{comment['author']}]{flair} {marker}\n{indent}{comment['body']}"
         )
 
     chain_str = "\n\n".join(chain_text)
-    post_flair_section = f"\nORIGINAL POST AUTHOR FLAIR: {post_author_flair}\n" if post_author_flair else ""
+    post_flair_section = (
+        f"\nORIGINAL POST AUTHOR FLAIR: {post_author_flair}\n"
+        if post_author_flair
+        else ""
+    )
 
     user_prompt = f"""Extract structured data from the TARGET comment in this Reddit conversation.
 
@@ -827,11 +841,7 @@ Return JSON."""
     return SYSTEM_PROMPT, user_prompt
 
 
-def build_context_summary(
-    post_title: str,
-    num_comments: int,
-    subreddit: str
-) -> str:
+def build_context_summary(post_title: str, num_comments: int, subreddit: str) -> str:
     """
     Build a brief context summary for logging/debugging.
 

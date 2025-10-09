@@ -10,7 +10,9 @@ import sys
 from pathlib import Path
 
 # Add apps/post-extraction to path so we can import the module
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "apps" / "post-extraction"))
+sys.path.insert(
+    0, str(Path(__file__).resolve().parents[2] / "apps" / "post-extraction")
+)
 
 from minimum_field_filters import (
     passes_minimum_field_filter,
@@ -21,9 +23,16 @@ from minimum_field_filters import (
 )
 
 
-def test_case(title: str, body: str, flair: str, should_pass: bool, description: str):
+def test_case(
+    title: str,
+    body: str,
+    flair: str,
+    subreddit: str,
+    should_pass: bool,
+    description: str,
+):
     """Test a single case and print results."""
-    result = passes_minimum_field_filter(title, body, flair)
+    result = passes_minimum_field_filter(title, body, flair, subreddit)
     status = "✅ PASS" if result == should_pass else "❌ FAIL"
 
     print(f"\n{status}: {description}")
@@ -31,11 +40,12 @@ def test_case(title: str, body: str, flair: str, should_pass: bool, description:
 
     if result != should_pass:
         # Show diagnostic info for failures
-        diagnosis = diagnose_post(title, body, flair)
+        diagnosis = diagnose_post(title, body, flair, subreddit)
         print(f"Diagnosis: {diagnosis}")
         print(f"Title: {title[:100]}")
         print(f"Body: {body[:100]}")
         print(f"Flair: {flair}")
+        print(f"Subreddit: {subreddit}")
 
     return result == should_pass
 
@@ -63,8 +73,9 @@ def run_tests():
         title="3 month Ozempic update",
         body="Started at 220 lbs, now down to 195 lbs after 12 weeks.",
         flair="35F 5'4\" SW:220 CW:195 GW:150",
+        subreddit="Ozempic",
         should_pass=True,
-        description="Complete post with weight, duration, and drug"
+        description="Complete post with weight, duration, and drug",
     ):
         passed += 1
 
@@ -74,8 +85,9 @@ def run_tests():
         title="Week 8 on Mounjaro",
         body="I'm 200 now, started at 215. Feeling great!",
         flair="",
+        subreddit="Mounjaro",
         should_pass=True,
-        description="Weight from plausible number (200, 215)"
+        description="Weight from plausible number (200, 215)",
     ):
         passed += 1
 
@@ -85,8 +97,9 @@ def run_tests():
         title="Wegovy month 3",
         body="Started this journey back in January.",
         flair="SW:185 CW:170",
+        subreddit="Wegovy",
         should_pass=True,
-        description="Weight in flair (SW/CW), duration in body"
+        description="Weight in flair (SW/CW), duration in body",
     ):
         passed += 1
 
@@ -96,8 +109,9 @@ def run_tests():
         title="Ozempic progress",
         body="Lost 20 pounds in 2 months!",
         flair="",
+        subreddit="Ozempic",
         should_pass=True,
-        description="'pounds' keyword + duration + drug"
+        description="'pounds' keyword + duration + drug",
     ):
         passed += 1
 
@@ -107,8 +121,9 @@ def run_tests():
         title="Mounjaro 6 week update",
         body="Down from 95 kg to 88 kg",
         flair="",
+        subreddit="Mounjaro",
         should_pass=True,
-        description="'kg' keyword + duration + drug"
+        description="'kg' keyword + duration + drug",
     ):
         passed += 1
 
@@ -118,8 +133,9 @@ def run_tests():
         title="Year 1 on semaglutide",
         body="240 to 200 lbs!",
         flair="",
+        subreddit="semaglutide",
         should_pass=True,
-        description="Duration in title, weight in body"
+        description="Duration in title, weight in body",
     ):
         passed += 1
 
@@ -129,8 +145,9 @@ def run_tests():
         title="Zepbound update",
         body="I started at 180 lbs, now at 165.",
         flair="",
+        subreddit="zepbound",
         should_pass=True,
-        description="'started' keyword + weight + drug"
+        description="'started' keyword + weight + drug",
     ):
         passed += 1
 
@@ -148,8 +165,9 @@ def run_tests():
         title="3 months on Ozempic",
         body="Been taking this for 12 weeks now.",
         flair="",
+        subreddit="Ozempic",
         should_pass=False,
-        description="Missing weight information"
+        description="Missing weight information",
     ):
         passed += 1
 
@@ -159,19 +177,21 @@ def run_tests():
         title="Ozempic question",
         body="I'm 200 lbs, was 220 lbs. Taking Ozempic.",
         flair="",
+        subreddit="Ozempic",
         should_pass=False,
-        description="Missing duration/time information"
+        description="Missing duration/time information",
     ):
         passed += 1
 
-    # Test 10: Missing drug name
+    # Test 10: Missing specific drug name (but "weight loss" is a valid keyword)
     total += 1
     if test_case(
-        title="Weight loss update",
+        title="Progress update",
         body="Lost 20 lbs in 3 months, from 200 to 180.",
         flair="",
+        subreddit="loseit",
         should_pass=False,
-        description="Missing drug name"
+        description="Missing drug-related keywords",
     ):
         passed += 1
 
@@ -181,8 +201,9 @@ def run_tests():
         title="Question",
         body="Anyone tried Ozempic?",
         flair="",
+        subreddit="Ozempic",
         should_pass=False,
-        description="No weight or duration mentioned"
+        description="No weight or duration mentioned",
     ):
         passed += 1
 
@@ -192,8 +213,9 @@ def run_tests():
         title="Intermittent fasting results",
         body="I've been fasting for 6 months and lost 30 lbs, from 200 to 170.",
         flair="",
+        subreddit="intermittentfasting",
         should_pass=False,
-        description="Has weight and duration but no GLP-1 drug"
+        description="Has weight and duration but no GLP-1 drug",
     ):
         passed += 1
 
@@ -203,8 +225,9 @@ def run_tests():
         title="Ozempic update",
         body="Started 3 months ago, now at week 12. Down to 50.",
         flair="",
+        subreddit="Ozempic",
         should_pass=False,
-        description="Number 50 is below plausible weight range (80+)"
+        description="Number 50 is below plausible weight range (80+)",
     ):
         passed += 1
 
@@ -214,8 +237,9 @@ def run_tests():
         title="Ozempic question",
         body="I'm on dose 25 for 3 weeks now, any advice?",
         flair="",
+        subreddit="Ozempic",
         should_pass=False,
-        description="Has number (25) but it's a dose, not weight"
+        description="Has number (25) but it's a dose, not weight",
     ):
         passed += 1
 
@@ -233,8 +257,9 @@ def run_tests():
         title="Sema progress - 3 months",
         body="220 to 200 lbs!",
         flair="",
+        subreddit="sema",
         should_pass=True,
-        description="Drug abbreviation (sema) recognized"
+        description="Drug abbreviation (sema) recognized",
     ):
         passed += 1
 
@@ -244,8 +269,9 @@ def run_tests():
         title="Mounjaro journey",
         body="Started at 240 pounds, now 220 pounds after 8 weeks.",
         flair="",
+        subreddit="Mounjaro",
         should_pass=True,
-        description="Multiple weight mentions with 'pounds'"
+        description="Multiple weight mentions with 'pounds'",
     ):
         passed += 1
 
@@ -255,8 +281,9 @@ def run_tests():
         title="Compounded semaglutide update",
         body="180 lbs down to 165 in 2 months",
         flair="",
+        subreddit="compounded",
         should_pass=True,
-        description="Compounded semaglutide recognized as drug"
+        description="Compounded semaglutide recognized as drug",
     ):
         passed += 1
 
@@ -315,7 +342,8 @@ def test_individual_functions():
     assert has_drug_mention("semaglutide journey") == True
     assert has_drug_mention("using sema") == True
     assert has_drug_mention("compounded tirzepatide") == True
-    assert has_drug_mention("no drug mentioned here") == False
+    assert has_drug_mention("generic keyword like drug count") == True  # "drug" is in DRUG_KEYWORDS
+    assert has_drug_mention("no glp mentioned here") == False
     print("✅ Drug detection tests passed")
 
     print("\n✅ ALL INDIVIDUAL FUNCTION TESTS PASSED")
