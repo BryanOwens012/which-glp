@@ -85,13 +85,17 @@ EXTRACTION GUIDELINES:
 - **sentiment_post**: Quality of life/feelings AFTER/while taking the drug (0-1)
   - How do they feel NOW after treatment?
   - Example: "I lost 100 lbs and feel amazing" → 0.95 (very positive post-state)
-- **drug_sentiments**: Sentiment toward EACH SPECIFIC DRUG mentioned (0-1)
+- **drug_sentiments (CRITICAL - NEVER use null)**: Sentiment toward EACH SPECIFIC DRUG mentioned (0-1)
   - How do they feel about the drug itself (not their life situation)?
   - 0.0-0.3: Very negative (severe side effects, didn't work, regret taking it)
   - 0.3-0.5: Somewhat negative (more downsides than upsides, considering stopping)
   - 0.5-0.7: Neutral/mixed (pros and cons balance out)
   - 0.7-0.9: Positive (working well, would recommend, manageable sides)
   - 0.9-1.0: Very positive (life-changing drug, no issues, highly recommend)
+  - **CRITICAL**: For EVERY drug mentioned, you MUST provide a sentiment score (0-1)
+    - If explicit sentiment is unclear, ESTIMATE based on context, tone, and overall experience
+    - Use 0.5 (neutral) as baseline if truly ambiguous
+    - NEVER return null/None for any drug - always estimate a numeric value
   - Example: {"Ozempic": 0.85, "Compounded Semaglutide": 0.40}
 - **recommendation_score (REQUIRED - NEVER null)**: Likelihood they'd recommend this drug to a stranger in similar circumstances (0-1)
   - 0.0-0.3: Would not recommend, warn others against it

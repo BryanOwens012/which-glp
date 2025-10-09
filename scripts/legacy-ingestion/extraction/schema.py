@@ -117,9 +117,9 @@ class ExtractedFeatures(BaseModel):
         None,
         description="The main drug being discussed"
     )
-    drug_sentiments: Dict[str, float] = Field(
+    drug_sentiments: Dict[str, Optional[float]] = Field(
         default_factory=dict,
-        description="Sentiment score (0-1) toward each drug mentioned. 0=very negative, 0.5=neutral, 1=very positive"
+        description="Sentiment score (0-1) toward each drug mentioned. 0=very negative, 0.5=neutral, 1=very positive. Can be None if sentiment is unclear."
     )
 
     # Overall sentiment
@@ -323,12 +323,17 @@ class ExtractedFeatures(BaseModel):
 
     @field_validator("drug_sentiments", mode="before")
     @classmethod
-    def validate_drug_sentiments(cls, v: Optional[Dict[str, float]]) -> Dict[str, float]:
-        """Validate sentiment scores are between 0 and 1"""
+    def validate_drug_sentiments(cls, v: Optional[Dict[str, Optional[float]]]) -> Dict[str, Optional[float]]:
+        """Validate sentiment scores are between 0 and 1, allow None values"""
         if v is None:
             return {}
         validated = {}
         for drug, score in v.items():
+            # Allow None values (GLM may not have sentiment for all drugs)
+            if score is None:
+                validated[drug.strip().title()] = None
+                continue
+            # Validate score is in range
             if not (0 <= score <= 1):
                 raise ValueError(f"Sentiment score for {drug} must be between 0 and 1, got {score}")
             validated[drug.strip().title()] = score
