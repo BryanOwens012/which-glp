@@ -8,7 +8,9 @@
  * Schedule: Every 2 days at noon UTC (0 12 */2 * *)
  */
 
-const SERVICE_URL = process.env.POST_INGESTION_URL ? `https://${process.env.POST_INGESTION_URL}` : "http://post-ingestion.railway.internal";
+const SERVICE_URL = process.env.POST_INGESTION_URL
+  ? `https://${process.env.POST_INGESTION_URL}`
+  : "http://post-ingestion.railway.internal";
 const ENDPOINT = "/api/ingest";
 
 const ingestPosts = async () => {
@@ -21,21 +23,25 @@ const ingestPosts = async () => {
   try {
     console.log("📡 Sending request to post-ingestion service...");
     console.log(`   Method: POST`);
-    console.log(`   Body: ${JSON.stringify({ all_tiers: true, posts_limit: 100 })}`);
+    console.log(
+      `   Body: ${JSON.stringify({ all_tiers: true, posts_limit: 100 })}`
+    );
 
     const response = await fetch(`${SERVICE_URL}${ENDPOINT}`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
         all_tiers: true,
-        posts_limit: 100
-      })
+        posts_limit: 100,
+      }),
     });
 
     console.log(`📥 Response Status: ${response.status} ${response.statusText}`);
-    console.log(`   Headers: ${JSON.stringify(Object.fromEntries(response.headers))}`);
+    console.log(
+      `   Headers: ${JSON.stringify(Object.fromEntries(response.headers))}`
+    );
 
     const data = await response.json();
 

@@ -5,7 +5,9 @@
  * Schedule: Every 2 days at noon UTC (0 12 */2 * *)
  */
 
-const SERVICE_URL = process.env.USER_EXTRACTION_URL ? `https://${process.env.USER_EXTRACTION_URL}` : "http://user-extraction.railway.internal";
+const SERVICE_URL = process.env.USER_EXTRACTION_URL
+  ? `https://${process.env.USER_EXTRACTION_URL}`
+  : "http://user-extraction.railway.internal";
 const ENDPOINT = "/api/analyze";
 
 const analyzeUsers = async () => {
@@ -18,21 +20,25 @@ const analyzeUsers = async () => {
   try {
     console.log("📡 Sending request to user-extraction service...");
     console.log(`   Method: POST`);
-    console.log(`   Body: ${JSON.stringify({ limit: 10, rate_limit_delay: 2.0 })}`);
+    console.log(
+      `   Body: ${JSON.stringify({ limit: 10, rate_limit_delay: 2.0 })}`
+    );
 
     const response = await fetch(`${SERVICE_URL}${ENDPOINT}`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
         limit: 10,
-        rate_limit_delay: 2.0
-      })
+        rate_limit_delay: 2.0,
+      }),
     });
 
     console.log(`📥 Response Status: ${response.status} ${response.statusText}`);
-    console.log(`   Headers: ${JSON.stringify(Object.fromEntries(response.headers))}`);
+    console.log(
+      `   Headers: ${JSON.stringify(Object.fromEntries(response.headers))}`
+    );
 
     const data = await response.json();
 

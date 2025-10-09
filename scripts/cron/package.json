@@ -1,0 +1,12 @@
+{
+  "name": "whichglp-cron-triggers",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Railway cron job triggers for WhichGLP services",
+  "scripts": {
+    "trigger:post-ingestion": "bun post-ingestion-cron.ts",
+    "trigger:post-extraction": "bun post-extraction-cron.ts",
+    "trigger:user-extraction": "bun user-extraction-cron.ts",
+    "trigger:view-refresher": "bun view-refresher-cron.ts"
+  }
+}
