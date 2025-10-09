@@ -141,7 +141,7 @@ const ComparePage = () => {
               Compare
             </Button>
             <Button size="lg" variant="outline" asChild>
-              <Link href="/recommendations">Recommend for Me</Link>
+              <Link href="/recommendations">Recommend for Me (AI)</Link>
             </Button>
           </div>
         </div>
