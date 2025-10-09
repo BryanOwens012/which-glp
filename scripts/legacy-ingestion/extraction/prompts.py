@@ -275,6 +275,462 @@ These fields must ALWAYS be an array, even if empty. null is INVALID and will ca
 ✓ side_effects is [] or [{"name": "...", "severity": "...", "confidence": "..."}], NOT null
 ✓ summary is a string, NOT null
 ✓ All list fields are arrays [], NOT null
+
+═══════════════════════════════════════════════════════════════════════════════
+🚨 CRITICAL IMPORTANCE - READ THIS SECTION CAREFULLY 🚨
+═══════════════════════════════════════════════════════════════════════════════
+
+This extraction service is EXTREMELY EXPENSIVE in both compute resources and money.
+Each extraction costs real money and processing time. It is ABSOLUTELY CRITICAL that
+you extract ALL available data with MAXIMUM ACCURACY on the FIRST ATTEMPT.
+
+DO NOT leave fields empty when data is available in the text.
+DO NOT use generic summaries - be specific and detailed.
+DO NOT miss demographic data (age, sex, state, country) - this is critical for personalization.
+DO NOT skip extracting weights, costs, or durations when mentioned.
+DO NOT forget to extract sentiment scores - these drive our recommendation engine.
+
+EVERY FIELD MATTERS. EVERY EXTRACTION COUNTS. BE THOROUGH AND PRECISE.
+
+═══════════════════════════════════════════════════════════════════════════════
+COMPREHENSIVE EXTRACTION EXAMPLES - STUDY THESE CAREFULLY
+═══════════════════════════════════════════════════════════════════════════════
+
+**EXAMPLE 1: Complete Extraction with Flair Data**
+
+INPUT:
+---
+POST TITLE: "3 month update - feeling amazing!"
+AUTHOR FLAIR: "35F 5'4\" SW:220 CW:195 GW:150"
+POST BODY: "Started Ozempic in January at 0.25mg. Had terrible nausea for the first 2 weeks
+but it completely went away. Now on 1mg dose. My insurance (Blue Cross Blue Shield) covers
+it so I only pay $25/month. I also have PCOS and type 2 diabetes. My A1C dropped from 7.2
+to 5.8! I'm walking 30 minutes every day and doing low carb. Before starting I was depressed
+about my weight, now I feel so much more confident. I'd definitely recommend this to anyone
+struggling with weight and diabetes."
+---
+
+CORRECT EXTRACTION:
+{
+  "summary": "I started Ozempic in January at 220 lbs and I'm now down to 195 lbs after 3 months. I had terrible nausea for the first 2 weeks but it completely resolved. I'm on 1mg dose now, paying $25/month with Blue Cross Blue Shield insurance. My A1C improved from 7.2 to 5.8, and I feel so much more confident than before I started.",
+  "beginning_weight": {"value": 220, "unit": "lbs", "confidence": "high"},
+  "end_weight": {"value": 195, "unit": "lbs", "confidence": "high"},
+  "duration_weeks": 12,
+  "cost_per_month": 25.0,
+  "currency": "USD",
+  "drugs_mentioned": ["Ozempic"],
+  "primary_drug": "Ozempic",
+  "drug_sentiments": {"Ozempic": 0.9},
+  "sentiment_pre": 0.25,
+  "sentiment_post": 0.9,
+  "recommendation_score": 0.95,
+  "has_insurance": true,
+  "insurance_provider": "Blue Cross Blue Shield",
+  "side_effects": [
+    {"name": "nausea", "severity": "severe", "confidence": "high"}
+  ],
+  "comorbidities": ["pcos", "type 2 diabetes"],
+  "location": null,
+  "age": 35,
+  "sex": "female",
+  "state": null,
+  "country": null,
+  "dosage_progression": "started 0.25mg, now 1mg",
+  "exercise_frequency": "daily 30min walk",
+  "dietary_changes": "low carb",
+  "previous_weight_loss_attempts": [],
+  "drug_source": "brand",
+  "switching_drugs": null,
+  "side_effect_timing": "first 2 weeks",
+  "side_effect_resolution": 0.0,
+  "food_intolerances": [],
+  "plateau_mentioned": false,
+  "rebound_weight_gain": false,
+  "labs_improvement": ["a1c from 7.2 to 5.8"],
+  "medication_reduction": [],
+  "nsv_mentioned": ["feel more confident"],
+  "support_system": null,
+  "pharmacy_access_issues": false,
+  "mental_health_impact": "was depressed, now confident",
+  "confidence_score": 0.95
+}
+
+**WHY THIS IS CORRECT:**
+✓ Summary captures ALL key points in first person
+✓ Weight from flair (SW:220, CW:195) extracted with high confidence
+✓ Age (35) and sex (F) from flair extracted correctly
+✓ Duration calculated from "3 months" = 12 weeks
+✓ All sentiment scores properly differentiated (pre=depressed, post=confident, drug=positive)
+✓ Side effects with severity AND resolution timing
+✓ Comorbidities vs side effects correctly distinguished
+✓ Cost, insurance, dosage all captured
+✓ Labs improvement extracted from A1C mention
+✓ ALL list fields are arrays [], never null
+✓ Confidence score high (0.95) because data is explicit
+
+---
+
+**EXAMPLE 2: Minimal Data Post - Still Extract What's Available**
+
+INPUT:
+---
+POST TITLE: "Week 5 on Mounjaro - down 8 lbs"
+AUTHOR FLAIR: "28M"
+POST BODY: "Feeling good so far. Some constipation but nothing terrible."
+---
+
+CORRECT EXTRACTION:
+{
+  "summary": "I'm on week 5 of Mounjaro and I've lost 8 lbs so far. I'm experiencing some constipation but it's manageable.",
+  "beginning_weight": null,
+  "end_weight": null,
+  "duration_weeks": 5,
+  "cost_per_month": null,
+  "currency": "USD",
+  "drugs_mentioned": ["Mounjaro"],
+  "primary_drug": "Mounjaro",
+  "drug_sentiments": {"Mounjaro": 0.75},
+  "sentiment_pre": null,
+  "sentiment_post": 0.7,
+  "recommendation_score": null,
+  "has_insurance": null,
+  "insurance_provider": null,
+  "side_effects": [
+    {"name": "constipation", "severity": "mild", "confidence": "high"}
+  ],
+  "comorbidities": [],
+  "location": null,
+  "age": 28,
+  "sex": "male",
+  "state": null,
+  "country": null,
+  "dosage_progression": null,
+  "exercise_frequency": null,
+  "dietary_changes": null,
+  "previous_weight_loss_attempts": [],
+  "drug_source": null,
+  "switching_drugs": null,
+  "side_effect_timing": null,
+  "side_effect_resolution": null,
+  "food_intolerances": [],
+  "plateau_mentioned": false,
+  "rebound_weight_gain": false,
+  "labs_improvement": [],
+  "medication_reduction": [],
+  "nsv_mentioned": [],
+  "support_system": null,
+  "pharmacy_access_issues": false,
+  "mental_health_impact": null,
+  "confidence_score": 0.65
+}
+
+**WHY THIS IS CORRECT:**
+✓ Summary still descriptive despite minimal content
+✓ Duration extracted (5 weeks)
+✓ Age and sex from flair (28M) extracted
+✓ Side effect extracted with severity assessment (mild, not terrible)
+✓ Drug sentiment positive but not extremely high (0.75, "feeling good")
+✓ Post sentiment moderate (0.7, "feeling good")
+✓ Weight not mentioned so marked as null (correct - don't guess)
+✓ ALL list fields are [], not null
+✓ Lower confidence score (0.65) appropriate for limited data
+
+---
+
+**EXAMPLE 3: Negative Experience - Accurate Sentiment Extraction**
+
+INPUT:
+---
+POST TITLE: "Stopping Wegovy after 2 months - horrible experience"
+AUTHOR FLAIR: "42F SW:185 CW:180"
+POST BODY: "I started Wegovy hoping to lose weight but the side effects were unbearable.
+Constant nausea, vomiting every other day, couldn't eat anything without feeling sick.
+Lost 5 lbs but mostly from being unable to eat. My doctor said to push through but I
+can't do this anymore. Paid $300/month out of pocket since insurance denied it. Would
+NOT recommend this drug to anyone. Going to try Mounjaro instead."
+---
+
+CORRECT EXTRACTION:
+{
+  "summary": "I started Wegovy 2 months ago at 185 lbs and I'm now 180 lbs, but I'm stopping because the side effects were unbearable. I had constant nausea and vomiting every other day, couldn't eat without feeling sick. I paid $300/month out of pocket since insurance denied coverage. I would not recommend Wegovy to anyone and I'm switching to Mounjaro instead.",
+  "beginning_weight": {"value": 185, "unit": "lbs", "confidence": "high"},
+  "end_weight": {"value": 180, "unit": "lbs", "confidence": "high"},
+  "duration_weeks": 8,
+  "cost_per_month": 300.0,
+  "currency": "USD",
+  "drugs_mentioned": ["Wegovy", "Mounjaro"],
+  "primary_drug": "Wegovy",
+  "drug_sentiments": {"Wegovy": 0.1},
+  "sentiment_pre": null,
+  "sentiment_post": 0.2,
+  "recommendation_score": 0.05,
+  "has_insurance": false,
+  "insurance_provider": null,
+  "side_effects": [
+    {"name": "nausea", "severity": "severe", "confidence": "high"},
+    {"name": "vomiting", "severity": "severe", "confidence": "high"}
+  ],
+  "comorbidities": [],
+  "location": null,
+  "age": 42,
+  "sex": "female",
+  "state": null,
+  "country": null,
+  "dosage_progression": null,
+  "exercise_frequency": null,
+  "dietary_changes": null,
+  "previous_weight_loss_attempts": [],
+  "drug_source": "brand",
+  "switching_drugs": "stopping Wegovy, trying Mounjaro due to severe side effects",
+  "side_effect_timing": "constant throughout",
+  "side_effect_resolution": 1.0,
+  "food_intolerances": [],
+  "plateau_mentioned": false,
+  "rebound_weight_gain": false,
+  "labs_improvement": [],
+  "medication_reduction": [],
+  "nsv_mentioned": [],
+  "support_system": "doctor advised to push through",
+  "pharmacy_access_issues": false,
+  "mental_health_impact": null,
+  "confidence_score": 0.9
+}
+
+**WHY THIS IS CORRECT:**
+✓ Summary captures negative experience accurately and completely
+✓ Sentiment scores VERY LOW reflecting terrible experience (drug=0.1, post=0.2, rec=0.05)
+✓ Side effects marked as SEVERE (not mild, because "unbearable")
+✓ side_effect_resolution = 1.0 (no improvement, gotten worse)
+✓ has_insurance = false (insurance DENIED, paying out of pocket)
+✓ switching_drugs captured with reason
+✓ Both drugs mentioned (Wegovy primary, Mounjaro mentioned for future)
+✓ Age, sex, weights all extracted from flair
+✓ High confidence (0.9) despite negative experience - data is clear
+
+---
+
+**EXAMPLE 4: Insurance and Location Details**
+
+INPUT:
+---
+POST TITLE: "Insurance finally approved! Texas residents - here's my process"
+AUTHOR FLAIR: "31F"
+POST BODY: "After 3 denials, Aetna finally approved my Zepbound for T2D. I'm in Dallas, TX.
+Had to get letters from my PCP and endocrinologist proving medical necessity. Copay is
+$50/month which is way better than the $1100 retail price. Started 2 weeks ago at 2.5mg,
+some mild nausea but nothing crazy. Previously tried keto and Weight Watchers with no
+lasting success."
+---
+
+CORRECT EXTRACTION:
+{
+  "summary": "I'm in Dallas, Texas and after 3 denials, my insurance (Aetna) finally approved Zepbound for type 2 diabetes. I pay a $50/month copay instead of $1100 retail. I started 2 weeks ago at 2.5mg with some mild nausea. I previously tried keto and Weight Watchers without lasting success.",
+  "beginning_weight": null,
+  "end_weight": null,
+  "duration_weeks": 2,
+  "cost_per_month": 50.0,
+  "currency": "USD",
+  "drugs_mentioned": ["Zepbound"],
+  "primary_drug": "Zepbound",
+  "drug_sentiments": {"Zepbound": 0.75},
+  "sentiment_pre": null,
+  "sentiment_post": 0.7,
+  "recommendation_score": null,
+  "has_insurance": true,
+  "insurance_provider": "Aetna",
+  "side_effects": [
+    {"name": "nausea", "severity": "mild", "confidence": "high"}
+  ],
+  "comorbidities": ["type 2 diabetes"],
+  "location": "Dallas, TX",
+  "age": 31,
+  "sex": "female",
+  "state": "Texas",
+  "country": "USA",
+  "dosage_progression": "started 2.5mg",
+  "exercise_frequency": null,
+  "dietary_changes": null,
+  "previous_weight_loss_attempts": ["keto", "weight watchers"],
+  "drug_source": "brand",
+  "switching_drugs": null,
+  "side_effect_timing": null,
+  "side_effect_resolution": null,
+  "food_intolerances": [],
+  "plateau_mentioned": false,
+  "rebound_weight_gain": false,
+  "labs_improvement": [],
+  "medication_reduction": [],
+  "nsv_mentioned": [],
+  "support_system": "required letters from PCP and endocrinologist",
+  "pharmacy_access_issues": false,
+  "mental_health_impact": null,
+  "confidence_score": 0.85
+}
+
+**WHY THIS IS CORRECT:**
+✓ Location extracted: Dallas, TX → location, state, country all filled
+✓ Insurance details complete: has_insurance=true, provider="Aetna", cost=$50
+✓ Previous attempts extracted as array: ["keto", "weight watchers"]
+✓ Comorbidity extracted: type 2 diabetes (T2D)
+✓ Support system note about insurance approval process
+✓ Side effect severity correctly assessed as "mild" ("nothing crazy")
+✓ Duration short (2 weeks) so many fields appropriately null
+✓ Age and sex from flair
+
+---
+
+**EXAMPLE 5: Complex Dosage and Drug Switching**
+
+INPUT:
+---
+POST TITLE: "Switched from Ozempic to compounded semaglutide - cost savings!"
+POST BODY: "Was on brand Ozempic for 6 months, went from 240 lbs to 215 lbs. Insurance
+stopped covering it and it was going to be $900/month. Found a compounding pharmacy and
+now I get the same thing for $200/month. Started at 0.25mg, went to 0.5mg after a month,
+then 1mg at month 3, now on 2mg since month 5. The compounded version works just as well.
+I'm 45, male, in California. Also have high blood pressure and sleep apnea - both have
+improved significantly."
+---
+
+CORRECT EXTRACTION:
+{
+  "summary": "I was on brand Ozempic for 6 months and lost 25 lbs (240 to 215). When insurance stopped covering it at $900/month, I switched to compounded semaglutide for $200/month. I started at 0.25mg, increased to 0.5mg after a month, then 1mg at month 3, and I'm now on 2mg since month 5. The compounded version works just as well. My high blood pressure and sleep apnea have both improved significantly.",
+  "beginning_weight": {"value": 240, "unit": "lbs", "confidence": "high"},
+  "end_weight": {"value": 215, "unit": "lbs", "confidence": "high"},
+  "duration_weeks": 24,
+  "cost_per_month": 200.0,
+  "currency": "USD",
+  "drugs_mentioned": ["Ozempic", "Compounded Semaglutide"],
+  "primary_drug": "Compounded Semaglutide",
+  "drug_sentiments": {"Ozempic": 0.85, "Compounded Semaglutide": 0.85},
+  "sentiment_pre": null,
+  "sentiment_post": 0.85,
+  "recommendation_score": 0.9,
+  "has_insurance": false,
+  "insurance_provider": null,
+  "side_effects": [],
+  "comorbidities": ["hypertension", "sleep apnea"],
+  "location": "California",
+  "age": 45,
+  "sex": "male",
+  "state": "California",
+  "country": "USA",
+  "dosage_progression": "0.25mg → 0.5mg (month 1) → 1mg (month 3) → 2mg (month 5)",
+  "exercise_frequency": null,
+  "dietary_changes": null,
+  "previous_weight_loss_attempts": [],
+  "drug_source": "compounded",
+  "switching_drugs": "switched from brand Ozempic to compounded semaglutide due to cost ($900 to $200/month)",
+  "side_effect_timing": null,
+  "side_effect_resolution": null,
+  "food_intolerances": [],
+  "plateau_mentioned": false,
+  "rebound_weight_gain": false,
+  "labs_improvement": [],
+  "medication_reduction": [],
+  "nsv_mentioned": ["blood pressure improved", "sleep apnea improved"],
+  "support_system": null,
+  "pharmacy_access_issues": false,
+  "mental_health_impact": null,
+  "confidence_score": 0.95
+}
+
+**WHY THIS IS CORRECT:**
+✓ Both drugs mentioned in drugs_mentioned array
+✓ Primary drug is current one (Compounded Semaglutide)
+✓ switching_drugs clearly explains the transition and reason (cost)
+✓ dosage_progression detailed with timeline
+✓ drug_source correctly identified as "compounded"
+✓ has_insurance = false (they HAD insurance but it stopped covering, now paying out of pocket)
+✓ cost_per_month is CURRENT cost ($200, not the old $900)
+✓ Location, state, country all extracted
+✓ Comorbidities normalized ("high blood pressure" → "hypertension")
+✓ NSV captured health improvements
+✓ Duration is total (6 months = 24 weeks)
+
+═══════════════════════════════════════════════════════════════════════════════
+COMMON MISTAKES TO AVOID - DO NOT MAKE THESE ERRORS
+═══════════════════════════════════════════════════════════════════════════════
+
+❌ WRONG: Leaving summary generic
+   "I am taking Ozempic and losing weight."
+✓ RIGHT: Specific and detailed
+   "I started Ozempic 3 months ago at 200 lbs and I'm now 175 lbs, paying $25/month with insurance."
+
+❌ WRONG: Missing flair data
+   Flair says "35F SW:200" but you extract age=null, sex=null, beginning_weight=null
+✓ RIGHT: Always parse flair first
+   age=35, sex="female", beginning_weight={"value": 200, "unit": "lbs", "confidence": "high"}
+
+❌ WRONG: Confusing sentiment_pre with drug_sentiments
+   "I was miserable before Ozempic" → drug_sentiments={"Ozempic": 0.1}
+✓ RIGHT: Pre-drug misery is sentiment_pre, not drug sentiment
+   sentiment_pre=0.1, drug_sentiments={"Ozempic": 0.9}
+
+❌ WRONG: Using null for arrays
+   side_effects: null
+✓ RIGHT: Empty arrays
+   side_effects: []
+
+❌ WRONG: Guessing values not in text
+   Post mentions "lost some weight" → beginning_weight={"value": 200, ...}
+✓ RIGHT: Use null when not explicit
+   beginning_weight=null, end_weight=null
+
+❌ WRONG: Wrong data types
+   duration_weeks: {"value": 12, "confidence": "high"}
+✓ RIGHT: Plain number
+   duration_weeks: 12
+
+❌ WRONG: Missing side effect severity
+   side_effects: [{"name": "nausea"}]
+✓ RIGHT: Include severity and confidence
+   side_effects: [{"name": "nausea", "severity": "moderate", "confidence": "high"}]
+
+❌ WRONG: Confusing comorbidities with side effects
+   "I have diabetes and started getting nausea from Ozempic"
+   side_effects: [{"name": "diabetes", ...}, {"name": "nausea", ...}]
+✓ RIGHT: Distinguish pre-existing from new symptoms
+   comorbidities: ["diabetes"], side_effects: [{"name": "nausea", ...}]
+
+❌ WRONG: Missing location data
+   Post says "I'm in Texas" but state=null, country=null
+✓ RIGHT: Extract all geographic mentions
+   location="Texas", state="Texas", country="USA"
+
+❌ WRONG: Incorrect has_insurance value
+   "Paying $25 copay" → has_insurance=null
+✓ RIGHT: Copay indicates insurance
+   has_insurance=true, cost_per_month=25.0
+
+═══════════════════════════════════════════════════════════════════════════════
+FINAL REMINDER - YOUR EXTRACTION CHECKLIST
+═══════════════════════════════════════════════════════════════════════════════
+
+Before submitting your extraction, verify EVERY item:
+
+□ Summary is detailed, first-person, captures ALL key points (not generic)
+□ Checked author flair for age, sex, weights (SW, CW, GW)
+□ Extracted ALL drugs mentioned, identified primary drug
+□ Extracted ALL side effects with severity + confidence
+□ Separated comorbidities (pre-existing) from side effects (new)
+□ Calculated duration in weeks (1 month = 4 weeks, 1 year = 52 weeks)
+□ Extracted cost if mentioned (check for insurance/copay vs out-of-pocket)
+□ Set has_insurance correctly (true if copay/coverage, false if denied/OOP, null if unknown)
+□ Extracted location, state, country if ANY geographic mention
+□ Extracted age, sex from text OR flair
+□ Set sentiment_pre (BEFORE drug), sentiment_post (AFTER/current), drug_sentiments (about drug)
+□ Set recommendation_score based on whether they'd recommend to others
+□ Extracted dosage_progression with timeline if mentioned
+□ Extracted exercise_frequency, dietary_changes if mentioned
+□ Extracted previous_weight_loss_attempts as array
+□ Extracted labs_improvement, medication_reduction, nsv_mentioned as arrays
+□ ALL array fields are [] not null (drugs_mentioned, side_effects, comorbidities, etc.)
+□ ALL sentiment scores are 0-1 floats (not objects, not strings)
+□ duration_weeks, age, cost_per_month are plain numbers (not objects)
+□ Confidence score reflects data quality (0.9+ for explicit, 0.5-0.7 for partial)
+
+THIS IS EXPENSIVE. GET IT RIGHT THE FIRST TIME. EXTRACT EVERYTHING AVAILABLE.
 """
 
 
