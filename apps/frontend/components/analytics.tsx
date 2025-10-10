@@ -18,9 +18,10 @@ export function Analytics() {
   const searchParams = useSearchParams()
 
   useEffect(() => {
-    if (typeof window.gtag !== "undefined") {
+    const GA_TAG = process.env.NEXT_PUBLIC_GA_TAG
+    if (GA_TAG && typeof window.gtag !== "undefined") {
       const url = pathname + (searchParams.toString() ? `?${searchParams.toString()}` : "")
-      window.gtag("config", "G-1JJ2DG0KPD", {
+      window.gtag("config", GA_TAG, {
         page_path: url,
       })
     }

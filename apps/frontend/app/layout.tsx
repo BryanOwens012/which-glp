@@ -160,21 +160,25 @@ const RootLayout = ({
         />
 
         {/* Google tag (gtag.js) - deferred to load after page interactive */}
-        <script
-          defer
-          src="https://www.googletagmanager.com/gtag/js?id=G-1JJ2DG0KPD"
-        ></script>
-        <script
-          defer
-          dangerouslySetInnerHTML={{
-            __html: `
-              window.dataLayer = window.dataLayer || [];
-              function gtag(){dataLayer.push(arguments);}
-              gtag('js', new Date());
-              gtag('config', 'G-1JJ2DG0KPD');
-            `,
-          }}
-        />
+        {process.env.NEXT_PUBLIC_GA_TAG && (
+          <>
+            <script
+              defer
+              src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GA_TAG}`}
+            ></script>
+            <script
+              defer
+              dangerouslySetInnerHTML={{
+                __html: `
+                  window.dataLayer = window.dataLayer || [];
+                  function gtag(){dataLayer.push(arguments);}
+                  gtag('js', new Date());
+                  gtag('config', '${process.env.NEXT_PUBLIC_GA_TAG}');
+                `,
+              }}
+            />
+          </>
+        )}
       </head>
       <body className={`font-sans ${geistSans.variable} ${geistMono.variable}`}>
         <Providers>
