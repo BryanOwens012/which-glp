@@ -2,9 +2,10 @@ import type React from "react";
 import type { Metadata } from "next";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
-import { Analytics } from "@vercel/analytics/next";
+import { Analytics as VercelAnalytics } from "@vercel/analytics/next";
 import { Suspense } from "react";
 import { Providers } from "@/components/providers";
+import { Analytics } from "@/components/analytics";
 import "./globals.css";
 
 // Configure fonts with display: swap for better performance
@@ -18,6 +19,12 @@ export const metadata: Metadata = {
   },
   description:
     "Compare weight-loss drugs like Ozempic, Wegovy, Mounjaro, and Zepbound using real-world data. Make informed decisions based on thousands of user experiences, cost analysis, and outcome predictions.",
+  viewport: {
+    width: 'device-width',
+    initialScale: 1,
+    maximumScale: 5,
+    userScalable: true,
+  },
   keywords: [
     "GLP-1",
     "agonist",
@@ -114,6 +121,9 @@ const RootLayout = ({
         <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
         <link rel="preconnect" href="https://www.google-analytics.com" />
         <link rel="dns-prefetch" href="https://www.google-analytics.com" />
+        {/* Preconnect to API domain for faster tRPC requests */}
+        <link rel="preconnect" href={process.env.NEXT_PUBLIC_API_URL?.replace('/trpc', '') || ''} crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href={process.env.NEXT_PUBLIC_API_URL?.replace('/trpc', '') || ''} />
 
         {/* Inline critical CSS for immediate render */}
         <style
@@ -149,12 +159,13 @@ const RootLayout = ({
           }}
         />
 
-        {/* Google tag (gtag.js) - deferred for non-blocking */}
+        {/* Google tag (gtag.js) - deferred to load after page interactive */}
         <script
-          async
+          defer
           src="https://www.googletagmanager.com/gtag/js?id=G-1JJ2DG0KPD"
         ></script>
         <script
+          defer
           dangerouslySetInnerHTML={{
             __html: `
               window.dataLayer = window.dataLayer || [];
@@ -170,8 +181,9 @@ const RootLayout = ({
           <Suspense fallback={null}>
             {/* <Scrim>{children}</Scrim> */}
             {children}
+            <Analytics />
           </Suspense>
-          <Analytics />
+          <VercelAnalytics />
         </Providers>
       </body>
     </html>

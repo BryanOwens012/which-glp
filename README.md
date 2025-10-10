@@ -1,30 +1,21 @@
 # WhichGLP
 
-Real-world dashboard for GLP-1 weight-loss drug outcomes by aggregating Reddit/Twitter posts and user-submitted reviews. Mission is to help people make educated decisions when choosing their weight-loss drug.
+Real-world dashboard for GLP-1 weight-loss drug outcomes by analyzing and aggregating Reddit posts. Mission is to help people make educated decisions when choosing their weight-loss drug.
 
 I've accelerated development by prompting Claude Code to generate code. More details at [docs/AGENTS.md](docs/AGENTS.md).
 
-Once complete, this project will be available at whichglp.com.
+The website is available at: [whichglp.com](https://whichglp.com)
 
-## Tech Stack So Far
+## Tech Stack
 
-I'm currently running this stack locally and non-containerized, to seed the Supabase DB with historical Reddit posts + comments.
-
-- **Data Ingestion:** Reddit API (PRAW/custom HTTP client) with Python
-- **Database:** PostgreSQL via Supabase (free tier: 500MB, upgrade to Pro: 8GB @ $25/month)
-
-I'll progressively add more stack as necessary. No need to prematurely optimize.
-
-## Full Tech Stack Vision
-
-### API
+### API service
 
 - **Runtime:** Node.js 20+
 - **Framework:** Express.js
 - **API Layer:** tRPC (end-to-end type safety with frontend)
 - **Database ORM:** Prisma
 - **Caching/Rate Limiting:** Redis
-- **Data Ingestion:** Reddit API (PRAW/custom HTTP client), Twitter API (via twitterapi.io)
+- **Data Ingestion:** Reddit API (PRAW/custom HTTP client)
 - **Scraping Backup:** Playwright (when APIs rate-limited/unavailable)
 - **AI Processing:** Claude Sonnet 4 API (extract structured data from posts)
 - **Recommendation Engine:** FastAPI + Python microservice (KNN-based ML recommendations)
@@ -44,13 +35,12 @@ I'll progressively add more stack as necessary. No need to prematurely optimize.
 - **Auth:** Supabase Auth
 - **API Hosting:** Railway (Express + tRPC + Redis + Playwright)
 - **Frontend Hosting:** Vercel
-- **Containerization:** Not present initially, Docker added later for production
 
 ### Architecture Notes
 
-- **Primary ingestion:** Reddit API + Twitter API (twitterapi.io proxy)
+- **Primary ingestion:** Reddit API (PRAW/custom HTTP client)
 - **Backup ingestion:** Playwright scraping (fallback when API limits exceeded)
 - **Type safety:** tRPC ensures frontend/api contract enforcement
-- **Supabase benefits:** PostgreSQL + Auth + Storage + Realtime in single platform
+- **Supabase benefits:** PostgreSQL + Auth + Storage + Realtime in single platform; but we primarily use the PostgreSQL
 - **Railway deployment:** Separate services for frontend, API (Node.js), and rec-engine (Python)
 

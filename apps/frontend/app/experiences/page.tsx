@@ -205,6 +205,7 @@ const ExperiencesPage = () => {
                   size="icon"
                   onClick={() => setSortOrder(sortOrder === SortDirection.ASC ? SortDirection.DESC : SortDirection.ASC)}
                   title={SORT_DIRECTION_TOOLTIPS[sortOrder as SortDirection]}
+                  aria-label={`Toggle sort order: ${SORT_DIRECTION_TOOLTIPS[sortOrder as SortDirection]}`}
                   className="shrink-0 cursor-pointer"
                 >
                   <ArrowUpDown className={`h-4 w-4 transition-transform ${sortOrder === SortDirection.ASC ? "rotate-180" : ""}`} />

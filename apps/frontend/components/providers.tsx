@@ -5,13 +5,22 @@ import { httpBatchLink } from '@trpc/client'
 import { useState } from 'react'
 import superjson from 'superjson'
 import { trpc } from '@/lib/trpc'
+import { TooltipProvider } from '@/components/ui/tooltip'
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient({
     defaultOptions: {
       queries: {
-        staleTime: 60 * 1000, // 1 minute
+        staleTime: 5 * 60 * 1000, // 5 minutes - drug data doesn't change frequently
+        cacheTime: 10 * 60 * 1000, // 10 minutes - keep in cache longer
         refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
+        retry: 1, // Only retry once to avoid unnecessary requests
+        // Enable structural sharing for better performance
+        structuralSharing: true,
+      },
+      mutations: {
+        retry: 1,
       },
     },
   }))
@@ -30,7 +39,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <trpc.Provider client={trpcClient} queryClient={queryClient}>
       <QueryClientProvider client={queryClient}>
-        {children}
+        <TooltipProvider delayDuration={300} skipDelayDuration={100}>
+          {children}
+        </TooltipProvider>
       </QueryClientProvider>
     </trpc.Provider>
   )
