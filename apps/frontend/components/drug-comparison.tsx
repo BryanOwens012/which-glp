@@ -94,7 +94,7 @@ export const DrugComparison = () => {
         <h2 className="mb-4 text-lg font-semibold">Select Drugs to Compare</h2>
         {isLoading ? (
           // Loading spinner
-          <div className="flex items-center justify-center py-8">
+          <div className="flex items-center justify-center py-4">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
         ) : isError ? (
