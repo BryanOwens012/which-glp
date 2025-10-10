@@ -1,5 +1,5 @@
 import type React from "react";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import { Analytics as VercelAnalytics } from "@vercel/analytics/next";
@@ -12,6 +12,13 @@ import "./globals.css";
 const geistSans = GeistSans;
 const geistMono = GeistMono;
 
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+};
+
 export const metadata: Metadata = {
   title: {
     default: "WhichGLP - Weight-Loss Drugs - Real-World Reviews & Outcomes",
@@ -19,12 +26,6 @@ export const metadata: Metadata = {
   },
   description:
     "Compare weight-loss drugs like Ozempic, Wegovy, Mounjaro, and Zepbound using real-world data. Make informed decisions based on thousands of user experiences, cost analysis, and outcome predictions.",
-  viewport: {
-    width: 'device-width',
-    initialScale: 1,
-    maximumScale: 5,
-    userScalable: true,
-  },
   keywords: [
     "GLP-1",
     "agonist",
