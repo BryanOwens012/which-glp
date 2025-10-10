@@ -48,7 +48,7 @@ which-glp/
 
 ---
 
-###2. API Service (`apps/api`)
+### 2. API Service (`apps/api`)
 
 **Tech Stack:**
 - Node.js 20+
@@ -64,7 +64,7 @@ which-glp/
 - Call Rec-Engine for recommendations
 - Handle caching with Redis
 
-**Port:** 8000
+**Port:** 8000 (local development)
 
 **Key Endpoints (tRPC procedures):**
 - `experiences.list` - Get filtered experiences
@@ -102,8 +102,6 @@ which-glp/
 - Side effect prediction
 - Cost estimation
 
-**Port:** 8001
-
 **Key Endpoints (REST):**
 - `POST /api/recommendations` - Get recommendations
 - `GET /health` - Health check
@@ -134,8 +132,6 @@ which-glp/
 - Store raw posts in `reddit_posts` table
 - Triggered by cron job every 16 hours
 
-**Port:** 8003
-
 **Key Endpoints (REST):**
 - `POST /api/ingest` - Trigger ingestion
 - `GET /api/status` - Check ingestion status
@@ -145,7 +141,7 @@ which-glp/
 - Platform: Railway
 - Service: `whichglp-post-ingestion`
 - Domain: `whichglp-post-ingestion.up.railway.app`
-- Start command: `cd apps/post-ingestion && python3 api.py`
+- Start command: `uvicorn api:app --host 0.0.0.0 --port $PORT`
 - Triggered by: `Post-Ingestion-Cron` (every 16 hours)
 
 ---
@@ -164,8 +160,6 @@ which-glp/
 - Store in `extracted_features` table
 - Triggered by cron job every 22 hours
 
-**Port:** 8004
-
 **Key Endpoints (REST):**
 - `POST /api/extract` - Trigger extraction
 - `GET /api/status` - Check extraction status
@@ -175,7 +169,7 @@ which-glp/
 - Platform: Railway
 - Service: `whichglp-post-extraction`
 - Domain: `whichglp-post-extraction.up.railway.app`
-- Start command: `cd apps/post-extraction && python3 api.py`
+- Start command: `uvicorn api:app --host 0.0.0.0 --port $PORT`
 - Triggered by: `Post-Extraction-Cron` (every 22 hours)
 
 ---
@@ -194,8 +188,6 @@ which-glp/
 - Store in `user_demographics` table
 - Triggered by cron job daily
 
-**Port:** 8002
-
 **Key Endpoints (REST):**
 - `POST /api/analyze` - Trigger user analysis
 - `GET /api/stats` - Get analysis statistics
@@ -206,7 +198,7 @@ which-glp/
 - Platform: Railway
 - Service: `whichglp-user-extraction`
 - Domain: `whichglp-user-extraction.up.railway.app`
-- Start command: `cd apps/user-extraction && python3 api.py`
+- Start command: `uvicorn api:app --host 0.0.0.0 --port $PORT`
 - Triggered by: `User-Extraction-Cron` (daily)
 
 ---
@@ -218,7 +210,7 @@ which-glp/
 **Schedule:** Every 45 minutes
 **Function:** Refreshes materialized views in Supabase
 **Implementation:** Railway Cron Schedule
-**Script:** `scripts/cron/refresh-views.js`
+**Script:** `scripts/cron/view-refresher-cron.ts`
 
 ### 2. Post-Ingestion-Cron
 
@@ -392,18 +384,18 @@ which-glp/
 
 **Total Services: 9**
 
-| Service | Type | Port | Schedule |
-|---------|------|------|----------|
-| API | Node.js | 8000 | Always-on |
-| Rec-Engine | Python | 8001 | Always-on |
-| Post-Ingestion | Python | 8003 | Always-on (HTTP triggered) |
-| Post-Extraction | Python | 8004 | Always-on (HTTP triggered) |
-| User-Extraction | Python | 8002 | Always-on (HTTP triggered) |
-| Redis | Database | 6379 | Always-on |
-| View-Refresher-Cron | Cron | N/A | Every 45 minutes |
-| Post-Ingestion-Cron | Cron | N/A | Every 16 hours |
-| Post-Extraction-Cron | Cron | N/A | Every 22 hours |
-| User-Extraction-Cron | Cron | N/A | Daily |
+| Service | Type | Schedule |
+|---------|------|----------|
+| API | Node.js | Always-on |
+| Rec-Engine | Python | Always-on |
+| Post-Ingestion | Python | Always-on (HTTP triggered) |
+| Post-Extraction | Python | Always-on (HTTP triggered) |
+| User-Extraction | Python | Always-on (HTTP triggered) |
+| Redis | Database | Always-on |
+| View-Refresher-Cron | Cron | Every 45 minutes |
+| Post-Ingestion-Cron | Cron | Every 16 hours |
+| Post-Extraction-Cron | Cron | Every 22 hours |
+| User-Extraction-Cron | Cron | Daily |
 
 **Note:** Frontend is deployed on Vercel separately.
 
@@ -424,22 +416,22 @@ npm run dev  # http://localhost:8000
 
 # Terminal 3: Rec-Engine
 cd apps/rec-engine
-python3 api.py  # http://localhost:8001
+python3 api.py
 
 # Terminal 4: Post-Ingestion
 cd apps/post-ingestion
-python3 api.py  # http://localhost:8003
+uvicorn api:app --reload
 
 # Terminal 5: Post-Extraction
 cd apps/post-extraction
-python3 api.py  # http://localhost:8004
+uvicorn api:app --reload
 
 # Terminal 6: User-Extraction
 cd apps/user-extraction
-python3 api.py  # http://localhost:8002
+uvicorn api:app --reload
 
 # Terminal 7: Redis
-redis-server  # localhost:6379
+redis-server  # Port 6379
 ```
 
 ### Environment Setup

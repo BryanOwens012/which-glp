@@ -23,6 +23,7 @@ The website is available at: [whichglp.com](https://whichglp.com)
 - **Framework:** tRPC (type-safe API)
 - **Database:** Supabase client
 - **Caching:** Redis (ioredis)
+- **Port:** 8000
 
 **2. Post Ingestion** (`apps/post-ingestion`)
 - **Framework:** FastAPI + uvicorn
@@ -39,11 +40,11 @@ The website is available at: [whichglp.com](https://whichglp.com)
 - **Function:** Extract structured drug experience data from posts
 
 **4. User Extraction** (`apps/user-extraction`)
-- **Framework:** FastAPI (Python) + uvicorn
+- **Framework:** FastAPI + uvicorn
 - **Language:** Python 3.13+
 - **Database:** Supabase client
 - **AI Model:** GLM-4.5-Air (via Z.ai SDK)
-- **Function:** Extract user demographics from Reddit user history (their posts and comments)
+- **Function:** Extract user demographics from posts and comments
 
 **5. Recommendation Engine** (`apps/rec-engine`)
 - **Framework:** FastAPI + uvicorn

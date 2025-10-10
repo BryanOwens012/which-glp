@@ -37,29 +37,29 @@
 ### Start All Services
 
 ```bash
-# Terminal 1: Frontend (port 3000)
+# Terminal 1: Frontend
 cd apps/frontend
 npm run dev
 
-# Terminal 2: API (port 8000)
+# Terminal 2: API
 cd apps/api
 npm run dev
 
-# Terminal 3: Rec-Engine (port 8001)
+# Terminal 3: Rec-Engine
 cd apps/rec-engine
 python3 api.py
 
-# Terminal 4: Post-Ingestion (port 8003)
+# Terminal 4: Post-Ingestion
 cd apps/post-ingestion
-python3 api.py
+uvicorn api:app --reload
 
-# Terminal 5: Post-Extraction (port 8004)
+# Terminal 5: Post-Extraction
 cd apps/post-extraction
-python3 api.py
+uvicorn api:app --reload
 
-# Terminal 6: User-Extraction (port 8002)
+# Terminal 6: User-Extraction
 cd apps/user-extraction
-python3 api.py
+uvicorn api:app --reload
 
 # Terminal 7: Redis
 redis-server
@@ -79,24 +79,26 @@ curl http://localhost:8004/health  # Post-Extraction
 open http://localhost:3000
 ```
 
+**Note:** Port assignments are managed by uvicorn/FastAPI and configured via environment variables or defaults.
+
 ---
 
 ## Railway Deployment
 
 ### Current Services (9 total)
 
-| Service | Type | Port | Trigger |
-|---------|------|------|---------|
-| whichglp-api | Node.js | 8000 | Always-on |
-| whichglp-rec-engine | Python | 8001 | Always-on |
-| whichglp-post-ingestion | Python | 8003 | Cron (16h) |
-| whichglp-post-extraction | Python | 8004 | Cron (22h) |
-| whichglp-user-extraction | Python | 8002 | Cron (24h) |
-| redis | Database | 6379 | Always-on |
-| View-Refresher-Cron | Cron | N/A | Every 45min |
-| Post-Ingestion-Cron | Cron | N/A | Every 16h |
-| Post-Extraction-Cron | Cron | N/A | Every 22h |
-| User-Extraction-Cron | Cron | N/A | Daily |
+| Service | Type | Trigger |
+|---------|------|---------|
+| whichglp-api | Node.js | Always-on |
+| whichglp-rec-engine | Python | Always-on |
+| whichglp-post-ingestion | Python | Cron (16h) |
+| whichglp-post-extraction | Python | Cron (22h) |
+| whichglp-user-extraction | Python | Cron (24h) |
+| redis | Database | Always-on |
+| View-Refresher-Cron | Cron | Every 45min |
+| Post-Ingestion-Cron | Cron | Every 16h |
+| Post-Extraction-Cron | Cron | Every 22h |
+| User-Extraction-Cron | Cron | Daily |
 
 ### Environment Variables
 
