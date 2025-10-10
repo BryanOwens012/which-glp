@@ -207,7 +207,7 @@ which-glp/
 
 ### 1. View-Refresher-Cron
 
-**Schedule:** Every 45 minutes
+**Schedule:** Every 2 days
 **Function:** Refreshes materialized views in Supabase
 **Implementation:** Railway Cron Schedule
 **Script:** `scripts/cron/view-refresher-cron.ts`
@@ -304,7 +304,7 @@ which-glp/
         │
         ▼
 ┌──────────────────┐
-│ View-Refresher   │ ◄─── Cron (every 45 min)
+│ View-Refresher   │ ◄─── Cron (every 2 days)
 └────────┬─────────┘
          │
          ▼
@@ -392,7 +392,7 @@ which-glp/
 | Post-Extraction | Python | Always-on (HTTP triggered) |
 | User-Extraction | Python | Always-on (HTTP triggered) |
 | Redis | Database | Always-on |
-| View-Refresher-Cron | Cron | Every 45 minutes |
+| View-Refresher-Cron | Cron | Every 2 days |
 | Post-Ingestion-Cron | Cron | Every 2 days |
 | Post-Extraction-Cron | Cron | Every 2 days |
 | User-Extraction-Cron | Cron | Every 2 days |

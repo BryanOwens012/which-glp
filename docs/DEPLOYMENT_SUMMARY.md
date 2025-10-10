@@ -14,7 +14,7 @@
 4. **Post-Extraction** (Python + GLM-4.5-Air) - `whichglp-post-extraction.up.railway.app`
 5. **User-Extraction** (Python + GLM-4.5-Air) - `whichglp-user-extraction.up.railway.app`
 6. **Redis** (Cache) - Persistent volume
-7. **View-Refresher-Cron** - Every 45 minutes
+7. **View-Refresher-Cron** - Every 2 days
 8. **Post-Ingestion-Cron** - Every 2 days
 9. **Post-Extraction-Cron** - Every 2 days
 10. **User-Extraction-Cron** - Every 2 days
@@ -95,7 +95,7 @@ open http://localhost:3000
 | whichglp-post-extraction | Python | Cron (2 days) |
 | whichglp-user-extraction | Python | Cron (2 days) |
 | redis | Database | Always-on |
-| View-Refresher-Cron | Cron | Every 45min |
+| View-Refresher-Cron | Cron | Every 2 days |
 | Post-Ingestion-Cron | Cron | Every 2 days |
 | Post-Extraction-Cron | Cron | Every 2 days |
 | User-Extraction-Cron | Cron | Every 2 days |

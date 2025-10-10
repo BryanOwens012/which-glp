@@ -60,7 +60,7 @@ The website is available at: [whichglp.com](https://whichglp.com)
 **Railway**
 - **Caching:** Redis
 - **Backend Services:** API, Post Ingestion, Post Extraction, User Extraction, Recommendation Engine
-- **Cron Jobs:** Automated triggers that run data pipeline services every 2 days (Post Ingestion, Post Extraction, User Extraction)
+- **Cron Jobs:** Automated triggers that run every 2 days (Post Ingestion, Post Extraction, User Extraction, View Refresher)
 
 **Supabase**
 - **Database:** PostgreSQL
