@@ -18,10 +18,10 @@ import {
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 const ComparePage = () => {
   const router = useRouter();
@@ -58,17 +58,16 @@ const ComparePage = () => {
             <p className="text-lg leading-relaxed text-muted-foreground text-center">
               Compare based on real user experiences
             </p>
-            <Tooltip delayDuration={0}>
-              <TooltipTrigger asChild>
+            <Popover>
+              <PopoverTrigger asChild>
                 <button
                   type="button"
                   className="inline-flex items-center justify-center rounded-full min-w-[44px] min-h-[44px] p-2 hover:bg-muted active:bg-muted transition-colors touch-manipulation shrink-0"
-                  aria-label="View platform statistics"
-                  onClick={(e) => e.currentTarget.focus()}>
+                  aria-label="View platform statistics">
                   <Info className="h-5 w-5 text-muted-foreground" />
                 </button>
-              </TooltipTrigger>
-              <TooltipContent className="max-w-xs p-4" side="bottom">
+              </PopoverTrigger>
+              <PopoverContent className="max-w-xs p-4 w-80" side="bottom" align="center">
                 <div className="space-y-3">
                   <div className="flex items-center gap-3">
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
@@ -130,8 +129,8 @@ const ComparePage = () => {
                     </div>
                   </div>
                 </div>
-              </TooltipContent>
-            </Tooltip>
+              </PopoverContent>
+            </Popover>
           </div>
           <div className="flex flex-wrap justify-center gap-3">
             <Button
