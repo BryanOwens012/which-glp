@@ -54,16 +54,17 @@ const ComparePage = () => {
             Which <span className="text-primary">weight-loss drug</span> is
             right for you?
           </h1>
-          <div className="mb-6 flex items-center justify-center gap-2">
-            <p className="text-lg leading-relaxed text-muted-foreground">
+          <div className="mb-6 flex flex-col items-center justify-center gap-2 sm:flex-row">
+            <p className="text-lg leading-relaxed text-muted-foreground text-center">
               Compare based on real user experiences
             </p>
-            <Tooltip>
+            <Tooltip delayDuration={0}>
               <TooltipTrigger asChild>
                 <button
                   type="button"
-                  className="inline-flex items-center justify-center rounded-full min-w-[44px] min-h-[44px] p-2 hover:bg-muted active:bg-muted transition-colors touch-manipulation"
-                  aria-label="View platform statistics">
+                  className="inline-flex items-center justify-center rounded-full min-w-[44px] min-h-[44px] p-2 hover:bg-muted active:bg-muted transition-colors touch-manipulation shrink-0"
+                  aria-label="View platform statistics"
+                  onClick={(e) => e.currentTarget.focus()}>
                   <Info className="h-5 w-5 text-muted-foreground" />
                 </button>
               </TooltipTrigger>
