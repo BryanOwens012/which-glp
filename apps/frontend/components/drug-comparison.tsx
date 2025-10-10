@@ -19,6 +19,7 @@ import {
   AlertCircle,
   Users,
   Info,
+  Loader2,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 
@@ -26,7 +27,7 @@ export const DrugComparison = () => {
   const router = useRouter();
 
   // Fetch real drug stats from API
-  const { data: drugStats, isLoading } = trpc.drugs.getAllStats.useQuery();
+  const { data: drugStats, isLoading, isError, error } = trpc.drugs.getAllStats.useQuery();
 
   // State for selected drugs
   const [selectedMeds, setSelectedMeds] = useState<string[]>([]);
@@ -86,26 +87,30 @@ export const DrugComparison = () => {
   const selectedDrugs =
     drugStats?.filter((med) => selectedMeds.includes(med.drug)) ?? [];
 
-  if (!drugStats || drugStats.length === 0) {
-    return <div className="text-center py-8">No drug data available</div>;
-  }
-
   return (
     <div>
       {/* Drug Selector */}
       <Card className="mb-8 border-border/40 bg-card p-6">
         <h2 className="mb-4 text-lg font-semibold">Select Drugs to Compare</h2>
         {isLoading ? (
-          // Loading skeleton that matches the height of 6 drug buttons
-          <div className="flex flex-wrap gap-3">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div
-                key={i}
-                className="h-10 w-32 rounded-md bg-muted animate-pulse"
-              />
-            ))}
+          // Loading spinner
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
-        ) : (
+        ) : isError ? (
+          // Error state
+          <div className="flex flex-col items-center justify-center py-8 text-center">
+            <AlertCircle className="h-12 w-12 text-destructive mb-3" />
+            <p className="text-sm text-muted-foreground">
+              Failed to load drug data. Please try again later.
+            </p>
+            {error && (
+              <p className="text-xs text-muted-foreground mt-2">
+                {error.message}
+              </p>
+            )}
+          </div>
+        ) : drugStats && drugStats.length > 0 ? (
           <div className="flex flex-wrap gap-3">
             {[...drugStats]
               .sort((a, b) => {
@@ -135,6 +140,14 @@ export const DrugComparison = () => {
                   <span className="ml-1 text-xs opacity-70">({drug.count})</span>
                 </Button>
               ))}
+          </div>
+        ) : (
+          // No data available
+          <div className="flex flex-col items-center justify-center py-8 text-center">
+            <AlertCircle className="h-12 w-12 text-muted-foreground mb-3" />
+            <p className="text-sm text-muted-foreground">
+              No drug data available
+            </p>
           </div>
         )}
         {errorMessage && (
