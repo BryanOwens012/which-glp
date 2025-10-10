@@ -30,7 +30,6 @@ export const DrugComparison = () => {
 
   // State for selected drugs
   const [selectedMeds, setSelectedMeds] = useState<string[]>([]);
-  const [showAllDrugs, setShowAllDrugs] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Navigate to experiences page with drug filter
@@ -87,10 +86,6 @@ export const DrugComparison = () => {
   const selectedDrugs =
     drugStats?.filter((med) => selectedMeds.includes(med.drug)) ?? [];
 
-  if (isLoading) {
-    return <div className="text-center py-8">Loading drugs...</div>;
-  }
-
   if (!drugStats || drugStats.length === 0) {
     return <div className="text-center py-8">No drug data available</div>;
   }
@@ -100,64 +95,49 @@ export const DrugComparison = () => {
       {/* Drug Selector */}
       <Card className="mb-8 border-border/40 bg-card p-6">
         <h2 className="mb-4 text-lg font-semibold">Select Drugs to Compare</h2>
-        <div className="flex flex-wrap gap-3">
-          {[...drugStats]
-            .sort((a, b) => {
-              if (b.count !== a.count) {
-                return b.count - a.count;
-              }
-              return a.drug.localeCompare(b.drug);
-            })
-            .slice(0, showAllDrugs ? undefined : 10)
-            .map((drug) => (
-              <Button
-                key={drug.drug}
-                variant={
-                  selectedMeds.includes(drug.drug) ? "default" : "outline"
-                }
-                onClick={() => toggleDrug(drug.drug)}
-                className="gap-2"
-              >
-                {selectedMeds.includes(drug.drug) && (
-                  <Check className="h-4 w-4" />
-                )}
-                {drug.drug === "GLP-1" ? "GLP-1 (General)" : drug.drug}
-                <span className="ml-1 text-xs opacity-70">({drug.count})</span>
-              </Button>
+        {isLoading ? (
+          // Loading skeleton that matches the height of 6 drug buttons
+          <div className="flex flex-wrap gap-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div
+                key={i}
+                className="h-10 w-32 rounded-md bg-muted animate-pulse"
+              />
             ))}
-        </div>
-        {!showAllDrugs && drugStats.length > 10 && (
-          <Button
-            variant="ghost"
-            onClick={() => setShowAllDrugs(true)}
-            className="mt-1 text-sm"
-          >
-            Show more ({drugStats.length - 10} more)
-          </Button>
-        )}
-        <div className="mt-3 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <p className="text-sm text-muted-foreground">
-              {selectedMeds.length}/6 drugs selected
-            </p>
-            {selectedMeds.length > 0 && (
-              <button
-                onClick={() =>
-                  setSelectedMeds(drugStats.slice(0, 3).map((d) => d.drug))
-                }
-                className="text-xs text-primary hover:underline cursor-pointer"
-              >
-                Reset
-              </button>
-            )}
           </div>
-          {errorMessage && (
-            <p className="text-sm text-destructive flex items-center gap-1 animate-in fade-in-0 duration-200 animate-out fade-out-0">
-              <AlertCircle className="h-4 w-4" />
-              {errorMessage}
-            </p>
-          )}
-        </div>
+        ) : (
+          <div className="flex flex-wrap gap-3">
+            {[...drugStats]
+              .sort((a, b) => {
+                if (b.count !== a.count) {
+                  return b.count - a.count;
+                }
+                return a.drug.localeCompare(b.drug);
+              })
+              .map((drug) => (
+                <Button
+                  key={drug.drug}
+                  variant={
+                    selectedMeds.includes(drug.drug) ? "default" : "outline"
+                  }
+                  onClick={() => toggleDrug(drug.drug)}
+                  className="gap-2"
+                >
+                  {selectedMeds.includes(drug.drug) && (
+                    <Check className="h-4 w-4" />
+                  )}
+                  {drug.drug === "GLP-1" ? "GLP-1 (General)" : drug.drug}
+                  <span className="ml-1 text-xs opacity-70">({drug.count})</span>
+                </Button>
+              ))}
+          </div>
+        )}
+        {errorMessage && (
+          <p className="mt-3 text-sm text-destructive flex items-center gap-1 animate-in fade-in-0 duration-200 animate-out fade-out-0">
+            <AlertCircle className="h-4 w-4" />
+            {errorMessage}
+          </p>
+        )}
       </Card>
 
       {/* Comparison Table */}
