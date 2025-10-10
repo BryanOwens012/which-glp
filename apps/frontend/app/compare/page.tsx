@@ -62,12 +62,12 @@ const ComparePage = () => {
               <PopoverTrigger asChild>
                 <button
                   type="button"
-                  className="inline-flex items-center justify-center rounded-full min-w-[44px] min-h-[44px] p-2 hover:bg-muted active:bg-muted transition-colors touch-manipulation shrink-0"
+                  className="inline-flex items-center justify-center rounded-full min-w-[44px] min-h-[44px] p-2 hover:bg-muted active:bg-muted transition-colors touch-manipulation shrink-0 cursor-pointer"
                   aria-label="View platform statistics">
                   <Info className="h-5 w-5 text-muted-foreground" />
                 </button>
               </PopoverTrigger>
-              <PopoverContent className="max-w-xs p-4 w-80" side="bottom" align="center">
+              <PopoverContent className="max-w-xs p-4 w-80 border-2" side="bottom" align="center">
                 <div className="space-y-3">
                   <div className="flex items-center gap-3">
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
