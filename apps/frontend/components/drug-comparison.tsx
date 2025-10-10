@@ -126,7 +126,11 @@ export const DrugComparison = () => {
                     selectedMeds.includes(drug.drug) ? "default" : "outline"
                   }
                   onClick={() => toggleDrug(drug.drug)}
-                  className="gap-2"
+                  className={`gap-2 border ${
+                    selectedMeds.includes(drug.drug)
+                      ? "border-transparent"
+                      : ""
+                  }`}
                 >
                   <Check
                     className={`h-4 w-4 ${
