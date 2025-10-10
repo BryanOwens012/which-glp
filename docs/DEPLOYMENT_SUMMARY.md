@@ -1,42 +1,34 @@
 # WhichGLP Deployment Summary
 
-## ✅ Completed: FastAPI ML Service Migration
+## Current Architecture: 9 Railway Services + Vercel Frontend
 
-### What Changed
+### Production Infrastructure
 
-**Before:**
-```
-apps/api/
-├── src/
-│   └── routers/
-│       └── recommendations.ts   # Used exec() to call Python
-└── ml/
-    ├── recommender.py
-    └── recommender_api.py       # CLI wrapper
-```
+**Vercel:**
+- **Frontend** (Next.js 15) - `whichglp.com`
 
-**After:**
-```
-apps/
-├── backend/
-│   └── src/
-│       └── routers/
-│           └── recommendations.ts   # HTTP call to ML service
-└── ml/                          # ← NEW: Standalone service
-    ├── api.py                       # FastAPI app
-    ├── recommender.py               # ML logic
-    ├── start_api.sh                 # Local dev script
-    ├── railway.json                 # Deployment config
-    └── README.md                    # Full documentation
-```
+**Railway** (9 services):
+1. **API** (Node.js tRPC) - `api.whichglp.com`
+2. **Rec-Engine** (Python ML) - `whichglp-rec-engine.up.railway.app`
+3. **Post-Ingestion** (Python) - `whichglp-post-ingestion.up.railway.app`
+4. **Post-Extraction** (Python + GLM-4.5-Air) - `whichglp-post-extraction.up.railway.app`
+5. **User-Extraction** (Python + GLM-4.5-Air) - `whichglp-user-extraction.up.railway.app`
+6. **Redis** (Cache) - Persistent volume
+7. **View-Refresher-Cron** - Every 45 minutes
+8. **Post-Ingestion-Cron** - Every 16 hours
+9. **Post-Extraction-Cron** - Every 22 hours
+10. **User-Extraction-Cron** - Daily
 
-### Key Improvements
+**External:**
+- **Supabase** - PostgreSQL database
 
-1. **No more `exec()`** - Backend now makes clean HTTP requests to ML service
-2. **Independent service** - ML API can scale and deploy separately
-3. **Better error handling** - FastAPI provides structured errors
-4. **Health checks** - `/health` endpoint for monitoring
-5. **Clean separation** - Each service has clear responsibilities
+### Key Features
+
+✅ **Microservices Architecture** - Each service independently scalable
+✅ **Cron-Based Automation** - Automated data pipeline (ingestion → extraction → view refresh)
+✅ **AI Processing** - GLM-4.5-Air for cost-effective extraction
+✅ **ML Recommendations** - KNN-based drug matching
+✅ **Redis Caching** - Fast API responses
 
 ---
 
@@ -49,238 +41,165 @@ apps/
 cd apps/frontend
 npm run dev
 
-# Terminal 2: Backend (port 8000)
+# Terminal 2: API (port 8000)
 cd apps/api
 npm run dev
 
-# Terminal 3: ML API (port 8001)
-./apps/rec-engine/start_api.sh
+# Terminal 3: Rec-Engine (port 8001)
+cd apps/rec-engine
+python3 api.py
+
+# Terminal 4: Post-Ingestion (port 8003)
+cd apps/post-ingestion
+python3 api.py
+
+# Terminal 5: Post-Extraction (port 8004)
+cd apps/post-extraction
+python3 api.py
+
+# Terminal 6: User-Extraction (port 8002)
+cd apps/user-extraction
+python3 api.py
+
+# Terminal 7: Redis
+redis-server
 ```
 
 ### Test the Stack
 
 ```bash
-# Test ML API directly
-curl http://localhost:8001/health
+# Test all health endpoints
+curl http://localhost:8000/health  # API
+curl http://localhost:8001/health  # Rec-Engine
+curl http://localhost:8002/health  # User-Extraction
+curl http://localhost:8003/health  # Post-Ingestion
+curl http://localhost:8004/health  # Post-Extraction
 
-# Test through backend (via browser or curl)
-# Go to http://localhost:3000 and use the recommendation form
+# Test frontend
+open http://localhost:3000
 ```
 
 ---
 
 ## Railway Deployment
 
-### Current Setup (2 services)
+### Current Services (9 total)
 
-1. **whichglp-api** (Node.js)
-   - Port: 8000
-   - Handles: tRPC API, experiences, stats
-   - Environment: `REC_ENGINE_URL=<ml-service-url>`
+| Service | Type | Port | Trigger |
+|---------|------|------|---------|
+| whichglp-api | Node.js | 8000 | Always-on |
+| whichglp-rec-engine | Python | 8001 | Always-on |
+| whichglp-post-ingestion | Python | 8003 | Cron (16h) |
+| whichglp-post-extraction | Python | 8004 | Cron (22h) |
+| whichglp-user-extraction | Python | 8002 | Cron (24h) |
+| redis | Database | 6379 | Always-on |
+| View-Refresher-Cron | Cron | N/A | Every 45min |
+| Post-Ingestion-Cron | Cron | N/A | Every 16h |
+| Post-Extraction-Cron | Cron | N/A | Every 22h |
+| User-Extraction-Cron | Cron | N/A | Daily |
 
-2. **whichglp-frontend** (Next.js)
-   - Port: 3000
-   - Environment: `NEXT_PUBLIC_API_URL=<backend-url>`
+### Environment Variables
 
-### Add New Service (ML API)
-
-#### Step 1: Create Service
-
-1. Railway Dashboard → New Service
-2. Name: `whichglp-rec-engine`
-3. Connect to GitHub repo
-4. Root Directory: `/` (monorepo root)
-5. Start Command: `cd apps/rec-engine && python3 api.py`
-6. Health Check Path: `/health`
-
-#### Step 2: Environment Variables
-
-Add to `whichglp-rec-engine`:
+**API Service:**
 ```bash
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_SERVICE_KEY=your-service-key
-REC_ENGINE_PORT=8001
+SUPABASE_URL=...
+SUPABASE_ANON_KEY=...
+REDIS_URL=${{Redis.REDIS_URL}}
+REC_ENGINE_URL=https://whichglp-rec-engine.up.railway.app
 ```
 
-#### Step 3: Update Backend
-
-In `whichglp-api` service, add/update:
+**Python Services (all):**
 ```bash
-REC_ENGINE_URL=https://whichglp-rec-engine.railway.app
+SUPABASE_URL=...
+SUPABASE_SERVICE_KEY=...
+REDDIT_CLIENT_ID=...
+REDDIT_CLIENT_SECRET=...
+REDDIT_USER_AGENT=whichglp-ingestion/0.1
+ZAI_API_KEY=...
+PORT=${{RAILWAY_PUBLIC_PORT}}
 ```
 
-#### Step 4: Deploy
+### Deployment Process
 
-Push to GitHub → All services auto-deploy
+1. Push to GitHub `main` branch
+2. Railway auto-deploys all services
+3. Verify health checks
+4. Monitor logs for errors
 
 ---
 
 ## Testing Checklist
 
-### Before Deploying
+### Production Health Checks
 
-- [ ] ML API starts locally: `./apps/rec-engine/start_api.sh`
-- [ ] Health check works: `curl http://localhost:8001/health`
-- [ ] Backend can reach ML API: Check backend logs for successful ML requests
-- [ ] Frontend recommendations work: Test the "Recommend for Me" feature
-
-### After Deploying
-
-- [ ] ML API health check: `curl https://your-ml.railway.app/health`
-- [ ] Backend logs show successful ML API calls
-- [ ] Frontend recommendations work in production
-- [ ] Check Railway logs for all 3 services
-
----
-
-## Architecture Benefits
-
-### Why Split Services?
-
-**Old Way (exec):**
-```
-┌──────────────────────┐
-│   Backend (Node.js)  │
-│  ┌────────────────┐  │
-│  │ exec() Python  │  │  ← Spawns shell + Python per request
-│  └────────────────┘  │  ← Security risk, slow, hard to debug
-└──────────────────────┘
-```
-
-**New Way (HTTP):**
-```
-┌─────────────┐   HTTP    ┌──────────────┐
-│   Backend   │──────────►│   ML API     │
-│  (Node.js)  │           │  (FastAPI)   │
-└─────────────┘           └──────────────┘
-     ▲                          │
-     │                          │
-     ▼                          ▼
-┌──────────────────────────────────┐
-│        Supabase Database         │
-└──────────────────────────────────┘
-```
-
-### Benefits
-
-✅ **Security**: No shell injection risks
-✅ **Performance**: ML service stays warm, no process spawning
-✅ **Scalability**: Can scale ML independently
-✅ **Reliability**: ML crashes don't affect API
-✅ **Monitoring**: Separate logs, health checks
-✅ **Development**: Work on ML without touching Node.js
-
-### Trade-offs
-
-❌ **Network Latency**: ~20-50ms overhead for HTTP call (acceptable)
-❌ **Complexity**: 3 services instead of 2 (manageable)
-❌ **Cost**: Additional Railway service (~$5/month at low scale)
-
-**Decision**: Worth it for the isolation and flexibility
-
----
-
-## File Reference
-
-### New Files
-- `apps/rec-engine/api.py` - FastAPI application
-- `apps/rec-engine/start_api.sh` - Local dev script
-- `apps/rec-engine/railway.json` - Railway deployment config
-- `apps/rec-engine/README.md` - ML service documentation
-- `docs/ARCHITECTURE.md` - Overall system architecture
-- `docs/DEPLOYMENT_SUMMARY.md` - This file
-
-### Modified Files
-- `apps/api/src/routers/recommendations.ts` - Changed from `exec()` to `fetch()`
-- `requirements.txt` - Added FastAPI and Uvicorn
-
-### Deprecated Files (kept for reference)
-- `apps/api/ml/recommender_api.py` - Old CLI wrapper
-- Can be deleted after confirming new service works
-
----
-
-## Next Steps
-
-### Immediate (Pre-Deploy)
-1. ✅ Test locally with all 3 services running
-2. ✅ Verify recommendations work end-to-end
-3. ✅ Check logs for errors
-
-### Deploy to Railway
-1. [ ] Create `whichglp-rec-engine` service
-2. [ ] Set environment variables
-3. [ ] Update `REC_ENGINE_URL` in backend service
-4. [ ] Push to GitHub
-5. [ ] Monitor deployment logs
-6. [ ] Test production recommendations
-
-### Post-Deploy
-1. [ ] Monitor Railway logs for 24 hours
-2. [ ] Check ML API response times
-3. [ ] Verify no regression in recommendation quality
-4. [x] Clean up old `apps/ml/` directory (deleted 2025-10-07)
-
-### Future Enhancements
-- [ ] Add Redis caching to ML API
-- [ ] Add request logging/tracing
-- [ ] Add API authentication
-- [ ] Add rate limiting
-- [ ] Add Prometheus metrics
-- [ ] Optimize KNN algorithm
-
----
-
-## Rollback Plan
-
-If something goes wrong, you can quickly rollback:
-
-1. **Keep old code**: The `exec()` version still exists in git history
-2. **Revert recommendations.ts**:
-   ```bash
-   git checkout HEAD~1 apps/api/src/routers/recommendations.ts
-   ```
-3. **Redeploy backend**: Push to trigger Railway deployment
-4. **Delete ML service**: Remove from Railway if not needed
-
----
-
-## Support
-
-### Documentation
-- ML API: `apps/rec-engine/README.md`
-- Architecture: `docs/ARCHITECTURE.md`
-- Backend tRPC: `apps/api/src/routers/recommendations.ts`
-
-### Logs
 ```bash
-# Railway CLI
-railway logs --service whichglp-rec-engine
+curl https://api.whichglp.com/health
+curl https://whichglp-rec-engine.up.railway.app/health
+curl https://whichglp-post-ingestion.up.railway.app/health
+curl https://whichglp-post-extraction.up.railway.app/health
+curl https://whichglp-user-extraction.up.railway.app/health
+```
+
+### Monitor Logs
+
+```bash
 railway logs --service whichglp-api
-railway logs --service whichglp-frontend
-```
-
-### Health Checks
-```bash
-# ML API
-curl https://your-ml.railway.app/health
-
-# Backend
-curl https://your-backend.railway.app/health
-
-# Frontend
-curl https://your-frontend.railway.app
+railway logs --service whichglp-rec-engine
+railway logs --service whichglp-post-ingestion
+railway logs --service whichglp-post-extraction
+railway logs --service whichglp-user-extraction
 ```
 
 ---
 
-## Success Criteria
+## Architecture Overview
 
-✅ All services start successfully
-✅ Health checks return 200
-✅ Recommendations work in production
-✅ No increase in error rates
-✅ Response times < 2 seconds
-✅ Railway logs show no critical errors
+See `docs/ARCHITECTURE.md` for detailed architecture documentation including:
+- Complete service descriptions
+- Data flow diagrams
+- Environment setup
+- Deployment guides
+- Architecture decisions (microservices, cron jobs, GLM-4.5-Air)
 
-**Status**: Ready to deploy 🚀
+### Quick Reference
+
+**Data Pipeline Flow:**
+```
+Post-Ingestion → reddit_posts table
+                 ↓
+Post-Extraction → extracted_features table
+                 ↓
+User-Extraction → user_demographics table
+                 ↓
+View-Refresher → mv_experiences_denormalized
+```
+
+**Request Flow:**
+```
+Frontend (Vercel) → API (Railway) → Rec-Engine (Railway) → Supabase
+                                   ↓
+                                Redis Cache
+```
+
+---
+
+## Future Enhancements
+
+- [ ] Request logging/tracing (OpenTelemetry)
+- [ ] Rate limiting (Redis-based)
+- [ ] Monitoring dashboard (Prometheus + Grafana)
+- [ ] Database read replicas
+- [ ] Async job queue (BullMQ)
+- [ ] CDN for frontend assets
+- [ ] Multi-region deployment
+
+---
+
+## Documentation
+
+- **Architecture:** `docs/ARCHITECTURE.md`
+- **Tech Spec:** `docs/TECH_SPEC.md`
+- **Railway Setup:** `docs/RAILWAY_SETUP.md`
+- **Cron Setup:** `docs/RAILWAY_CRON_SETUP.md`
+
+**Status**: ✅ Production deployment active
