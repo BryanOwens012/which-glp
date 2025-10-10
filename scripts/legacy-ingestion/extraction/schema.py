@@ -276,6 +276,15 @@ class ExtractedFeatures(BaseModel):
         le=1
     )
 
+    @field_validator("primary_drug", mode="before")
+    @classmethod
+    def normalize_primary_drug(cls, v: Optional[str]) -> Optional[str]:
+        """Convert primary_drug to Title Case"""
+        if v is None:
+            return None
+        # Strip whitespace and apply title case
+        return v.strip().title()
+
     @field_validator(
         "drugs_mentioned", "comorbidities", "previous_weight_loss_attempts",
         "food_intolerances", "labs_improvement", "medication_reduction", "nsv_mentioned",
@@ -290,6 +299,7 @@ class ExtractedFeatures(BaseModel):
         # Normalize based on field name
         field_name = info.field_name
         if field_name == "drugs_mentioned":
+            # ALWAYS apply title case to drugs_mentioned
             return [drug.strip().title() for drug in v if drug.strip()]
         else:
             # Lowercase for all other list fields

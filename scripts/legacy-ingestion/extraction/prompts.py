@@ -69,14 +69,21 @@ EXTRACTION GUIDELINES:
 - Note currency (default USD if not specified)
 - Include insurance context (e.g., "$25 copay" vs "$1200 retail")
 
-**Drugs:**
-- List ALL drug names mentioned in drugs_mentioned array
-- primary_drug should be the main drug discussed
+**Drugs (CRITICAL - ALWAYS USE TITLE CASE):**
+- List ALL drug names mentioned in drugs_mentioned array - ALWAYS in Title Case
+- primary_drug should be the main drug discussed - ALWAYS in Title Case
+- **CRITICAL**: ALL drug names MUST be in Title Case (capitalize first letter of each word)
 - Use standard naming:
-  * Brand names: Title case (Ozempic, Wegovy, Mounjaro, Zepbound)
-  * Generic drugs: lowercase (semaglutide, tirzepatide, metformin)
-  * Compounded: "Compounded Semaglutide" or "Compounded Tirzepatide"
-  * Expand abbreviations: TRT → testosterone
+  * Brand names: Title Case (Ozempic, Wegovy, Mounjaro, Zepbound) - NOT ozempic, wegovy, etc.
+  * Generic drugs: Title Case (Semaglutide, Tirzepatide, Metformin) - NOT semaglutide, tirzepatide, etc.
+  * Compounded: "Compounded Semaglutide" or "Compounded Tirzepatide" - NOT "compounded semaglutide"
+  * Multi-word drugs: "Glp-1" (capitalize first letter) - NOT "GLP-1" or "glp-1"
+  * Expand abbreviations: TRT → "Testosterone" (Title Case)
+- Examples:
+  * "compounded tirzepatide" → "Compounded Tirzepatide" ✓
+  * "ozempic" → "Ozempic" ✓
+  * "GLP-1" → "Glp-1" ✓
+  * "metformin" → "Metformin" ✓
 
 **Sentiment Scores (CRITICAL - read carefully):**
 - **sentiment_pre**: Quality of life/feelings BEFORE starting the drug (0-1)
@@ -208,9 +215,9 @@ Return valid JSON matching this schema:
   "duration_weeks": 12,
   "cost_per_month": 25.00,
   "currency": "USD",
-  "drugs_mentioned": ["Ozempic"],
-  "primary_drug": "Ozempic",
-  "drug_sentiments": {"Ozempic": 0.85},
+  "drugs_mentioned": ["Ozempic"],  // ALWAYS Title Case
+  "primary_drug": "Ozempic",  // ALWAYS Title Case
+  "drug_sentiments": {"Ozempic": 0.85},  // Keys ALWAYS Title Case
   "sentiment_pre": 0.3,
   "sentiment_post": 0.9,
   "recommendation_score": 0.9,
