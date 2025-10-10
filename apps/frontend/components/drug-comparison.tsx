@@ -123,9 +123,14 @@ export const DrugComparison = () => {
                   onClick={() => toggleDrug(drug.drug)}
                   className="gap-2"
                 >
-                  {selectedMeds.includes(drug.drug) && (
-                    <Check className="h-4 w-4" />
-                  )}
+                  <Check
+                    className={`h-4 w-4 ${
+                      selectedMeds.includes(drug.drug)
+                        ? "opacity-100"
+                        : "opacity-0"
+                    }`}
+                    aria-hidden={!selectedMeds.includes(drug.drug)}
+                  />
                   {drug.drug === "GLP-1" ? "GLP-1 (General)" : drug.drug}
                   <span className="ml-1 text-xs opacity-70">({drug.count})</span>
                 </Button>
