@@ -130,7 +130,7 @@ which-glp/
 **Responsibilities:**
 - Fetch recent Reddit posts from GLP-1 subreddits
 - Store raw posts in `reddit_posts` table
-- Triggered by cron job every 16 hours
+- Triggered by cron job every 2 days
 
 **Key Endpoints (REST):**
 - `POST /api/ingest` - Trigger ingestion
@@ -142,7 +142,7 @@ which-glp/
 - Service: `whichglp-post-ingestion`
 - Domain: `whichglp-post-ingestion.up.railway.app`
 - Start command: `uvicorn api:app --host 0.0.0.0 --port $PORT`
-- Triggered by: `Post-Ingestion-Cron` (every 16 hours)
+- Triggered by: `Post-Ingestion-Cron` (every 2 days)
 
 ---
 
@@ -158,7 +158,7 @@ which-glp/
 - Extract structured drug experience data from posts
 - AI-powered feature extraction (drug, weight loss, cost, side effects)
 - Store in `extracted_features` table
-- Triggered by cron job every 22 hours
+- Triggered by cron job every 2 days
 
 **Key Endpoints (REST):**
 - `POST /api/extract` - Trigger extraction
@@ -170,7 +170,7 @@ which-glp/
 - Service: `whichglp-post-extraction`
 - Domain: `whichglp-post-extraction.up.railway.app`
 - Start command: `uvicorn api:app --host 0.0.0.0 --port $PORT`
-- Triggered by: `Post-Extraction-Cron` (every 22 hours)
+- Triggered by: `Post-Extraction-Cron` (every 2 days)
 
 ---
 
@@ -186,7 +186,7 @@ which-glp/
 - Extract user demographics from Reddit user history
 - AI-powered demographic extraction (age, sex, location)
 - Store in `user_demographics` table
-- Triggered by cron job daily
+- Triggered by cron job every 2 days
 
 **Key Endpoints (REST):**
 - `POST /api/analyze` - Trigger user analysis
@@ -199,7 +199,7 @@ which-glp/
 - Service: `whichglp-user-extraction`
 - Domain: `whichglp-user-extraction.up.railway.app`
 - Start command: `uvicorn api:app --host 0.0.0.0 --port $PORT`
-- Triggered by: `User-Extraction-Cron` (daily)
+- Triggered by: `User-Extraction-Cron` (every 2 days)
 
 ---
 
@@ -214,21 +214,21 @@ which-glp/
 
 ### 2. Post-Ingestion-Cron
 
-**Schedule:** Every 16 hours
+**Schedule:** Every 2 days
 **Function:** Triggers `POST /api/ingest` on Post-Ingestion service
 **Implementation:** Railway Cron Schedule
 **Target:** `whichglp-post-ingestion.up.railway.app/api/ingest`
 
 ### 3. Post-Extraction-Cron
 
-**Schedule:** Every 22 hours
+**Schedule:** Every 2 days
 **Function:** Triggers `POST /api/extract` on Post-Extraction service
 **Implementation:** Railway Cron Schedule
 **Target:** `whichglp-post-extraction.up.railway.app/api/extract`
 
 ### 4. User-Extraction-Cron
 
-**Schedule:** Daily (24 hours)
+**Schedule:** Every 2 days
 **Function:** Triggers `POST /api/analyze` on User-Extraction service
 **Implementation:** Railway Cron Schedule
 **Target:** `whichglp-user-extraction.up.railway.app/api/analyze`
@@ -265,7 +265,7 @@ which-glp/
 
 ```
 ┌──────────────────┐
-│ Post-Ingestion   │ ◄─── Cron (every 16 hours)
+│ Post-Ingestion   │ ◄─── Cron (every 2 days)
 │ (Reddit API)     │
 └────────┬─────────┘
          │
@@ -278,7 +278,7 @@ which-glp/
         │
         ▼
 ┌──────────────────┐
-│ Post-Extraction  │ ◄─── Cron (every 22 hours)
+│ Post-Extraction  │ ◄─── Cron (every 2 days)
 │ (GLM-4.5-Air)    │
 └────────┬─────────┘
          │
@@ -291,7 +291,7 @@ which-glp/
         │
         ▼
 ┌──────────────────┐
-│ User-Extraction  │ ◄─── Cron (daily)
+│ User-Extraction  │ ◄─── Cron (every 2 days)
 │ (GLM-4.5-Air)    │
 └────────┬─────────┘
          │
@@ -393,9 +393,9 @@ which-glp/
 | User-Extraction | Python | Always-on (HTTP triggered) |
 | Redis | Database | Always-on |
 | View-Refresher-Cron | Cron | Every 45 minutes |
-| Post-Ingestion-Cron | Cron | Every 16 hours |
-| Post-Extraction-Cron | Cron | Every 22 hours |
-| User-Extraction-Cron | Cron | Daily |
+| Post-Ingestion-Cron | Cron | Every 2 days |
+| Post-Extraction-Cron | Cron | Every 2 days |
+| User-Extraction-Cron | Cron | Every 2 days |
 
 **Note:** Frontend is deployed on Vercel separately.
 
@@ -521,7 +521,7 @@ railway logs --service whichglp-user-extraction
 - Reddit posts arrive at predictable rates
 - Cron jobs reduce Railway costs (pay for compute time, not idle time)
 - FastAPI services boot quickly (~2-5 seconds)
-- 16-22 hour intervals ensure fresh data without wasted cycles
+- 2-day intervals ensure fresh data without wasted cycles
 
 ### Why GLM-4.5-Air Instead of Claude?
 

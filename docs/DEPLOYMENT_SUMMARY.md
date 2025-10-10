@@ -15,9 +15,9 @@
 5. **User-Extraction** (Python + GLM-4.5-Air) - `whichglp-user-extraction.up.railway.app`
 6. **Redis** (Cache) - Persistent volume
 7. **View-Refresher-Cron** - Every 45 minutes
-8. **Post-Ingestion-Cron** - Every 16 hours
-9. **Post-Extraction-Cron** - Every 22 hours
-10. **User-Extraction-Cron** - Daily
+8. **Post-Ingestion-Cron** - Every 2 days
+9. **Post-Extraction-Cron** - Every 2 days
+10. **User-Extraction-Cron** - Every 2 days
 
 **External:**
 - **Supabase** - PostgreSQL database
@@ -91,14 +91,14 @@ open http://localhost:3000
 |---------|------|---------|
 | whichglp-api | Node.js | Always-on |
 | whichglp-rec-engine | Python | Always-on |
-| whichglp-post-ingestion | Python | Cron (16h) |
-| whichglp-post-extraction | Python | Cron (22h) |
-| whichglp-user-extraction | Python | Cron (24h) |
+| whichglp-post-ingestion | Python | Cron (2 days) |
+| whichglp-post-extraction | Python | Cron (2 days) |
+| whichglp-user-extraction | Python | Cron (2 days) |
 | redis | Database | Always-on |
 | View-Refresher-Cron | Cron | Every 45min |
-| Post-Ingestion-Cron | Cron | Every 16h |
-| Post-Extraction-Cron | Cron | Every 22h |
-| User-Extraction-Cron | Cron | Daily |
+| Post-Ingestion-Cron | Cron | Every 2 days |
+| Post-Extraction-Cron | Cron | Every 2 days |
+| User-Extraction-Cron | Cron | Every 2 days |
 
 ### Environment Variables
 
