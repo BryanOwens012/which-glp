@@ -30,7 +30,6 @@ export const DrugComparison = () => {
 
   // State for selected drugs
   const [selectedMeds, setSelectedMeds] = useState<string[]>([]);
-  const [showAllDrugs, setShowAllDrugs] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Navigate to experiences page with drug filter
@@ -108,7 +107,6 @@ export const DrugComparison = () => {
               }
               return a.drug.localeCompare(b.drug);
             })
-            .slice(0, showAllDrugs ? undefined : 10)
             .map((drug) => (
               <Button
                 key={drug.drug}
@@ -126,38 +124,12 @@ export const DrugComparison = () => {
               </Button>
             ))}
         </div>
-        {!showAllDrugs && drugStats.length > 10 && (
-          <Button
-            variant="ghost"
-            onClick={() => setShowAllDrugs(true)}
-            className="mt-1 text-sm"
-          >
-            Show more ({drugStats.length - 10} more)
-          </Button>
+        {errorMessage && (
+          <p className="mt-3 text-sm text-destructive flex items-center gap-1 animate-in fade-in-0 duration-200 animate-out fade-out-0">
+            <AlertCircle className="h-4 w-4" />
+            {errorMessage}
+          </p>
         )}
-        <div className="mt-3 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <p className="text-sm text-muted-foreground">
-              {selectedMeds.length}/6 drugs selected
-            </p>
-            {selectedMeds.length > 0 && (
-              <button
-                onClick={() =>
-                  setSelectedMeds(drugStats.slice(0, 3).map((d) => d.drug))
-                }
-                className="text-xs text-primary hover:underline cursor-pointer"
-              >
-                Reset
-              </button>
-            )}
-          </div>
-          {errorMessage && (
-            <p className="text-sm text-destructive flex items-center gap-1 animate-in fade-in-0 duration-200 animate-out fade-out-0">
-              <AlertCircle className="h-4 w-4" />
-              {errorMessage}
-            </p>
-          )}
-        </div>
       </Card>
 
       {/* Comparison Table */}
