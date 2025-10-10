@@ -7,6 +7,10 @@ import { Suspense } from "react";
 import { Providers } from "@/components/providers";
 import "./globals.css";
 
+// Configure fonts with display: swap for better performance
+const geistSans = GeistSans;
+const geistMono = GeistMono;
+
 export const metadata: Metadata = {
   title: {
     default: "WhichGLP - Weight-Loss Drugs - Real-World Reviews & Outcomes",
@@ -105,7 +109,47 @@ const RootLayout = ({
   return (
     <html lang="en">
       <head>
-        {/* Google tag (gtag.js) */}
+        {/* Preconnect to external domains for faster resource loading */}
+        <link rel="preconnect" href="https://www.googletagmanager.com" />
+        <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
+        <link rel="preconnect" href="https://www.google-analytics.com" />
+        <link rel="dns-prefetch" href="https://www.google-analytics.com" />
+
+        {/* Inline critical CSS for immediate render */}
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `
+              :root {
+                --background: oklch(1 0 0);
+                --foreground: oklch(0.145 0 0);
+                --primary: oklch(0.319 0.462 296.0);
+                --primary-foreground: oklch(0.985 0 0);
+                --muted: oklch(0.97 0 0);
+                --muted-foreground: oklch(0.556 0 0);
+                --border: oklch(0.922 0 0);
+                --radius: 0.625rem;
+              }
+              .dark {
+                --background: oklch(0.145 0 0);
+                --foreground: oklch(0.985 0 0);
+                --primary: oklch(0.667 0.326 274.1);
+                --primary-foreground: oklch(0.145 0 0);
+                --muted: oklch(0.269 0 0);
+                --muted-foreground: oklch(0.708 0 0);
+                --border: oklch(0.269 0 0);
+              }
+              * { border-color: var(--border); }
+              body {
+                background-color: var(--background);
+                color: var(--foreground);
+                font-family: system-ui, -apple-system, sans-serif;
+                margin: 0;
+              }
+            `,
+          }}
+        />
+
+        {/* Google tag (gtag.js) - deferred for non-blocking */}
         <script
           async
           src="https://www.googletagmanager.com/gtag/js?id=G-1JJ2DG0KPD"
@@ -121,7 +165,7 @@ const RootLayout = ({
           }}
         />
       </head>
-      <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`}>
+      <body className={`font-sans ${geistSans.variable} ${geistMono.variable}`}>
         <Providers>
           <Suspense fallback={null}>
             {/* <Scrim>{children}</Scrim> */}

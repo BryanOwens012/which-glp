@@ -77,7 +77,7 @@ export function DrugStatCard({ stats, onClick }: DrugStatCardProps) {
                     N/A%
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <button className="p-1 hover:bg-muted rounded">
+                        <button className="p-1 hover:bg-muted rounded" aria-label="Weight loss data unavailable">
                           <Info className="h-4 w-4 text-muted-foreground" />
                         </button>
                       </TooltipTrigger>

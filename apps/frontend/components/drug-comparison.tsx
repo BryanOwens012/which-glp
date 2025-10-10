@@ -195,7 +195,7 @@ export const DrugComparison = () => {
                           N/A
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <button className="p-1 hover:bg-muted rounded">
+                              <button className="p-1 hover:bg-muted rounded" aria-label="Weight loss data unavailable">
                                 <Info className="h-4 w-4 text-muted-foreground" />
                               </button>
                             </TooltipTrigger>
@@ -213,7 +213,7 @@ export const DrugComparison = () => {
                           N/A
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <button className="p-0.5 hover:bg-muted rounded inline-flex">
+                              <button className="p-0.5 hover:bg-muted rounded inline-flex" aria-label="Duration data unavailable">
                                 <Info className="h-3 w-3 text-muted-foreground" />
                               </button>
                             </TooltipTrigger>
@@ -246,7 +246,7 @@ export const DrugComparison = () => {
                             N/A
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <button className="p-0.5 hover:bg-muted rounded">
+                                <button className="p-0.5 hover:bg-muted rounded" aria-label="Rating data unavailable">
                                   <Info className="h-3 w-3 text-muted-foreground" />
                                 </button>
                               </TooltipTrigger>
@@ -274,7 +274,7 @@ export const DrugComparison = () => {
                           N/A
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <button className="p-0.5 hover:bg-muted rounded">
+                              <button className="p-0.5 hover:bg-muted rounded" aria-label="Quality of life data unavailable">
                                 <Info className="h-3 w-3 text-muted-foreground" />
                               </button>
                             </TooltipTrigger>
@@ -434,7 +434,7 @@ export const DrugComparison = () => {
                               $N/A
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <button className="p-1 hover:bg-muted rounded">
+                                  <button className="p-1 hover:bg-muted rounded" aria-label="Cost data unavailable">
                                     <Info className="h-4 w-4 text-muted-foreground" />
                                   </button>
                                 </TooltipTrigger>

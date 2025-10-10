@@ -60,7 +60,9 @@ const ComparePage = () => {
             </p>
             <Tooltip>
               <TooltipTrigger asChild>
-                <button className="inline-flex items-center justify-center rounded-full p-1 hover:bg-muted transition-colors">
+                <button
+                  className="inline-flex items-center justify-center rounded-full p-1 hover:bg-muted transition-colors"
+                  aria-label="View platform statistics">
                   <Info className="h-4 w-4 text-muted-foreground" />
                 </button>
               </TooltipTrigger>
