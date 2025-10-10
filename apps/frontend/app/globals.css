@@ -3,6 +3,17 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Add font-display: swap to prevent render blocking */
+@font-face {
+  font-family: 'Geist';
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Geist Mono';
+  font-display: swap;
+}
+
 :root {
   /* Updated theme for WhichGLP - blue color scheme */
   --background: oklch(1 0 0);

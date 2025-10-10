@@ -2,18 +2,24 @@
 
 ## Monorepo Structure
 
-This is a monorepo containing three independent services:
+This is a monorepo containing 5 backend services, 1 frontend, and automated cron jobs:
 
 ```
 which-glp/
 ├── apps/
-│   ├── frontend/        # Next.js 15 app
-│   ├── backend/         # Node.js tRPC API
-│   └── ml/              # Python FastAPI service
-├── scripts/legacy-ingestion/ # Python Reddit scraper (separate tooling)
-├── venv/                # Python virtual environment (shared)
-├── requirements.txt     # Python dependencies (shared)
-└── package.json         # Root workspace config
+│   ├── frontend/          # Next.js 15 app (Vercel)
+│   ├── api/               # Node.js tRPC API (Railway)
+│   ├── rec-engine/        # Python ML recommendations (Railway)
+│   ├── post-ingestion/    # Python Reddit ingestion (Railway)
+│   ├── post-extraction/   # Python AI extraction (Railway)
+│   ├── user-extraction/   # Python user demographics (Railway)
+│   └── shared/            # Shared database migrations
+├── scripts/
+│   ├── legacy-ingestion/  # Legacy Python Reddit scraper
+│   └── cron/              # Cron trigger scripts (Railway)
+├── venv/                  # Python virtual environment (shared)
+├── requirements.txt       # Python dependencies (shared)
+└── package.json           # Root workspace config
 ```
 
 ## Service Architecture
@@ -23,9 +29,9 @@ which-glp/
 **Tech Stack:**
 - Next.js 15 (App Router)
 - React 19
-- TypeScript
+- TypeScript (strict mode)
 - Tailwind CSS v4
-- tRPC client
+- tRPC client + TanStack Query
 
 **Responsibilities:**
 - User-facing web application
@@ -33,59 +39,60 @@ which-glp/
 - Display drug recommendations
 - Browse community experiences
 
-**Port:** 3000 (local) / Railway domain (production)
-
 **Deployment:**
-- Railway service: `whichglp-frontend`
-- Build command: `npm run build`
-- Start command: `npm start`
+- Platform: Vercel
+- Auto-deploys from `main` branch
+- Environment variables:
+  - `NEXT_PUBLIC_API_URL` - API service URL
+  - `NEXT_PUBLIC_GA_TAG` - Google Analytics tag
 
 ---
 
-### 2. Backend (`apps/api`)
+### 2. API Service (`apps/api`)
 
 **Tech Stack:**
-- Node.js 18+
-- TypeScript
+- Node.js 20+
+- TypeScript (strict mode)
 - tRPC (type-safe API)
 - Supabase client
-- Redis for caching
+- Redis (ioredis)
 
 **Responsibilities:**
-- API layer for frontend
+- API gateway for frontend
 - Fetch experiences from Supabase
 - Aggregate statistics
-- Call ML API for recommendations
-- Handle caching
+- Call Rec-Engine for recommendations
+- Handle caching with Redis
 
-**Port:** 8000 (local) / Railway domain (production)
+**Port:** 8000 (local development)
 
 **Key Endpoints (tRPC procedures):**
 - `experiences.list` - Get filtered experiences
 - `experiences.getById` - Get single experience
 - `experiences.getStats` - Get aggregated stats
-- `recommendations.getForUser` - Get personalized recommendations (calls ML API)
+- `recommendations.getForUser` - Get personalized recommendations
 
 **Deployment:**
-- Railway service: `whichglp-api`
+- Platform: Railway
+- Service: `whichglp-api`
+- Domain: `api.whichglp.com`
 - Build command: `npm run build`
 - Start command: `npm start`
 - Environment variables:
   - `SUPABASE_URL`
   - `SUPABASE_ANON_KEY`
   - `REDIS_URL`
-  - `REC_ENGINE_URL` (points to ML service)
+  - `REC_ENGINE_URL`
 
 ---
 
-### 3. ML API (`apps/rec-engine`)
+### 3. Recommendation Engine (`apps/rec-engine`)
 
 **Tech Stack:**
 - Python 3.13
-- FastAPI
-- Uvicorn
+- FastAPI + uvicorn
 - scikit-learn (KNN)
-- pandas
+- pandas, numpy
 - Supabase client
 
 **Responsibilities:**
@@ -95,100 +102,302 @@ which-glp/
 - Side effect prediction
 - Cost estimation
 
-**Port:** 8001 (local) / Railway domain (production)
-
 **Key Endpoints (REST):**
 - `POST /api/recommendations` - Get recommendations
 - `GET /health` - Health check
 - `GET /api/cache/clear` - Clear cache
 
 **Deployment:**
-- Railway service: `whichglp-rec-engine`
+- Platform: Railway
+- Service: `whichglp-rec-engine`
+- Domain: `whichglp-rec-engine.up.railway.app`
 - Start command: `cd apps/rec-engine && python3 api.py`
 - Environment variables:
   - `SUPABASE_URL`
   - `SUPABASE_SERVICE_KEY`
-  - `REC_ENGINE_PORT`
+  - `PORT`
+
+---
+
+### 4. Post Ingestion (`apps/post-ingestion`)
+
+**Tech Stack:**
+- Python 3.13
+- FastAPI + uvicorn
+- PRAW (Reddit API)
+- Supabase client
+
+**Responsibilities:**
+- Fetch recent Reddit posts from GLP-1 subreddits
+- Store raw posts in `reddit_posts` table
+- Triggered by cron job every 2 days
+
+**Key Endpoints (REST):**
+- `POST /api/ingest` - Trigger ingestion
+- `GET /api/status` - Check ingestion status
+- `GET /health` - Health check
+
+**Deployment:**
+- Platform: Railway
+- Service: `whichglp-post-ingestion`
+- Domain: `whichglp-post-ingestion.up.railway.app`
+- Start command: `uvicorn api:app --host 0.0.0.0 --port $PORT`
+- Triggered by: `Post-Ingestion-Cron` (every 2 days)
+
+---
+
+### 5. Post Extraction (`apps/post-extraction`)
+
+**Tech Stack:**
+- Python 3.13
+- FastAPI + uvicorn
+- GLM-4.5-Air (Z.ai SDK)
+- Supabase client
+
+**Responsibilities:**
+- Extract structured drug experience data from posts
+- AI-powered feature extraction (drug, weight loss, cost, side effects)
+- Store in `extracted_features` table
+- Triggered by cron job every 2 days
+
+**Key Endpoints (REST):**
+- `POST /api/extract` - Trigger extraction
+- `GET /api/status` - Check extraction status
+- `GET /health` - Health check
+
+**Deployment:**
+- Platform: Railway
+- Service: `whichglp-post-extraction`
+- Domain: `whichglp-post-extraction.up.railway.app`
+- Start command: `uvicorn api:app --host 0.0.0.0 --port $PORT`
+- Triggered by: `Post-Extraction-Cron` (every 2 days)
+
+---
+
+### 6. User Extraction (`apps/user-extraction`)
+
+**Tech Stack:**
+- Python 3.13
+- FastAPI + uvicorn
+- GLM-4.5-Air (Z.ai SDK)
+- Supabase client
+
+**Responsibilities:**
+- Extract user demographics from Reddit user history
+- AI-powered demographic extraction (age, sex, location)
+- Store in `user_demographics` table
+- Triggered by cron job every 2 days
+
+**Key Endpoints (REST):**
+- `POST /api/analyze` - Trigger user analysis
+- `GET /api/stats` - Get analysis statistics
+- `GET /api/status` - Check analysis status
+- `GET /health` - Health check
+
+**Deployment:**
+- Platform: Railway
+- Service: `whichglp-user-extraction`
+- Domain: `whichglp-user-extraction.up.railway.app`
+- Start command: `uvicorn api:app --host 0.0.0.0 --port $PORT`
+- Triggered by: `User-Extraction-Cron` (every 2 days)
+
+---
+
+## Cron Jobs (Automated Scheduling)
+
+### 1. View-Refresher-Cron
+
+**Schedule:** Every 2 days
+**Function:** Refreshes materialized views in Supabase
+**Implementation:** Railway Cron Schedule
+**Script:** `scripts/cron/view-refresher-cron.ts`
+
+### 2. Post-Ingestion-Cron
+
+**Schedule:** Every 2 days
+**Function:** Triggers `POST /api/ingest` on Post-Ingestion service
+**Implementation:** Railway Cron Schedule
+**Target:** `whichglp-post-ingestion.up.railway.app/api/ingest`
+
+### 3. Post-Extraction-Cron
+
+**Schedule:** Every 2 days
+**Function:** Triggers `POST /api/extract` on Post-Extraction service
+**Implementation:** Railway Cron Schedule
+**Target:** `whichglp-post-extraction.up.railway.app/api/extract`
+
+### 4. User-Extraction-Cron
+
+**Schedule:** Every 2 days
+**Function:** Triggers `POST /api/analyze` on User-Extraction service
+**Implementation:** Railway Cron Schedule
+**Target:** `whichglp-user-extraction.up.railway.app/api/analyze`
+
+---
+
+## Infrastructure Services
+
+### Redis
+
+**Platform:** Railway
+**Type:** Redis Database with persistent volume
+**Volume:** `redis-volume`
+**Function:** Caching layer for API service
+**Connected to:** API service
+
+### Supabase
+
+**Type:** PostgreSQL Database
+**Tier:** Pro ($25/month, 8GB storage)
+**Function:** Primary data storage
+**Tables:**
+- `reddit_posts` - Raw Reddit posts
+- `reddit_comments` - Raw Reddit comments
+- `extracted_features` - AI-extracted structured data
+- `user_demographics` - User demographic data
+- `mv_experiences_denormalized` - Materialized view for fast queries
 
 ---
 
 ## Data Flow
 
-### Recommendation Request
+### Data Ingestion Pipeline
 
 ```
-┌─────────┐     tRPC      ┌─────────┐    HTTP      ┌────────┐
-│ Frontend│─────────────►│ Backend │────────────►│ ML API │
-│ (Next)  │              │ (tRPC)  │             │(FastAPI)│
-└─────────┘              └─────────┘             └────────┘
-                              │                       │
-                              │                       │
-                              ▼                       ▼
-                         ┌──────────────────────────────┐
-                         │        Supabase DB           │
-                         │   (experiences, features)    │
-                         └──────────────────────────────┘
+┌──────────────────┐
+│ Post-Ingestion   │ ◄─── Cron (every 2 days)
+│ (Reddit API)     │
+└────────┬─────────┘
+         │
+         ▼
+   ┌──────────┐
+   │ Supabase │
+   │  reddit_ │
+   │  posts   │
+   └────┬─────┘
+        │
+        ▼
+┌──────────────────┐
+│ Post-Extraction  │ ◄─── Cron (every 2 days)
+│ (GLM-4.5-Air)    │
+└────────┬─────────┘
+         │
+         ▼
+   ┌──────────┐
+   │ Supabase │
+   │ extracted│
+   │ features │
+   └────┬─────┘
+        │
+        ▼
+┌──────────────────┐
+│ User-Extraction  │ ◄─── Cron (every 2 days)
+│ (GLM-4.5-Air)    │
+└────────┬─────────┘
+         │
+         ▼
+   ┌──────────┐
+   │ Supabase │
+   │   user_  │
+   │demographics│
+   └────┬─────┘
+        │
+        ▼
+┌──────────────────┐
+│ View-Refresher   │ ◄─── Cron (every 2 days)
+└────────┬─────────┘
+         │
+         ▼
+   ┌──────────┐
+   │ Supabase │
+   │    mv_   │
+   │experiences│
+   └──────────┘
+```
+
+### Recommendation Request Flow
+
+```
+┌─────────┐     tRPC      ┌─────────┐    HTTP      ┌────────────┐
+│ Frontend│─────────────►│   API   │────────────►│Rec-Engine  │
+│ (Vercel)│              │(Railway)│             │  (Railway) │
+└─────────┘              └─────┬───┘             └──────┬─────┘
+                               │                        │
+                               ▼                        │
+                          ┌────────┐                    │
+                          │ Redis  │                    │
+                          │ Cache  │                    │
+                          └────────┘                    │
+                               │                        │
+                               └────────────┬───────────┘
+                                            │
+                                            ▼
+                                    ┌──────────────┐
+                                    │   Supabase   │
+                                    │  PostgreSQL  │
+                                    └──────────────┘
 ```
 
 **Steps:**
-1. User fills form on frontend
+1. User fills form on frontend (Vercel)
 2. Frontend calls `recommendations.getForUser` via tRPC
-3. Backend forwards request to ML API via HTTP
-4. ML API:
+3. API service forwards request to Rec-Engine via HTTP
+4. Rec-Engine:
    - Fetches experiences from Supabase
    - Runs KNN algorithm
    - Ranks drugs
    - Returns recommendations
-5. Backend returns to frontend
-6. Frontend displays recommendations
+5. API caches result in Redis
+6. API returns to frontend
+7. Frontend displays recommendations
 
-### Experience Browsing
+### Experience Browsing Flow
 
 ```
 ┌─────────┐     tRPC      ┌─────────┐
-│ Frontend│─────────────►│ Backend │
-│ (Next)  │              │ (tRPC)  │
-└─────────┘              └─────────┘
-                              │
-                              ▼
-                         ┌────────┐
-                         │ Redis  │ (cache)
-                         └────────┘
-                              │
-                              ▼
-                         ┌────────┐
-                         │Supabase│
-                         └────────┘
+│ Frontend│─────────────►│   API   │
+│ (Vercel)│              │(Railway)│
+└─────────┘              └─────┬───┘
+                               │
+                               ▼
+                          ┌────────┐
+                          │ Redis  │ (check cache)
+                          └────┬───┘
+                               │
+                               ▼
+                        ┌──────────────┐
+                        │   Supabase   │
+                        │ mv_experiences│
+                        └──────────────┘
 ```
 
 **Steps:**
-1. Frontend calls `experiences.list`
-2. Backend checks Redis cache
-3. If miss, query Supabase
-4. Cache result in Redis
+1. Frontend calls `experiences.list` via tRPC
+2. API checks Redis cache
+3. If miss, query Supabase materialized view
+4. Cache result in Redis (TTL: 5 minutes)
 5. Return to frontend
 
 ---
 
-## Why Separate ML Service?
+## Railway Deployment Summary
 
-### Pros
-✅ **Independent Scaling**: ML is compute-intensive, can scale separately
-✅ **Process Isolation**: Python crashes don't affect Node.js API
-✅ **Technology Optimization**: Use Python ML ecosystem without Node.js overhead
-✅ **Faster Deployments**: Change ML model without redeploying API
-✅ **Simpler Testing**: Test ML logic independently
+**Total Services: 9**
 
-### Cons
-❌ **Network Latency**: ~20-50ms overhead for HTTP call
-❌ **More Complex Deployment**: 2 services instead of 1
-❌ **Higher Cost**: 2 Railway services (but still cheap at low scale)
+| Service | Type | Schedule |
+|---------|------|----------|
+| API | Node.js | Always-on |
+| Rec-Engine | Python | Always-on |
+| Post-Ingestion | Python | Always-on (HTTP triggered) |
+| Post-Extraction | Python | Always-on (HTTP triggered) |
+| User-Extraction | Python | Always-on (HTTP triggered) |
+| Redis | Database | Always-on |
+| View-Refresher-Cron | Cron | Every 2 days |
+| Post-Ingestion-Cron | Cron | Every 2 days |
+| Post-Extraction-Cron | Cron | Every 2 days |
+| User-Extraction-Cron | Cron | Every 2 days |
 
-### Trade-off Decision
-For WhichGLP, the pros outweigh the cons because:
-- Recommendation requests are async (latency acceptable)
-- ML model will evolve independently
-- Backend has other non-ML responsibilities
+**Note:** Frontend is deployed on Vercel separately.
 
 ---
 
@@ -199,15 +408,30 @@ For WhichGLP, the pros outweigh the cons because:
 ```bash
 # Terminal 1: Frontend
 cd apps/frontend
-npm run dev
+npm run dev  # http://localhost:3000
 
-# Terminal 2: Backend
+# Terminal 2: API
 cd apps/api
-npm run dev
+npm run dev  # http://localhost:8000
 
-# Terminal 3: ML API
+# Terminal 3: Rec-Engine
 cd apps/rec-engine
-./start_api.sh
+python3 api.py
+
+# Terminal 4: Post-Ingestion
+cd apps/post-ingestion
+uvicorn api:app --reload
+
+# Terminal 5: Post-Extraction
+cd apps/post-extraction
+uvicorn api:app --reload
+
+# Terminal 6: User-Extraction
+cd apps/user-extraction
+uvicorn api:app --reload
+
+# Terminal 7: Redis
+redis-server  # Port 6379
 ```
 
 ### Environment Setup
@@ -218,11 +442,16 @@ SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_DB_PASSWORD=your-db-password
 SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_KEY=your-service-key
+REDDIT_CLIENT_ID=your-client-id
+REDDIT_CLIENT_SECRET=your-client-secret
+REDDIT_USER_AGENT=whichglp-ingestion/0.1
+ZAI_API_KEY=your-zai-api-key
 ```
 
 2. **`apps/frontend/.env.local`**:
 ```bash
 NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_GA_TAG=your-ga-tag
 ```
 
 3. **`apps/api/.env`**:
@@ -235,143 +464,101 @@ REC_ENGINE_URL=http://localhost:8001
 
 ---
 
-## Railway Deployment Guide
+## Monitoring & Health Checks
 
-### Step 1: Frontend Service
+### Health Check Endpoints
 
-1. Create new service: `whichglp-frontend`
-2. Connect to GitHub
-3. Settings:
-   - Root directory: `apps/frontend`
-   - Build command: `npm run build`
-   - Start command: `npm start`
-4. Environment variables:
-   - `NEXT_PUBLIC_API_URL=https://your-backend.railway.app`
-
-### Step 2: Backend Service
-
-1. Create new service: `whichglp-api`
-2. Connect to GitHub
-3. Settings:
-   - Root directory: `apps/api`
-   - Build command: `npm run build`
-   - Start command: `npm start`
-4. Environment variables:
-   - `SUPABASE_URL`
-   - `SUPABASE_ANON_KEY`
-   - `REDIS_URL` (from Railway Redis addon)
-   - `REC_ENGINE_URL=https://your-ml.railway.app`
-
-### Step 3: ML API Service
-
-1. Create new service: `whichglp-rec-engine`
-2. Connect to GitHub
-3. Settings:
-   - Root directory: `/` (monorepo root)
-   - Start command: `cd apps/rec-engine && python3 api.py`
-   - Health check: `/health`
-4. Environment variables:
-   - `SUPABASE_URL`
-   - `SUPABASE_SERVICE_KEY`
-   - `REC_ENGINE_PORT=8001`
-
-### Step 4: Link Services
-
-Update backend environment:
 ```bash
-REC_ENGINE_URL=https://whichglp-rec-engine.railway.app
+# API
+curl https://api.whichglp.com/health
+
+# Rec-Engine
+curl https://whichglp-rec-engine.up.railway.app/health
+
+# Post-Ingestion
+curl https://whichglp-post-ingestion.up.railway.app/health
+
+# Post-Extraction
+curl https://whichglp-post-extraction.up.railway.app/health
+
+# User-Extraction
+curl https://whichglp-user-extraction.up.railway.app/health
 ```
 
-Update frontend environment:
-```bash
-NEXT_PUBLIC_API_URL=https://whichglp-api.railway.app
-```
-
----
-
-## Database Schema
-
-See `apps/shared/migrations/` for SQL schema.
-
-### Key Tables
-
-- `reddit_posts` - Raw Reddit posts
-- `reddit_comments` - Raw Reddit comments
-- `extracted_features` - AI-extracted structured data
-- `mv_experiences_denormalized` - Materialized view for fast queries
-
----
-
-## Testing
-
-### Frontend
-```bash
-cd apps/frontend
-npm run lint
-npm run build  # Type checking
-```
-
-### Backend
-```bash
-cd apps/api
-npm run lint
-npm run build
-npm test
-```
-
-### ML API
-```bash
-cd apps/rec-engine
-pytest test_recommender.py -v
-```
-
----
-
-## Monitoring
-
-### Health Checks
+### Railway Logs
 
 ```bash
-# Frontend
-curl https://your-frontend.railway.app
-
-# Backend
-curl https://your-backend.railway.app/health
-
-# ML API
-curl https://your-ml.railway.app/health
-```
-
-### Logs
-
-```bash
-railway logs --service whichglp-frontend
 railway logs --service whichglp-api
 railway logs --service whichglp-rec-engine
+railway logs --service whichglp-post-ingestion
+railway logs --service whichglp-post-extraction
+railway logs --service whichglp-user-extraction
 ```
+
+---
+
+## Architecture Decisions
+
+### Why Separate Microservices?
+
+**Pros:**
+✅ **Independent Scaling**: Each service scales based on load
+✅ **Process Isolation**: Failures don't cascade across services
+✅ **Technology Optimization**: Use best tool for each job (Node.js for API, Python for ML/AI)
+✅ **Faster Deployments**: Deploy services independently
+✅ **Simpler Testing**: Test each service in isolation
+✅ **Cost Optimization**: Scale down unused services
+
+**Cons:**
+❌ **Network Latency**: HTTP calls between services add ~20-50ms
+❌ **More Complex Deployment**: 9 services vs 1 monolith
+❌ **Higher Cost**: Multiple Railway services (mitigated by efficient scheduling)
+
+### Why Cron Jobs Instead of Always-Running?
+
+**Reasoning:**
+- Data ingestion doesn't need to run 24/7
+- Reddit posts arrive at predictable rates
+- Cron jobs reduce Railway costs (pay for compute time, not idle time)
+- FastAPI services boot quickly (~2-5 seconds)
+- 2-day intervals ensure fresh data without wasted cycles
+
+### Why GLM-4.5-Air Instead of Claude?
+
+**Cost Comparison:**
+- Claude Sonnet 4: $3/1M input tokens, $15/1M output tokens
+- GLM-4.5-Air: ~$0.50/1M tokens (via Z.ai SDK)
+- **Savings: ~85% cost reduction**
+
+**Trade-offs:**
+- Slightly lower quality extractions (~5-10% less accurate)
+- Faster response times (optimized for speed)
+- Good enough for text extraction, summarization, sentiment analysis
+- Can always upgrade to Claude for critical extractions
 
 ---
 
 ## Future Architecture
 
 ### Phase 1 (Current)
-- Monorepo with 3 services
-- Direct HTTP calls between services
-- In-memory caching in ML API
+✅ Monorepo with 9 Railway services
+✅ Cron-based automation
+✅ Redis caching
 
-### Phase 2 (Near Future)
-- Add Redis to ML API for experience caching
-- Add request logging/tracing
-- Add rate limiting
+### Phase 2 (Q2 2025)
+- Add request logging/tracing (OpenTelemetry)
+- Add rate limiting (Redis-based)
+- Add monitoring dashboard (Prometheus + Grafana)
+- Database read replicas
 
-### Phase 3 (Scale)
+### Phase 3 (Q3 2025)
 - Move ML to async job queue (BullMQ)
-- Add CDN for frontend
-- Add database read replicas
-- Add monitoring (Prometheus/Grafana)
+- Add CDN for frontend assets
+- Multi-region deployment
+- Real-time WebSocket updates
 
 ### Phase 4 (Growth)
-- Microservices for each drug type
-- Real-time ML retraining pipeline
 - GraphQL federation
-- Multi-region deployment
+- Event-driven architecture (Kafka)
+- Real-time ML retraining pipeline
+- Multi-region database replication

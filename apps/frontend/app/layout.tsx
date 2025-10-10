@@ -1,11 +1,23 @@
 import type React from "react";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
-import { Analytics } from "@vercel/analytics/next";
+import { Analytics as VercelAnalytics } from "@vercel/analytics/next";
 import { Suspense } from "react";
 import { Providers } from "@/components/providers";
+import { Analytics } from "@/components/analytics";
 import "./globals.css";
+
+// Configure fonts with display: swap for better performance
+const geistSans = GeistSans;
+const geistMono = GeistMono;
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+};
 
 export const metadata: Metadata = {
   title: {
@@ -105,29 +117,78 @@ const RootLayout = ({
   return (
     <html lang="en">
       <head>
-        {/* Google tag (gtag.js) */}
-        <script
-          async
-          src="https://www.googletagmanager.com/gtag/js?id=G-1JJ2DG0KPD"
-        ></script>
-        <script
+        {/* Preconnect to external domains for faster resource loading */}
+        <link rel="preconnect" href="https://www.googletagmanager.com" />
+        <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
+        <link rel="preconnect" href="https://www.google-analytics.com" />
+        <link rel="dns-prefetch" href="https://www.google-analytics.com" />
+        {/* Preconnect to API domain for faster tRPC requests */}
+        <link rel="preconnect" href={process.env.NEXT_PUBLIC_API_URL?.replace('/trpc', '') || ''} crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href={process.env.NEXT_PUBLIC_API_URL?.replace('/trpc', '') || ''} />
+
+        {/* Inline critical CSS for immediate render */}
+        <style
           dangerouslySetInnerHTML={{
             __html: `
-              window.dataLayer = window.dataLayer || [];
-              function gtag(){dataLayer.push(arguments);}
-              gtag('js', new Date());
-              gtag('config', 'G-1JJ2DG0KPD');
+              :root {
+                --background: oklch(1 0 0);
+                --foreground: oklch(0.145 0 0);
+                --primary: oklch(0.319 0.462 296.0);
+                --primary-foreground: oklch(0.985 0 0);
+                --muted: oklch(0.97 0 0);
+                --muted-foreground: oklch(0.556 0 0);
+                --border: oklch(0.922 0 0);
+                --radius: 0.625rem;
+              }
+              .dark {
+                --background: oklch(0.145 0 0);
+                --foreground: oklch(0.985 0 0);
+                --primary: oklch(0.667 0.326 274.1);
+                --primary-foreground: oklch(0.145 0 0);
+                --muted: oklch(0.269 0 0);
+                --muted-foreground: oklch(0.708 0 0);
+                --border: oklch(0.269 0 0);
+              }
+              * { border-color: var(--border); }
+              body {
+                background-color: var(--background);
+                color: var(--foreground);
+                font-family: system-ui, -apple-system, sans-serif;
+                margin: 0;
+              }
             `,
           }}
         />
+
+        {/* Google tag (gtag.js) - deferred to load after page interactive */}
+        {process.env.NEXT_PUBLIC_GA_TAG && (
+          <>
+            <script
+              defer
+              src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GA_TAG}`}
+            ></script>
+            <script
+              defer
+              dangerouslySetInnerHTML={{
+                __html: `
+                  window.dataLayer = window.dataLayer || [];
+                  function gtag(){dataLayer.push(arguments);}
+                  gtag('js', new Date());
+                  gtag('config', '${process.env.NEXT_PUBLIC_GA_TAG}');
+                `,
+              }}
+            />
+          </>
+        )}
       </head>
-      <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`}>
+      <body className={`font-sans ${geistSans.variable} ${geistMono.variable}`}>
         <Providers>
           <Suspense fallback={null}>
             {/* <Scrim>{children}</Scrim> */}
             {children}
+            <Analytics />
           </Suspense>
-          <Analytics />
+          <VercelAnalytics />
         </Providers>
       </body>
     </html>

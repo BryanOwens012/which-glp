@@ -309,42 +309,81 @@
 
 ## Tech Stack
 
-### Backend
-
-- **Runtime:** Node.js 20+
-- **Framework:** Express.js
-- **API Layer:** tRPC (end-to-end type safety with frontend)
-- **Database ORM:** Prisma
-- **Caching/Rate Limiting:** Redis
-- **Data Ingestion:** Reddit API (PRAW/custom HTTP client), Twitter API (via twitterapi.io)
-- **Scraping Backup:** Playwright (when APIs rate-limited/unavailable)
-- **AI Processing:** Claude Sonnet 4 API (extract structured data from posts)
-- **Optional:** FastAPI + Python microservice (heavy NLP/data processing if needed)
-
-### Frontend
+### Frontend Service
 
 - **Framework:** Next.js 15 (App Router)
 - **Language:** TypeScript (strict mode)
-- **UI Library:** React.js
-- **Styling:** Tailwind CSS
-- **Components:** Radix UI + Shadcn/ui
-- **Package Manager:** Yarn
+- **UI:** React 19, Tailwind CSS v4, Radix UI + shadcn/ui
+- **API Client:** tRPC client, TanStack Query
+- **Hosting:** Vercel
+
+### Backend Services
+
+**1. API Service** (`apps/api`)
+- **Runtime:** Node.js 20+
+- **Language:** TypeScript (strict mode)
+- **Framework:** tRPC (type-safe API)
+- **Database:** Supabase client
+- **Caching:** Redis (ioredis)
+
+**2. Post Ingestion** (`apps/post-ingestion`)
+- **Framework:** FastAPI + uvicorn
+- **Language:** Python 3.13+
+- **Data Source:** Reddit API (PRAW)
+- **Database:** Supabase client
+- **Function:** Fetch recent Reddit posts from GLP-1 subreddits
+
+**3. Post Extraction** (`apps/post-extraction`)
+- **Framework:** FastAPI + uvicorn
+- **Language:** Python 3.13+
+- **Database:** Supabase client
+- **AI Model:** GLM-4.5-Air (via Z.ai SDK)
+- **Function:** Extract structured drug experience data from posts
+
+**4. User Extraction** (`apps/user-extraction`)
+- **Framework:** FastAPI + uvicorn
+- **Language:** Python 3.13+
+- **Database:** Supabase client
+- **AI Model:** GLM-4.5-Air (via Z.ai SDK)
+- **Function:** Extract user demographics from Reddit user history
+
+**5. Recommendation Engine** (`apps/rec-engine`)
+- **Framework:** FastAPI + uvicorn
+- **Language:** Python 3.13+
+- **ML Stack:** scikit-learn (KNN), pandas, numpy
+- **Database:** Supabase client
+- **Function:** Generate personalized drug recommendations
 
 ### Infrastructure
 
-- **Database:** PostgreSQL via Supabase (free tier: 500MB, upgrade to Pro: 8GB @ $25/month)
-- **Auth:** Supabase Auth
-- **Backend Hosting:** Railway (Express + tRPC + Redis + Playwright)
-- **Frontend Hosting:** Vercel
-- **Containerization:** Not present initially, Docker added later for production
+**Vercel**
+- **Frontend:** Next.js app
+
+**Railway** (9 services total)
+- **Core Services:**
+  - Redis (caching with persistent volume)
+  - API (tRPC gateway)
+  - Rec-Engine (ML recommendations)
+- **Data Pipeline Services:**
+  - Post-Ingestion (Reddit post fetching)
+  - Post-Extraction (AI drug experience extraction)
+  - User-Extraction (AI user demographics extraction)
+- **Cron Jobs (Automated Scheduling):**
+  - View-Refresher-Cron (refreshes materialized views every 45 minutes)
+  - Post-Ingestion-Cron (triggers Reddit ingestion every 16 hours)
+  - Post-Extraction-Cron (triggers AI extraction every 22 hours)
+  - User-Extraction-Cron (triggers user analysis daily)
+
+**Supabase**
+- **Database:** PostgreSQL
 
 ### Architecture Notes
 
-- **Primary ingestion:** Reddit API + Twitter API (twitterapi.io proxy)
-- **Backup ingestion:** Playwright scraping (fallback when API limits exceeded)
+- **Primary ingestion:** Reddit API (PRAW) via scheduled cron jobs
 - **Type safety:** tRPC ensures frontend/backend contract enforcement
-- **Supabase benefits:** PostgreSQL + Auth + Storage + Realtime in single platform
-- **Railway deployment:** Single service for Node.js backend, Redis, and Playwright dependencies
+- **AI Processing:** GLM-4.5-Air (cost-effective alternative to Claude Sonnet 4)
+- **Automated Pipeline:** Cron jobs orchestrate the data ingestion → extraction → view refresh cycle
+- **Microservices:** Each service independently scalable on Railway
 
 ---
 
@@ -393,12 +432,12 @@
 
 **Goal:** Convert unstructured post/comment text into structured data
 
-**Extraction Model:** Claude Sonnet 4 (primary), consider cheaper alternatives like GLM-4.5 for cost optimization if volume scales
+**Extraction Model:** GLM-4.5-Air (via Z.ai SDK) - cost-effective model for text extraction, summarization, and sentiment analysis
 
 **Process:**
 1. Query unprocessed posts/comments from database
 2. Build context for each item (parent post, parent comments, top replies)
-3. Send to Claude API with structured extraction prompt
+3. Send to GLM-4.5-Air API with structured extraction prompt
 4. Parse JSON response into database schema
 5. Store extracted features in `extracted_features` table
 6. Backup extraction results to JSON files
