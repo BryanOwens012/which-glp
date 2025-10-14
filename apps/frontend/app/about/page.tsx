@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Navigation } from "@/components/navigation";
@@ -18,6 +19,17 @@ const AboutPage = () => {
           <p className="mb-6 text-lg leading-relaxed text-muted-foreground">
             Real-world data and insights you won't find anywhere else
           </p>
+          <div className="flex justify-center items-center m-auto">
+            <Image
+              src="/icon.svg"
+              alt="WhichGLP Logo"
+              width={240}
+              height={240}
+              className="h-24 w-40"
+              priority
+              loading="eager"
+            />
+          </div>
         </div>
       </section>
 
