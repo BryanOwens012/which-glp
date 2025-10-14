@@ -22,7 +22,7 @@
 
 - **Performance:** Database optimization (materialized views, composite indexing, Redis caching) and frontend preconnecting achieve <200s Speed Index (best case), [700ms Speed Index](https://pagespeed.web.dev/analysis/https-whichglp-com-compare/ddc3fk0bbf?form_factor=desktop) (average case), and Core Web Vitals scores (SI, LCP) superior to Google Search.
 
-- **Cost optimization:** Switched from Claude Sonnet 4 and Haiku 3.5 to GLM-4.5-Air for feature extraction, reducing costs 90% from $30/day to <$3/day while maintaining extraction accuracy; gated API calls behind deterministic regex filters to eliminate 60% of irrelevant posts before AI processing
+- **Cost optimization:** Switched from Claude Sonnet 4 and Haiku 3.5 to GLM-4.5-Air for feature extraction, reducing costs 90% from $30/day to <$3/day while maintaining extraction accuracy; used deterministic regex filters to eliminate 70% of posts as unsuitable (off-topic or information-sparse) for extraction, avoiding unnecessary API calls
 
 ### Production Polish
 
