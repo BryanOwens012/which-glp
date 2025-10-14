@@ -37,8 +37,8 @@ const AboutPage = () => {
               </div>
               <h3 className="mb-2 text-lg font-semibold">Community Insights</h3>
               <p className="text-sm leading-relaxed text-muted-foreground">
-                Learn from thousands of experiences from popular Reddit
-                communities like r/Ozempic, r/Wegovy, and r/Mounjaro
+                Learn from thousands of experiences from r/Zepbound and dozens
+                of other popular subreddits
               </p>
             </Card>
 
