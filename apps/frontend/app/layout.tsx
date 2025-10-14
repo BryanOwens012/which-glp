@@ -26,7 +26,7 @@ export const metadata: Metadata = {
     template: "%s | WhichGLP",
   },
   description:
-    "Compare weight-loss drugs like Ozempic, Wegovy, Mounjaro, and Zepbound using real-world data. Make informed decisions based on thousands of user experiences, cost analysis, and outcome predictions.",
+    "Compare weight-loss drugs like Ozempic and Zepbound using real-world data. Get recommendations based on your profile, location, and health conditions.",
   keywords: [
     "GLP-1",
     "agonist",
@@ -55,7 +55,7 @@ export const metadata: Metadata = {
     siteName: "WhichGLP",
     title: "WhichGLP - Real-World Weight-Loss Drug Reviews & Outcomes",
     description:
-      "Compare weight-loss drugs using real-world data from thousands of user experiences. Get personalized recommendations.",
+      "Compare weight-loss drugs like Ozempic and Zepbound using real-world data. Get recommendations based on your profile, location, and health conditions.",
     images: [
       {
         url: "/icon.svg",
@@ -65,14 +65,14 @@ export const metadata: Metadata = {
       },
     ],
   },
-  // twitter: {
-  //   card: "summary_large_image",
-  //   title: "WhichGLP - Real-World GLP-1 Drug Reviews",
-  //   description:
-  //     "Compare GLP-1 medications using real-world data. Make informed decisions about weight loss drugs.",
-  //   images: ["/twitter-image.png"],
-  //   creator: "@whichglp",
-  // },
+  twitter: {
+    card: "summary_large_image",
+    title: "WhichGLP - Real-World GLP-1 Drug Reviews",
+    description:
+      "Compare weight-loss drugs like Ozempic and Zepbound using real-world data. Get recommendations based on your profile, location, and health conditions.",
+    images: ["/icon.svg"],
+    creator: "@whichglp",
+  },
   robots: {
     index: true,
     follow: true,
@@ -83,9 +83,6 @@ export const metadata: Metadata = {
       "max-image-preview": "large",
       "max-snippet": -1,
     },
-  },
-  verification: {
-    google: "google-site-verification-code",
   },
 };
 
