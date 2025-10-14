@@ -1,10 +1,38 @@
 # WhichGLP
 
-Real-world dashboard for GLP-1 weight-loss drug outcomes by analyzing and aggregating Reddit posts. Mission is to help people make educated decisions when choosing their weight-loss drug.
+[WhichGLP.com](https://whichglp.com)
 
-I've accelerated development by prompting Claude Code to generate code. More details at [docs/AGENTS.md](docs/AGENTS.md).
+![WhichGLP logo](apps/frontend/app/icon.png "WhichGLP logo")
 
-The website is available at: [whichglp.com](https://whichglp.com)
+## Headlines
+
+### Product
+
+- **Addresses $100B+ market problem:** 72% of GLP-1 patients discontinue within 2 years, with lack of information or misaligned expectations playing a role
+
+- **AI-powered platform:** Extracts structured data from 10k+ unstructured Reddit posts (cost, side effects, outcomes) and delivers personalized predictions based on user profile (age, location, insurance, health history)
+
+- **User-validated:** Friend on Zepbound cited side effect preparedness as a major pain point his doctor didn't address; gathering broader user feedback for iteration
+
+- **Built solo in 2 weeks** using AI-assisted development
+
+### Engineering
+
+- **Tech stack:** AI agent orchestration (Claude Sonnet 4.5 for code generation, GitHub Copilot + ChatGPT for code review, GLM-4.5-Air for feature extraction), Python FastAPI, Node.js, Redis, Supabase (PostgreSQL), Next.js, Vercel; designed to run autonomously at <$3/day
+
+- **Performance:** Database optimization (materialized views, composite indexing, Redis caching) and frontend preconnecting achieve <0.2s Speed Index (best case), [0.7s Speed Index](https://pagespeed.web.dev/analysis/https-whichglp-com-compare/ddc3fk0bbf?form_factor=desktop) (average case), and Core Web Vitals scores (SI, LCP) superior to Google Search.
+
+- **Cost optimization:** Switched from Claude Sonnet 4 and Haiku 3.5 to GLM-4.5-Air for feature extraction, reducing costs 90% from \\$30/day to <\\$3/day while maintaining extraction accuracy; gated API calls behind deterministic regex filters to eliminate 60% of irrelevant posts before AI processing
+
+### Production Polish
+
+- **Branding:** Memorable domain ([WhichGLP.com](https://whichglp.com)) that reflects user intent, custom logo and favicon reminiscent of a weight-loss trendline, and color palette inspired by GLP-1 drug brands
+
+- **Marketing:** SEO (meta tags, OpenGraph), Google Search Console, professional email  (contact@whichglp.com)
+
+- **Observability:** Google Analytics, Vercel Observability, Supabase analytics
+
+- **Legal/Compliance:** Custom disclaimer, Terms of Service, and Privacy Policy addressing data collection, healthcare content, and AI-generated content
 
 ## Tech Stack
 
