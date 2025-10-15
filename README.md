@@ -20,7 +20,7 @@
 
 - **Tech stack:** AI agent orchestration (Claude Sonnet 4.5 for code generation, GitHub Copilot + ChatGPT for code review, GLM-4.5-Air for feature extraction), Python FastAPI, Node.js, Redis, Supabase (PostgreSQL), Next.js, Vercel; designed to run autonomously at <$3/day
 
-- **Performance:** Database optimization (materialized views, composite indexing, Redis caching) and frontend preconnecting achieve <200s Speed Index (best case), [700ms Speed Index](https://pagespeed.web.dev/analysis/https-whichglp-com-compare/ddc3fk0bbf?form_factor=desktop) (average case), and Core Web Vitals scores (SI, LCP) superior to Google Search.
+- **Performance:** Database optimization (materialized views, composite indexing, Redis caching) and frontend preconnecting achieve <200ms Speed Index (best case), [700ms Speed Index](https://pagespeed.web.dev/analysis/https-whichglp-com-compare/ddc3fk0bbf?form_factor=desktop) (average case), and Core Web Vitals scores (SI, LCP) superior to Google Search.
 
 - **Cost optimization:** Switched from Claude Sonnet 4 and Haiku 3.5 to GLM-4.5-Air for feature extraction, reducing costs 90% from $30/day to <$3/day while maintaining extraction accuracy; used deterministic regex filters to eliminate 70% of posts as unsuitable (off-topic or information-sparse) for extraction, avoiding unnecessary API calls
 
@@ -28,7 +28,7 @@
 
 - **Branding:** Memorable domain ([WhichGLP.com](https://whichglp.com)) that reflects user intent, custom logo and favicon reminiscent of a weight-loss trendline, and color palette inspired by GLP-1 drug brands
 
-- **Marketing:** SEO (meta tags, OpenGraph), Google Search Console, professional email  (contact@whichglp.com)
+- **Marketing:** SEO (meta tags, OpenGraph), Google Search Console, professional email (contact@whichglp.com)
 
 - **Observability:** Google Analytics, Vercel Observability, Supabase analytics
 
@@ -88,7 +88,7 @@
 **Railway**
 - **Caching:** Redis
 - **Backend Services:** API, Post Ingestion, Post Extraction, User Extraction, Recommendation Engine
-- **Cron Jobs:** Automated triggers that run every 2 days (Post Ingestion, Post Extraction, User Extraction, View Refresher)
+- **Cron Jobs:** Automated triggers that run every 1 day (Post Ingestion, Post Extraction, User Extraction, View Refresher)
 
 **Supabase**
 - **Database:** PostgreSQL
