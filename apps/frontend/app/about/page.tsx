@@ -21,7 +21,7 @@ const AboutPage = () => {
           </p>
           <div className="flex justify-center items-center m-auto">
             <Image
-              src="/icon.svg"
+              src="../icon.svg"
               alt="WhichGLP Logo"
               width={240}
               height={240}

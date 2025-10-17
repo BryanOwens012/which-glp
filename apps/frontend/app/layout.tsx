@@ -63,7 +63,7 @@ export const metadata: Metadata = {
       {
         url: "icon.png",
         width: 1200,
-        height: 630,
+        height: 771,
         alt: "WhichGLP - GLP-1 Drug Comparison Platform",
       },
     ],
