@@ -47,18 +47,21 @@ export const metadata: Metadata = {
   authors: [{ name: "WhichGLP" }],
   creator: "WhichGLP",
   publisher: "WhichGLP",
-  metadataBase: new URL("https://whichglp.com"),
+  metadataBase: new URL("https://www.whichglp.com"),
+  alternates: {
+    canonical: "https://www.whichglp.com",
+  },
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: "https://whichglp.com",
+    url: "https://www.whichglp.com",
     siteName: "WhichGLP",
     title: "WhichGLP - Real-World Weight-Loss Drug Reviews & Outcomes",
     description:
       "Compare weight-loss drugs like Ozempic and Zepbound using real-world data. Get recommendations based on your profile, location, and health conditions.",
     images: [
       {
-        url: "/icon.svg",
+        url: "icon.png",
         width: 1200,
         height: 630,
         alt: "WhichGLP - GLP-1 Drug Comparison Platform",
@@ -70,7 +73,7 @@ export const metadata: Metadata = {
     title: "WhichGLP - Real-World GLP-1 Drug Reviews",
     description:
       "Compare weight-loss drugs like Ozempic and Zepbound using real-world data. Get recommendations based on your profile, location, and health conditions.",
-    images: ["/icon.svg"],
+    images: ["icon.png"],
     creator: "@whichglp",
   },
   robots: {

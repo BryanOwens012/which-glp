@@ -2,7 +2,7 @@
 
 [WhichGLP.com](https://whichglp.com)
 
-![WhichGLP logo](apps/frontend/app/icon.png "WhichGLP logo")
+![WhichGLP logo](apps/frontend/app/icon_small.png "WhichGLP logo")
 
 ## Highlights
 
