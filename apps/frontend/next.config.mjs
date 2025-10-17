@@ -61,7 +61,7 @@ const nextConfig = {
       },
       // Cache static assets aggressively
       {
-        source: 'app/icon.svg',
+        source: '/icon.svg',
         headers: [
           {
             key: 'Cache-Control',

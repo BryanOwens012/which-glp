@@ -26,7 +26,7 @@ export const Navigation = () => {
           prefetch={true}
         >
           <Image
-            src="../apps/icon.svg"
+            src="/icon.svg"
             alt="WhichGLP Logo"
             width={40}
             height={40}

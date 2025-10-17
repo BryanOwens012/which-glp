@@ -58,7 +58,7 @@ export const metadata: Metadata = {
       "Compare weight-loss drugs like Ozempic and Zepbound using real-world data. Get recommendations based on your profile, location, and health conditions.",
     images: [
       {
-        url: "icon.png",
+        url: "/icon.png",
         width: 1200,
         height: 771,
         alt: "WhichGLP - GLP-1 Drug Comparison Platform",
@@ -70,7 +70,7 @@ export const metadata: Metadata = {
     title: "WhichGLP - Real-World GLP-1 Drug Reviews",
     description:
       "Compare weight-loss drugs like Ozempic and Zepbound using real-world data. Get recommendations based on your profile, location, and health conditions.",
-    images: ["icon.png"],
+    images: ["/icon.png"],
     creator: "@whichglp",
   },
   robots: {
