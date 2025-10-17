@@ -1,8 +1,8 @@
 # WhichGLP
 
-[WhichGLP.com](https://whichglp.com)
+[WhichGLP.com](https://www.whichglp.com)
 
-![WhichGLP logo](apps/frontend/app/icon.png "WhichGLP logo")
+![WhichGLP logo](apps/frontend/app/icon_small.png "WhichGLP logo")
 
 ## Highlights
 
@@ -26,7 +26,7 @@
 
 ### Production Polish
 
-- **Branding:** Memorable domain ([WhichGLP.com](https://whichglp.com)) that reflects user intent, custom logo and favicon reminiscent of a weight-loss trendline, and color palette inspired by GLP-1 drug brands
+- **Branding:** Memorable domain ([WhichGLP.com](https://www.whichglp.com)) that reflects user intent, custom logo and favicon reminiscent of a weight-loss trendline, and color palette inspired by GLP-1 drug brands
 
 - **Marketing:** SEO (meta tags, OpenGraph), Google Search Console, professional email (contact@whichglp.com)
 
