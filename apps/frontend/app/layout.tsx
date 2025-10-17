@@ -48,9 +48,6 @@ export const metadata: Metadata = {
   creator: "WhichGLP",
   publisher: "WhichGLP",
   metadataBase: new URL("https://www.whichglp.com"),
-  alternates: {
-    canonical: "https://www.whichglp.com",
-  },
   openGraph: {
     type: "website",
     locale: "en_US",
