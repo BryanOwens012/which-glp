@@ -14,7 +14,7 @@
 
 - **User-validated:** Friend on Zepbound cited side effect preparedness as a major pain point his doctor didn't address; gathering broader user feedback for iteration
 
-- **Built solo in 2 weeks** using AI-assisted development
+- **Built solo in ~2 weeks** using AI-assisted development
 
 ### Engineering
 
