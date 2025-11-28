@@ -208,7 +208,7 @@ async def trigger_extraction(
                         "cost_per_month": features.cost_per_month,
                         "currency": features.currency,
                         "drugs_mentioned": features.drugs_mentioned,
-                        "primary_drug": features.primary_drug,
+                        "primary_drug": features.primary_drug.strip().title() if features.primary_drug else None,
                         "drug_sentiments": features.drug_sentiments,
                         "sentiment_pre": features.sentiment_pre,
                         "sentiment_post": features.sentiment_post,
