@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""FastAPI service for post extraction using GLM-4.7-Flash (replaces Claude)."""
+"""FastAPI service for post extraction using GLM-4.7-FlashX (replaces Claude)."""
 
 import os
 import sys
@@ -35,7 +35,7 @@ async def startup_event():
     logger.info("=" * 80)
     logger.info("🚀 POST EXTRACTION SERVICE STARTING UP")
     logger.info(f"   Service: post-extraction")
-    logger.info(f"   Model: GLM-4.7-Flash")
+    logger.info(f"   Model: GLM-4.7-FlashX")
     logger.info(f"   Port: {os.getenv('PORT', '8004')}")
     logger.info(f"   Time: {datetime.now().isoformat()}")
     logger.info("=" * 80)
@@ -56,12 +56,12 @@ class ExtractionRequest(BaseModel):
 
 
 _extraction_running = False
-GLM_RATE_LIMIT_DELAY = 5.0  # Seconds between requests (GLM-4.7-Flash free tier: 1 concurrent)
+GLM_RATE_LIMIT_DELAY = 5.0  # Seconds between requests (GLM-4.7-FlashX paid tier)
 
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy", "service": "post-extraction", "model": "glm-4.7-flash"}
+    return {"status": "healthy", "service": "post-extraction", "model": "glm-4.7-flashx"}
 
 
 @app.post("/api/extract")
@@ -311,7 +311,7 @@ async def trigger_extraction(
                         f"❌ Failed to extract {post_id}: {str(e)}", exc_info=True
                     )
 
-                # Rate limit: GLM-4.7-Flash free tier allows 1 concurrent request
+                # Rate limit: GLM-4.7-FlashX paid tier
                 if i < len(posts):
                     time.sleep(GLM_RATE_LIMIT_DELAY)
 
@@ -351,7 +351,7 @@ async def trigger_extraction(
 
     background_tasks.add_task(run_extraction)
     logger.info("✅ Extraction task queued successfully")
-    return {"status": "started", "message": f"Extraction started with GLM-4.7-Flash"}
+    return {"status": "started", "message": f"Extraction started with GLM-4.7-FlashX"}
 
 
 @app.get("/api/status")
