@@ -391,6 +391,9 @@ cache/
 # Supabase
 .supabase/
 
+# Entire (AI agent session tracking)
+.entire/
+
 # Docker (future)
 docker-compose.override.yml
 docker-data/
