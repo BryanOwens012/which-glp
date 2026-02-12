@@ -1,10 +1,10 @@
 """
-GLM-4.5-Air client for post feature extraction (replaces Claude).
+GLM-4.7-Flash client for post feature extraction (replaces Claude).
 
 Cost comparison:
 - Claude Sonnet 4: $3/$15 per 1M tokens
+- GLM-4.7-Flash: Free tier (1 concurrent request)
 - GLM-4.5-Air: $0.20/$1.10 per 1M tokens
-- Savings: ~15x cheaper
 """
 
 import os
@@ -25,14 +25,15 @@ load_dotenv(env_path)
 logger = get_logger(__name__)
 
 MODEL_PRICING = {
+    "glm-4.7-flash": {"input": 0.0, "output": 0.0},  # Free tier
     "glm-4.5-air": {"input": 0.20, "output": 1.10},
     "glm-4.5": {"input": 0.60, "output": 2.20},
 }
 
-DEFAULT_MODEL = "glm-4.5-air"
+DEFAULT_MODEL = "glm-4.7-flash"
 
 class GLMClient:
-    """GLM-4.5-Air client for extracting features from Reddit posts."""
+    """GLM-4.7-Flash client for extracting features from Reddit posts."""
 
     def __init__(self, api_key: Optional[str] = None):
         self.api_key = api_key or os.getenv("GLM_API_KEY")
@@ -47,11 +48,11 @@ class GLMClient:
 
     def extract_features(self, prompts: tuple[str, str] | str, model: Optional[str] = None, max_retries: int = 3) -> Tuple[ExtractedFeatures, Dict[str, Any]]:
         """
-        Extract features using GLM-4.5-Air.
+        Extract features using GLM-4.7-Flash.
 
         Args:
             prompts: Either a tuple of (system_prompt, user_prompt) or just user_prompt string
-            model: GLM model to use (defaults to glm-4.5-air)
+            model: GLM model to use (defaults to glm-4.7-flash)
             max_retries: Number of retry attempts on failure
 
         Returns:

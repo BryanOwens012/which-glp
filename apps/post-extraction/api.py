@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""FastAPI service for post extraction using GLM-4.5-Air (replaces Claude)."""
+"""FastAPI service for post extraction using GLM-4.7-Flash (replaces Claude)."""
 
 import os
 import sys
+import time
 from pathlib import Path
 from datetime import datetime
 from fastapi import FastAPI, HTTPException, BackgroundTasks
@@ -34,7 +35,7 @@ async def startup_event():
     logger.info("=" * 80)
     logger.info("🚀 POST EXTRACTION SERVICE STARTING UP")
     logger.info(f"   Service: post-extraction")
-    logger.info(f"   Model: GLM-4.5-Air")
+    logger.info(f"   Model: GLM-4.7-Flash")
     logger.info(f"   Port: {os.getenv('PORT', '8004')}")
     logger.info(f"   Time: {datetime.now().isoformat()}")
     logger.info("=" * 80)
@@ -59,7 +60,7 @@ _extraction_running = False
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy", "service": "post-extraction", "model": "glm-4.5-air"}
+    return {"status": "healthy", "service": "post-extraction", "model": "glm-4.7-flash"}
 
 
 @app.post("/api/extract")
@@ -309,6 +310,10 @@ async def trigger_extraction(
                         f"❌ Failed to extract {post_id}: {str(e)}", exc_info=True
                     )
 
+                # Rate limit: GLM-4.7-Flash free tier allows 1 concurrent request
+                if i < len(posts):
+                    time.sleep(2.0)
+
             db.close()
             logger.info("🔌 Database connection closed")
 
@@ -345,7 +350,7 @@ async def trigger_extraction(
 
     background_tasks.add_task(run_extraction)
     logger.info("✅ Extraction task queued successfully")
-    return {"status": "started", "message": f"Extraction started with GLM-4.5-Air"}
+    return {"status": "started", "message": f"Extraction started with GLM-4.7-Flash"}
 
 
 @app.get("/api/status")

@@ -48,7 +48,7 @@ async def startup_event():
     logger.info("🚀 USER EXTRACTION SERVICE STARTING UP")
     logger.info(f"   Service: user-extraction")
     logger.info(f"   Port: {os.getenv('PORT', '8002')}")
-    logger.info(f"   Model: GLM-4.5-Air")
+    logger.info(f"   Model: GLM-4.7-Flash")
     logger.info(f"   Time: {datetime.now().isoformat()}")
     logger.info("=" * 80)
 
