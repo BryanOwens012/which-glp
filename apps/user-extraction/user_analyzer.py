@@ -5,7 +5,7 @@ User demographics analyzer for Reddit users.
 This script:
 1. Fetches unique usernames from extracted_features table (users with already-extracted posts)
 2. Uses PRAW to get last 20 posts + 20 comments per user
-3. Sends to GLM-4.5-Air for demographic extraction
+3. Sends to GLM-4.7-Flash for demographic extraction
 4. Inserts results to reddit_users table
 """
 
@@ -40,7 +40,7 @@ class RedditUserAnalyzer:
     """
     Analyzes Reddit users to extract demographic information.
 
-    Uses PRAW to fetch user history and GLM-4.5-Air to extract demographics.
+    Uses PRAW to fetch user history and GLM-4.7-Flash to extract demographics.
     """
 
     def __init__(self):

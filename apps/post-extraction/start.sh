@@ -1,6 +1,6 @@
 #!/bin/bash
 set -e
-echo "Starting WhichGLP Post Extraction Service (GLM-4.5-Air)..."
+echo "Starting WhichGLP Post Extraction Service (GLM-4.7-Flash)..."
 if [ -d "../../venv" ]; then
     source ../../venv/bin/activate
 fi
