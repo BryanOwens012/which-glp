@@ -330,7 +330,7 @@ class RedditUserAnalyzer:
             # This allows the pipeline to continue processing other users
             raise
 
-    def run(self, limit: Optional[int] = None, rate_limit_delay: float = 2.0):
+    def run(self, limit: Optional[int] = None, rate_limit_delay: float = 5.0):
         """
         Run the full user analysis pipeline.
 
@@ -407,8 +407,8 @@ def main():
     parser.add_argument(
         "--rate-limit",
         type=float,
-        default=2.0,
-        help="Delay in seconds between users (default: 2.0)"
+        default=5.0,
+        help="Delay in seconds between users (default: 5.0)"
     )
 
     args = parser.parse_args()

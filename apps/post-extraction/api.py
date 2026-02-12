@@ -312,7 +312,7 @@ async def trigger_extraction(
 
                 # Rate limit: GLM-4.7-Flash free tier allows 1 concurrent request
                 if i < len(posts):
-                    time.sleep(2.0)
+                    time.sleep(5.0)
 
             db.close()
             logger.info("🔌 Database connection closed")
