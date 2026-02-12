@@ -1,11 +1,11 @@
 """
-GLM-4.7-Flash client for extracting demographic data from Reddit user history.
+GLM-4.7-FlashX client for extracting demographic data from Reddit user history.
 
-This module provides a wrapper around the Z.AI SDK (GLM-4.7-Flash) with:
+This module provides a wrapper around the Z.AI SDK (GLM-4.7-FlashX) with:
 - Cost tracking per API call
 - Automatic JSON parsing and validation
 - Error handling and retries
-- Free tier (1 concurrent request) vs Claude ($3/$15 per 1M tokens)
+- ~3x cheaper than GLM-4.5-Air ($0.07/$0.40 vs $0.20/$1.10 per 1M tokens)
 """
 
 import os
@@ -29,6 +29,10 @@ logger = get_logger(__name__)
 
 # GLM model pricing (as of 2026, per million tokens)
 MODEL_PRICING = {
+    "glm-4.7-flashx": {
+        "input": 0.07,   # $0.07 per MTok
+        "output": 0.40,  # $0.40 per MTok
+    },
     "glm-4.7-flash": {
         "input": 0.0,    # Free tier
         "output": 0.0,   # Free tier
@@ -44,7 +48,7 @@ MODEL_PRICING = {
 }
 
 # Default model
-DEFAULT_MODEL = "glm-4.7-flash"
+DEFAULT_MODEL = "glm-4.7-flashx"
 
 
 class GLMClientConfigurationError(Exception):
@@ -59,7 +63,7 @@ class GLMExtractionError(Exception):
 
 class GLMClient:
     """
-    Client for GLM-4.7-Flash API with demographic data extraction.
+    Client for GLM-4.7-FlashX API with demographic data extraction.
 
     Handles API calls, cost tracking, JSON parsing, and Pydantic validation.
     """
@@ -104,7 +108,7 @@ class GLMClient:
             Cost in USD
         """
         if model not in MODEL_PRICING:
-            logger.warning(f"Unknown model {model}, using glm-4.7-flash pricing")
+            logger.warning(f"Unknown model {model}, using glm-4.7-flashx pricing")
             pricing = MODEL_PRICING[DEFAULT_MODEL]
         else:
             pricing = MODEL_PRICING[model]
@@ -125,7 +129,7 @@ class GLMClient:
 
         Args:
             user_prompt: Formatted prompt with user's posts/comments
-            model: GLM model to use (defaults to glm-4.7-flash)
+            model: GLM model to use (defaults to glm-4.7-flashx)
             max_retries: Number of retries on failure
 
         Returns:
@@ -233,9 +237,14 @@ class GLMClient:
                 )
 
             except Exception as e:
-                logger.error(f"GLM API error (attempt {attempt + 1}/{max_retries}): {e}")
+                is_rate_limit = "429" in str(e) or "rate limit" in str(e).lower()
+                if is_rate_limit:
+                    wait_time = 30 * (attempt + 1)
+                    logger.warning(f"Rate limited (attempt {attempt + 1}/{max_retries}), waiting {wait_time}s...")
+                else:
+                    wait_time = 5 * (attempt + 1)
+                    logger.error(f"GLM API error (attempt {attempt + 1}/{max_retries}): {e}")
                 if attempt < max_retries - 1:
-                    wait_time = 5 * (attempt + 1)  # Exponential backoff
                     logger.info(f"Retrying in {wait_time}s...")
                     time.sleep(wait_time)
                 else:

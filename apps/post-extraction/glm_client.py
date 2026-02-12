@@ -1,9 +1,9 @@
 """
-GLM-4.7-Flash client for post feature extraction (replaces Claude).
+GLM-4.7-FlashX client for post feature extraction (replaces Claude).
 
 Cost comparison:
 - Claude Sonnet 4: $3/$15 per 1M tokens
-- GLM-4.7-Flash: Free tier (1 concurrent request)
+- GLM-4.7-FlashX: $0.07/$0.40 per 1M tokens
 - GLM-4.5-Air: $0.20/$1.10 per 1M tokens
 """
 
@@ -25,15 +25,16 @@ load_dotenv(env_path)
 logger = get_logger(__name__)
 
 MODEL_PRICING = {
+    "glm-4.7-flashx": {"input": 0.07, "output": 0.40},
     "glm-4.7-flash": {"input": 0.0, "output": 0.0},  # Free tier
     "glm-4.5-air": {"input": 0.20, "output": 1.10},
     "glm-4.5": {"input": 0.60, "output": 2.20},
 }
 
-DEFAULT_MODEL = "glm-4.7-flash"
+DEFAULT_MODEL = "glm-4.7-flashx"
 
 class GLMClient:
-    """GLM-4.7-Flash client for extracting features from Reddit posts."""
+    """GLM-4.7-FlashX client for extracting features from Reddit posts."""
 
     def __init__(self, api_key: Optional[str] = None):
         self.api_key = api_key or os.getenv("GLM_API_KEY")
@@ -48,11 +49,11 @@ class GLMClient:
 
     def extract_features(self, prompts: tuple[str, str] | str, model: Optional[str] = None, max_retries: int = 3) -> Tuple[ExtractedFeatures, Dict[str, Any]]:
         """
-        Extract features using GLM-4.7-Flash.
+        Extract features using GLM-4.7-FlashX.
 
         Args:
             prompts: Either a tuple of (system_prompt, user_prompt) or just user_prompt string
-            model: GLM model to use (defaults to glm-4.7-flash)
+            model: GLM model to use (defaults to glm-4.7-flashx)
             max_retries: Number of retry attempts on failure
 
         Returns:
@@ -124,9 +125,15 @@ class GLMClient:
                 return features, metadata
 
             except Exception as e:
-                logger.error(f"GLM error (attempt {attempt + 1}/{max_retries}): {e}")
+                is_rate_limit = "429" in str(e) or "rate limit" in str(e).lower()
+                if is_rate_limit:
+                    wait_time = 30 * (attempt + 1)
+                    logger.warning(f"Rate limited (attempt {attempt + 1}/{max_retries}), waiting {wait_time}s...")
+                else:
+                    wait_time = 5 * (attempt + 1)
+                    logger.error(f"GLM error (attempt {attempt + 1}/{max_retries}): {e}")
                 if attempt < max_retries - 1:
-                    time.sleep(5 * (attempt + 1))
+                    time.sleep(wait_time)
                 else:
                     raise
 
