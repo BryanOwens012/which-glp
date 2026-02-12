@@ -330,7 +330,9 @@ class RedditUserAnalyzer:
             # This allows the pipeline to continue processing other users
             raise
 
-    def run(self, limit: Optional[int] = None, rate_limit_delay: float = 5.0):
+    GLM_RATE_LIMIT_DELAY = 5.0  # Seconds between requests (GLM-4.7-Flash free tier: 1 concurrent)
+
+    def run(self, limit: Optional[int] = None, rate_limit_delay: float = GLM_RATE_LIMIT_DELAY):
         """
         Run the full user analysis pipeline.
 
@@ -407,8 +409,8 @@ def main():
     parser.add_argument(
         "--rate-limit",
         type=float,
-        default=5.0,
-        help="Delay in seconds between users (default: 5.0)"
+        default=RedditUserAnalyzer.GLM_RATE_LIMIT_DELAY,
+        help=f"Delay in seconds between users (default: {RedditUserAnalyzer.GLM_RATE_LIMIT_DELAY})"
     )
 
     args = parser.parse_args()

@@ -56,6 +56,7 @@ class ExtractionRequest(BaseModel):
 
 
 _extraction_running = False
+GLM_RATE_LIMIT_DELAY = 5.0  # Seconds between requests (GLM-4.7-Flash free tier: 1 concurrent)
 
 
 @app.get("/health")
@@ -312,7 +313,7 @@ async def trigger_extraction(
 
                 # Rate limit: GLM-4.7-Flash free tier allows 1 concurrent request
                 if i < len(posts):
-                    time.sleep(5.0)
+                    time.sleep(GLM_RATE_LIMIT_DELAY)
 
             db.close()
             logger.info("🔌 Database connection closed")
