@@ -282,21 +282,21 @@ export const DrugComparison = () => {
 
                   <div>
                     <div className="mb-2 text-sm font-medium">
-                      Quality of Life
+                      Quality of Life Improvement
                     </div>
                     <div className="text-sm text-muted-foreground flex items-center gap-1">
                       {med.avgSentimentPre !== null &&
                       med.avgSentimentPost !== null ? (
                         <span>
-                          {Math.round(med.avgSentimentPre * 100)}% →{" "}
-                          {Math.round(med.avgSentimentPost * 100)}%
+                          {(med.avgSentimentPre * 10).toFixed(1)} →{" "}
+                          {(med.avgSentimentPost * 10).toFixed(1)}
                         </span>
                       ) : (
                         <>
                           N/A
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <button className="p-0.5 hover:bg-muted rounded" aria-label="Quality of life data unavailable">
+                              <button className="p-0.5 hover:bg-muted rounded" aria-label="Average quality of life data unavailable">
                                 <Info className="h-3 w-3 text-muted-foreground" />
                               </button>
                             </TooltipTrigger>

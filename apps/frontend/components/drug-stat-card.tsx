@@ -109,7 +109,7 @@ export function DrugStatCard({ stats, onClick }: DrugStatCardProps) {
                 <div className="flex items-center justify-between text-xs mb-1">
                   <span className="text-muted-foreground">Before</span>
                   <span className="font-semibold">
-                    {Math.round(stats.avgSentimentPre * 100)}%
+                    {(stats.avgSentimentPre * 10).toFixed(1)}
                   </span>
                 </div>
                 <Progress value={stats.avgSentimentPre * 100} className="h-2" />
@@ -119,7 +119,7 @@ export function DrugStatCard({ stats, onClick }: DrugStatCardProps) {
                 <div className="flex items-center justify-between text-xs mb-1">
                   <span className="text-muted-foreground">After</span>
                   <span className="font-semibold">
-                    {Math.round(stats.avgSentimentPost * 100)}%
+                    {(stats.avgSentimentPost * 10).toFixed(1)}
                   </span>
                 </div>
                 <Progress
