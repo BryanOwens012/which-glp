@@ -36,7 +36,7 @@ const ExperiencesPage = () => {
   const router = useRouter()
 
   // Initialize filters from URL params with defaults
-  const [selectedDrug, setSelectedDrug] = useState<string>(searchParams.get("drug") || "Wegovy")
+  const [selectedDrug, setSelectedDrug] = useState<string>(searchParams.get("drug") || "all")
   const [searchText, setSearchText] = useState(searchParams.get("search") || "")
   const [debouncedSearchText, setDebouncedSearchText] = useState(searchParams.get("search") || "")
   const [sortBy, setSortBy] = useState<SortFieldType>((searchParams.get("sortBy") as SortFieldType) || SortField.DATE)
@@ -49,7 +49,7 @@ const ExperiencesPage = () => {
   // Update URL when filters change (only include non-default values)
   useEffect(() => {
     const params = new URLSearchParams()
-    if (selectedDrug !== "Wegovy") params.set("drug", selectedDrug)
+    if (selectedDrug !== "all") params.set("drug", selectedDrug)
     if (searchText) params.set("search", searchText)
     if (sortBy !== SortField.DATE) params.set("sortBy", sortBy)
     if (sortOrder !== SortDirection.DESC) params.set("sortOrder", sortOrder)
