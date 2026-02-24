@@ -26,8 +26,8 @@ const nextConfig = {
   async redirects() {
     return [
       {
-        source: '/',
-        destination: '/compare',
+        source: '/compare',
+        destination: '/',
         permanent: true,
       },
     ]
