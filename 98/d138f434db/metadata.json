@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "98d138f434db",
+  "strategy": "manual-commit",
+  "branch": "develop",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/frontend/app/compare/page.tsx",
+    "apps/frontend/app/experiences/page.tsx",
+    "apps/frontend/app/page.tsx",
+    "apps/frontend/components/drug-comparison.tsx",
+    "apps/frontend/components/drug-stat-card.tsx",
+    "apps/frontend/components/navigation.tsx",
+    "apps/frontend/next.config.mjs"
+  ],
+  "sessions": [
+    {
+      "metadata": "/98/d138f434db/0/metadata.json",
+      "transcript": "/98/d138f434db/0/full.jsonl",
+      "context": "/98/d138f434db/0/context.md",
+      "content_hash": "/98/d138f434db/0/content_hash.txt",
+      "prompt": "/98/d138f434db/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 222,
+    "cache_creation_tokens": 21853,
+    "cache_read_tokens": 1766395,
+    "output_tokens": 891,
+    "api_call_count": 26
+  }
+}

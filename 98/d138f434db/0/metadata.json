@@ -1,0 +1,38 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "98d138f434db",
+  "session_id": "8733609d-c36a-4bc9-b224-722abd071503",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-24T22:38:56.926252Z",
+  "branch": "develop",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/frontend/app/compare/page.tsx",
+    "apps/frontend/app/experiences/page.tsx",
+    "apps/frontend/app/page.tsx",
+    "apps/frontend/components/drug-comparison.tsx",
+    "apps/frontend/components/drug-stat-card.tsx",
+    "apps/frontend/components/navigation.tsx",
+    "apps/frontend/next.config.mjs"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "57962867-5a55-49d1-8387-ccf35194daeb",
+  "checkpoint_transcript_start": 121,
+  "transcript_lines_at_start": 121,
+  "token_usage": {
+    "input_tokens": 222,
+    "cache_creation_tokens": 21853,
+    "cache_read_tokens": 1766395,
+    "output_tokens": 891,
+    "api_call_count": 26
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-24T22:38:56.862999Z",
+    "agent_lines": 0,
+    "human_added": 103,
+    "human_modified": 176,
+    "human_removed": 0,
+    "total_committed": 103,
+    "agent_percentage": 0
+  }
+}
