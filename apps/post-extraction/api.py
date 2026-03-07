@@ -73,9 +73,9 @@ async def health_check():
     return {"status": "healthy", "service": "post-extraction", "model": "glm-4.7-flashx"}
 
 
-@app.post("/api/extract", dependencies=[Depends(verify_internal_api_key)])
+@app.post("/api/extract")
 async def trigger_extraction(
-    request: ExtractionRequest, background_tasks: BackgroundTasks
+    request: ExtractionRequest, background_tasks: BackgroundTasks, _: None = Depends(verify_internal_api_key)
 ):
     global _extraction_running
 
@@ -363,8 +363,8 @@ async def trigger_extraction(
     return {"status": "started", "message": f"Extraction started with GLM-4.7-FlashX"}
 
 
-@app.get("/api/status", dependencies=[Depends(verify_internal_api_key)])
-async def get_status():
+@app.get("/api/status")
+async def get_status(_: None = Depends(verify_internal_api_key)):
     return {"extraction_running": _extraction_running}
 
 

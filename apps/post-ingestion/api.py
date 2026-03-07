@@ -63,8 +63,8 @@ _ingestion_running = False
 async def health_check():
     return {"status": "healthy", "service": "post-ingestion"}
 
-@app.post("/api/ingest", dependencies=[Depends(verify_internal_api_key)])
-async def trigger_ingestion(request: IngestRequest, background_tasks: BackgroundTasks):
+@app.post("/api/ingest")
+async def trigger_ingestion(request: IngestRequest, background_tasks: BackgroundTasks, _: None = Depends(verify_internal_api_key)):
     global _ingestion_running
 
     logger.info("=" * 80)
@@ -135,8 +135,8 @@ async def trigger_ingestion(request: IngestRequest, background_tasks: Background
     logger.info("✅ Ingestion task queued successfully")
     return {"status": "started", "message": f"Ingestion started"}
 
-@app.get("/api/status", dependencies=[Depends(verify_internal_api_key)])
-async def get_status():
+@app.get("/api/status")
+async def get_status(_: None = Depends(verify_internal_api_key)):
     return {"ingestion_running": _ingestion_running}
 
 if __name__ == "__main__":

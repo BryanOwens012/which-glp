@@ -99,8 +99,8 @@ async def health_check():
     }
 
 
-@app.get("/api/stats", response_model=StatsResponse, dependencies=[Depends(verify_internal_api_key)])
-async def get_stats():
+@app.get("/api/stats", response_model=StatsResponse)
+async def get_stats(_: None = Depends(verify_internal_api_key)):
     """Get statistics about analyzed vs unanalyzed users."""
     try:
         analyzer = RedditUserAnalyzer()
@@ -135,10 +135,11 @@ async def get_stats():
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/api/analyze", response_model=AnalyzeResponse, dependencies=[Depends(verify_internal_api_key)])
+@app.post("/api/analyze", response_model=AnalyzeResponse)
 async def trigger_analysis(
     request: AnalyzeRequest,
-    background_tasks: BackgroundTasks
+    background_tasks: BackgroundTasks,
+    _: None = Depends(verify_internal_api_key)
 ):
     """
     Trigger user demographics analysis.
@@ -208,8 +209,8 @@ async def trigger_analysis(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/api/status", dependencies=[Depends(verify_internal_api_key)])
-async def get_status():
+@app.get("/api/status")
+async def get_status(_: None = Depends(verify_internal_api_key)):
     """Get current analysis status."""
     return {
         "analysis_running": _analysis_running

@@ -155,8 +155,8 @@ async def health_check():
     return {"status": "healthy", "service": "rec-engine-api"}
 
 
-@app.post("/api/recommendations", response_model=RecommendationsResponse, dependencies=[Depends(verify_internal_api_key)])
-async def get_recommendations(request: RecommendationRequest):
+@app.post("/api/recommendations", response_model=RecommendationsResponse)
+async def get_recommendations(request: RecommendationRequest, _: None = Depends(verify_internal_api_key)):
     """
     Generate drug recommendations based on user profile.
     """
@@ -206,8 +206,8 @@ async def get_recommendations(request: RecommendationRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/api/cache/clear", dependencies=[Depends(verify_internal_api_key)])
-async def clear_cache():
+@app.get("/api/cache/clear")
+async def clear_cache(_: None = Depends(verify_internal_api_key)):
     """Clear the experiences cache (admin endpoint)."""
     global _experiences_cache
     _experiences_cache = None
