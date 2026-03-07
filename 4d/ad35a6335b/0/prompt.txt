@@ -1,0 +1,375 @@
+Implement the following plan:
+
+# Plan: Enforce RLS + Internal API Key Auth
+
+## Context
+
+WhichGLP has two critical security gaps:
+1. **All pipeline endpoints are publicly accessible** — anyone can trigger expensive AI extraction runs, flood the ingestion pipeline, or spam recommendations
+2. **No Supabase RLS** — anyone with the anon key can read/write all tables directly via the Supabase REST API, bypassing the tRPC API entirely
+
+This plan adds two protection layers following the `permit-leads` project patterns.
+
+---
+
+## Architecture Reference (Current)
+
+```
+[Browser]
+    ↓ tRPC (public)
+[API - api.whichglp.com]  ← SUPABASE_ANON_KEY (currently)
+    ↓ HTTP (no auth)
+[Rec-Engine]              ← SUPABASE_ANON_KEY or SUPABASE_SERVICE_KEY
+
+[Post-Ingestion-Cron]
+    ↓ POST /api/ingest (no auth)
+[Post-Ingestion]          ← writes reddit_posts
+
+[Post-Extraction-Cron]
+    ↓ POST /api/extract (no auth)
+[Post-Extraction]         ← writes extracted_features
+
+[User-Extraction-Cron]
+    ↓ POST /api/analyze (no auth)
+[User-Extraction]         ← writes reddit_users
+
+[View-Refresher-Cron]
+    ↓ Direct PostgreSQL (pg client) ← no HTTP endpoints involved
+```
+
+---
+
+## Happy Path: Frontend (After Changes)
+
+1. User loads `whichglp.com` → Next.js frontend served by Vercel
+2. Frontend calls `experiences.list` via tRPC → hits `api.whichglp.com/trpc`
+3. API uses **`SUPABASE_SERVICE_KEY`** → queries `mv_experiences_denormalized` → returns data
+4. User fills recommendation form → calls `recommendations.getForUser` mutation (tRPC)
+5. API adds **`x-internal-api-key`** header → calls `POST /api/recommendations` on rec-engine
+6. Rec-engine validates key → queries `mv_experiences_denormalized` with service key → returns ranked recommendations
+7. Frontend displays results
+
+All tRPC endpoints remain public — no change for end users.
+
+## Happy Path: Backend / Cron (After Changes)
+
+1. Railway fires Post-Ingestion-Cron on schedule
+2. Cron script reads `INTERNAL_API_KEY` from Railway env → sends `POST /api/ingest` with `x-internal-api-key` header
+3. Post-Ingestion validates key → starts background ingestion → returns `200 {"status": "started", "message": "Ingestion started"}`
+4. Same pattern for Post-Extraction-Cron → `POST /api/extract` (returns `200 {"status": "started", "message": "Extraction started with GLM-4.7-FlashX"}`) and User-Extraction-Cron → `POST /api/analyze` (returns `200 {"status": "started", "message": "Analysis started for up to 10 users"}`)
+5. View-Refresher-Cron uses direct PostgreSQL → not affected at all
+
+---
+
+## Files to Change
+
+### New SQL migrations
+- `apps/shared/migrations/032_enable_rls.up.sql`
+- `apps/shared/migrations/032_enable_rls.down.sql`
+
+### API service (Node.js)
+- `apps/api/src/lib/supabase.ts` — switch `SUPABASE_ANON_KEY` → `SUPABASE_SERVICE_KEY`
+- `apps/api/src/routers/recommendations.ts` — add `x-internal-api-key` header to rec-engine fetch
+
+### Python services (FastAPI auth dependency on all `/api/*` routes)
+- `apps/post-ingestion/api.py`
+- `apps/post-extraction/api.py`
+- `apps/user-extraction/api.py`
+- `apps/rec-engine/api.py` — also fix Supabase client to use only `SUPABASE_SERVICE_KEY`
+
+### Cron scripts (add header to all HTTP-triggering crons)
+- `scripts/cron/post-ingestion-cron.ts`
+- `scripts/cron/post-extraction-cron.ts`
+- `scripts/cron/user-extraction-cron.ts`
+- `scripts/cron/view-refresher-cron.ts` — **NO CHANGES** (direct PostgreSQL)
+
+---
+
+## Exact Code Changes
+
+### `032_enable_rls.up.sql`
+```sql
+-- Enable RLS on all base tables
+-- With no anon/authenticated policies, the anon key cannot access these tables directly
+ALTER TABLE reddit_posts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE reddit_comments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE extracted_features ENABLE ROW LEVEL SECURITY;
+ALTER TABLE reddit_users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE platform_config ENABLE ROW LEVEL SECURITY;
+
+-- Explicit service_role full-access policies (belt-and-suspenders:
+-- service_role already bypasses RLS in Supabase by default, but being explicit is safer)
+CREATE POLICY "reddit_posts_service_role_all" ON reddit_posts
+  FOR ALL TO service_role USING (TRUE) WITH CHECK (TRUE);
+CREATE POLICY "reddit_comments_service_role_all" ON reddit_comments
+  FOR ALL TO service_role USING (TRUE) WITH CHECK (TRUE);
+CREATE POLICY "extracted_features_service_role_all" ON extracted_features
+  FOR ALL TO service_role USING (TRUE) WITH CHECK (TRUE);
+CREATE POLICY "reddit_users_service_role_all" ON reddit_users
+  FOR ALL TO service_role USING (TRUE) WITH CHECK (TRUE);
+CREATE POLICY "platform_config_service_role_all" ON platform_config
+  FOR ALL TO service_role USING (TRUE) WITH CHECK (TRUE);
+
+-- Materialized views cannot have RLS — block anon access via REVOKE
+-- The API service (service role) retains access
+REVOKE SELECT ON mv_experiences_denormalized FROM anon;
+REVOKE SELECT ON mv_experiences_denormalized FROM authenticated;
+```
+
+### `032_enable_rls.down.sql`
+```sql
+DROP POLICY IF EXISTS "reddit_posts_service_role_all" ON reddit_posts;
+DROP POLICY IF EXISTS "reddit_comments_service_role_all" ON reddit_comments;
+DROP POLICY IF EXISTS "extracted_features_service_role_all" ON extracted_features;
+DROP POLICY IF EXISTS "reddit_users_service_role_all" ON reddit_users;
+DROP POLICY IF EXISTS "platform_config_service_role_all" ON platform_config;
+
+ALTER TABLE reddit_posts DISABLE ROW LEVEL SECURITY;
+ALTER TABLE reddit_comments DISABLE ROW LEVEL SECURITY;
+ALTER TABLE extracted_features DISABLE ROW LEVEL SECURITY;
+ALTER TABLE reddit_users DISABLE ROW LEVEL SECURITY;
+ALTER TABLE platform_config DISABLE ROW LEVEL SECURITY;
+
+GRANT SELECT ON mv_experiences_denormalized TO anon;
+GRANT SELECT ON mv_experiences_denormalized TO authenticated;
+```
+
+### `apps/api/src/lib/supabase.ts`
+```ts
+// Change: SUPABASE_ANON_KEY → SUPABASE_SERVICE_KEY
+const supabaseKey = process.env.SUPABASE_SERVICE_KEY!
+```
+
+### `apps/api/src/routers/recommendations.ts` (line 72-78)
+```ts
+const response = await fetch(`${mlApiUrl}/api/recommendations`, {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'x-internal-api-key': process.env.INTERNAL_API_KEY ?? '',
+  },
+  body: JSON.stringify(input),
+})
+```
+
+### FastAPI auth dependency
+
+Each service already has `from fastapi import FastAPI, HTTPException, BackgroundTasks` (rec-engine has no `BackgroundTasks`). **Add `Depends, Header` to that existing import line** — do not add a new separate import statement.
+
+Each service's `typing` imports differ:
+- `post-ingestion`: already has `from typing import Optional, List` → use `Optional[str]`
+- `post-extraction`: no `Optional` import; uses `str | None` syntax throughout → use `str | None`
+- `user-extraction`: already has `from typing import Optional` → use `Optional[str]`
+- `rec-engine`: already has `from typing import List, Optional` → use `Optional[str]`
+
+**post-ingestion / user-extraction / rec-engine** — add this function before the first route:
+```python
+async def verify_internal_api_key(x_internal_api_key: Optional[str] = Header(None)) -> None:
+    expected = os.getenv("INTERNAL_API_KEY")
+    if not expected:
+        print("[Auth] WARNING: INTERNAL_API_KEY not configured - skipping validation")
+        return
+    if not x_internal_api_key or x_internal_api_key != expected:
+        raise HTTPException(status_code=403, detail="Forbidden")
+```
+
+**post-extraction** — same function but using its existing type style:
+```python
+async def verify_internal_api_key(x_internal_api_key: str | None = Header(None)) -> None:
+    expected = os.getenv("INTERNAL_API_KEY")
+    if not expected:
+        print("[Auth] WARNING: INTERNAL_API_KEY not configured - skipping validation")
+        return
+    if not x_internal_api_key or x_internal_api_key != expected:
+        raise HTTPException(status_code=403, detail="Forbidden")
+```
+
+Apply `dependencies=[Depends(verify_internal_api_key)]` to these routes — showing full decorator signatures as they exist today to avoid accidentally dropping existing params:
+
+- `post-ingestion`: `@app.post("/api/ingest")` → `@app.post("/api/ingest", dependencies=[Depends(verify_internal_api_key)])`
+- `post-ingestion`: `@app.get("/api/status")` → `@app.get("/api/status", dependencies=[Depends(verify_internal_api_key)])`
+- `post-extraction`: `@app.post("/api/extract")` → `@app.post("/api/extract", dependencies=[Depends(verify_internal_api_key)])`
+- `post-extraction`: `@app.get("/api/status")` → `@app.get("/api/status", dependencies=[Depends(verify_internal_api_key)])`
+- `user-extraction`: `@app.post("/api/analyze", response_model=AnalyzeResponse)` → `@app.post("/api/analyze", response_model=AnalyzeResponse, dependencies=[Depends(verify_internal_api_key)])`
+- `user-extraction`: `@app.get("/api/stats", response_model=StatsResponse)` → `@app.get("/api/stats", response_model=StatsResponse, dependencies=[Depends(verify_internal_api_key)])`
+- `user-extraction`: `@app.get("/api/status")` → `@app.get("/api/status", dependencies=[Depends(verify_internal_api_key)])`
+- `rec-engine`: `@app.post("/api/recommendations", response_model=RecommendationsResponse)` → `@app.post("/api/recommendations", response_model=RecommendationsResponse, dependencies=[Depends(verify_internal_api_key)])`
+- `rec-engine`: `@app.get("/api/cache/clear")` → `@app.get("/api/cache/clear", dependencies=[Depends(verify_internal_api_key)])`
+
+**rec-engine additional fix** — `get_supabase_client()` currently tries `SUPABASE_ANON_KEY` first and falls back to `SUPABASE_SERVICE_KEY`. After RLS, anon key can't read `mv_experiences_denormalized`. Fix both the key lookup and its error message:
+```python
+# Before:
+key = os.getenv("SUPABASE_ANON_KEY") or os.getenv("SUPABASE_SERVICE_KEY")
+if not url or not key:
+    raise ValueError("Missing SUPABASE_URL or SUPABASE_ANON_KEY environment variables")
+
+# After:
+key = os.getenv("SUPABASE_SERVICE_KEY")
+if not url or not key:
+    raise ValueError("Missing SUPABASE_URL or SUPABASE_SERVICE_KEY environment variables")
+```
+
+### Cron scripts (same header added to all 3)
+```ts
+headers: {
+  "Content-Type": "application/json",
+  "x-internal-api-key": process.env.INTERNAL_API_KEY ?? "",
+},
+```
+
+---
+
+## Validations
+
+1. **INTERNAL_API_KEY not set on service** → dependency logs a warning and passes through (permissive degradation — services still function during rollout)
+2. **Header missing or wrong** → `403 Forbidden` (not `422 Unprocessable Entity` — using `Optional[str] = Header(None)` instead of `str = Header(...)` ensures missing header returns 403, not FastAPI's default 422 validation error)
+3. **SUPABASE_SERVICE_KEY missing on API** → throws at startup with clear error (same behavior as current anon key check)
+4. **Header name case**: HTTP headers are case-insensitive; FastAPI maps `x-internal-api-key` → `x_internal_api_key` parameter automatically
+
+---
+
+## Edge Cases & Solutions
+
+### 1. Deployment Order — CRITICAL
+**Problem**: If RLS migration runs before the API code switch from anon → service key, the API breaks immediately (anon key blocked from MV + base tables).
+
+**Solution — deploy in this exact order:**
+1. Set `SUPABASE_SERVICE_KEY` on API service in Railway env (it's already set on pipeline services)
+2. Set `INTERNAL_API_KEY` on ALL services and cron scripts in Railway env (use same value everywhere)
+3. Deploy code changes: `git push origin develop` → Railway auto-deploys all services and cron scripts tied to this branch
+4. Verify API is up and serving tRPC requests with service key (check Railway logs, hit `https://api.whichglp.com/trpc/experiences.list` via frontend)
+5. Run RLS migration last (from repo root with venv active):
+   ```bash
+   source venv/bin/activate
+   python3 apps/shared/migrations/run_migration.py apps/shared/migrations/032_enable_rls.up.sql
+   ```
+
+### 2. Rec-Engine Supabase Key
+**Problem**: `rec-engine/api.py` currently tries `SUPABASE_ANON_KEY` first, then falls back to `SUPABASE_SERVICE_KEY`. After RLS, anon key can't read `mv_experiences_denormalized`.
+
+**Solution**: Change `get_supabase_client()` to only use `SUPABASE_SERVICE_KEY`.
+
+### 3. Railway Internal Networking
+**Problem**: Cron scripts use `http://service.railway.internal` (private Railway network) when `*_URL` env var is not set. The internal network is already isolated from public internet, so you might wonder if auth is redundant here.
+
+**Solution**: Add auth anyway. Cron scripts might fall back to public URLs if internal routing fails, and defense in depth is valuable. Also, Railway's internal network is not fully zero-trust.
+
+### 4. Post-Extraction Cron — Query Param vs Body
+**Pre-existing issue** (not introduced by this change): `post-extraction-cron.ts` sends `?limit=2000` as a URL query param on a POST request, but `trigger_extraction` expects `ExtractionRequest` as a request body. The query param is silently ignored; extraction runs with default `limit=None`.
+
+**Decision**: Don't fix now (out of scope). Note for future.
+
+### 5. CORSMiddleware and `x-internal-api-key` Header
+**Problem**: All services have `allow_headers=["*"]` — no change needed. The `x-internal-api-key` header is already allowed.
+
+**Solution**: No change required.
+
+### 6. `INTERNAL_API_KEY` Empty String
+**Problem**: If `INTERNAL_API_KEY` env var is set to `""` (empty string) in Railway by accident, the service treats it as "not configured" and skips validation (since `if not expected` catches empty string).
+
+**Solution**: Generate a strong key with `openssl rand -hex 32` (64 chars). An empty string would require deliberate misconfiguration.
+
+### 7. Multiple API Replicas
+**Observation**: Railway shows `2/2 replicas active` for the API. Since `INTERNAL_API_KEY` is a shared env var, all replicas use the same key. No issue.
+
+### 8. Stats Functions RLS
+**Potential issue**: `get_drug_stats()` and `get_platform_stats()` are PostgreSQL functions that read from `platform_config` (a table with RLS enabled) and `mv_experiences_denormalized` (a materialized view, no RLS). The API calls these via `.rpc()` using the service role key, which bypasses RLS on `platform_config` automatically. If the functions are defined as `SECURITY DEFINER`, they run as the function owner regardless — either way, no issue.
+
+### 9. Rollback Path
+If anything breaks after RLS migration:
+```bash
+source venv/bin/activate
+python3 apps/shared/migrations/run_migration.py apps/shared/migrations/032_enable_rls.down.sql
+```
+Then revert `apps/api/src/lib/supabase.ts` to `SUPABASE_ANON_KEY` and push. The `SUPABASE_ANON_KEY` env var still exists on the API service (we're only adding `SUPABASE_SERVICE_KEY`, not removing the old one).
+
+---
+
+## New Environment Variables
+
+| Variable | Where to set | Value |
+|----------|-------------|-------|
+| `INTERNAL_API_KEY` | API, Rec-Engine, Post-Ingestion, Post-Extraction, User-Extraction, Post-Ingestion-Cron, Post-Extraction-Cron, User-Extraction-Cron | `openssl rand -hex 32` (same value everywhere) |
+| `SUPABASE_SERVICE_KEY` | API service only (already set on pipeline services) | From Supabase dashboard → Settings → API |
+
+---
+
+## Endpoint Access Summary After Change
+
+| Endpoint | Auth Required | Who Calls It |
+|----------|--------------|--------------|
+| `GET /health` (all services) | None | Railway health checks |
+| `POST /api/recommendations` (rec-engine) | `x-internal-api-key` | tRPC API service |
+| `GET /api/cache/clear` (rec-engine) | `x-internal-api-key` | Manual admin only |
+| `POST /api/ingest` (post-ingestion) | `x-internal-api-key` | Post-Ingestion-Cron |
+| `GET /api/status` (post-ingestion) | `x-internal-api-key` | Manual admin only |
+| `POST /api/extract` (post-extraction) | `x-internal-api-key` | Post-Extraction-Cron |
+| `GET /api/status` (post-extraction) | `x-internal-api-key` | Manual admin only |
+| `POST /api/analyze` (user-extraction) | `x-internal-api-key` | User-Extraction-Cron |
+| `GET /api/stats` (user-extraction) | `x-internal-api-key` | Manual admin only |
+| `GET /api/status` (user-extraction) | `x-internal-api-key` | Manual admin only |
+| `GET,POST /trpc/*` (API service) | None (public) | Browser / Vercel frontend |
+
+---
+
+## Verification Steps
+
+```bash
+# 1. Health checks still work without auth
+curl https://whichglp-post-ingestion.up.railway.app/health
+# → 200 {"status": "healthy"}
+
+# 2. Internal endpoints blocked without key
+curl -X POST https://whichglp-post-ingestion.up.railway.app/api/ingest \
+  -H "Content-Type: application/json" -d '{}'
+# → 403 {"detail": "Forbidden"}
+
+# 3. Internal endpoints work with correct key
+curl -X POST https://whichglp-post-ingestion.up.railway.app/api/ingest \
+  -H "Content-Type: application/json" \
+  -H "x-internal-api-key: <your-key>" \
+  -d '{"tier1": true}'
+# → 200 {"status": "started", "message": "Ingestion started"}
+
+# 4. Supabase direct REST API blocked after RLS
+curl "https://<project>.supabase.co/rest/v1/reddit_posts?limit=1" \
+  -H "apikey: <anon-key>" -H "Authorization: Bearer <anon-key>"
+# → 200 [] (empty — RLS returns 0 rows, not an error, when no policy matches)
+
+# 5. tRPC still works end-to-end (test via frontend)
+# Load whichglp.com → experiences should load normally
+
+# 6. Recommendations still work end-to-end
+# Fill out recommendation form on frontend → should return results
+```
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/bryanowens/.REDACTED.jsonl
+
+---
+
+git checkout -b bryan/whi-103-harden-with-rls-and-internal-api-key
+
+---
+
+Go line by line carefully to check your work
+
+---
+
+Problem: even with these fixes, I'm able to call the post-extraction without sending an internal api key in the hader
+
+---
+
+What I mean is, INTERNAL_API_KEY is set in the API, but the external caller doesn't send a x-internal-api-key
+
+---
+
+Yes, I already did that
+
+---
+
+It has been deployed
+
+---
+
+It's 200. No auth warning

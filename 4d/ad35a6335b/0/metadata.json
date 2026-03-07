@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "4dad35a6335b",
+  "session_id": "0cbcc276-27c0-4d33-9117-7327695866f2",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-07T22:32:37.438914Z",
+  "branch": "bryan/whi-103-harden-with-rls-and-internal-api-key",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/post-extraction/api.py",
+    "apps/post-ingestion/api.py",
+    "apps/rec-engine/api.py",
+    "apps/user-extraction/api.py"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "a83ea89a-457b-47aa-8294-18c2c9a9fe30",
+  "checkpoint_transcript_start": 161,
+  "transcript_lines_at_start": 161,
+  "token_usage": {
+    "input_tokens": 21,
+    "cache_creation_tokens": 82293,
+    "cache_read_tokens": 580926,
+    "output_tokens": 15869,
+    "api_call_count": 9
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-07T22:32:37.376296Z",
+    "agent_lines": 19,
+    "human_added": 99,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 118,
+    "agent_percentage": 16.101694915254235
+  }
+}

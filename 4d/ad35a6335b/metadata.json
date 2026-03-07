@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "4dad35a6335b",
+  "strategy": "manual-commit",
+  "branch": "bryan/whi-103-harden-with-rls-and-internal-api-key",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/post-extraction/api.py",
+    "apps/post-ingestion/api.py",
+    "apps/rec-engine/api.py",
+    "apps/user-extraction/api.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/4d/ad35a6335b/0/metadata.json",
+      "transcript": "/4d/ad35a6335b/0/full.jsonl",
+      "context": "/4d/ad35a6335b/0/context.md",
+      "content_hash": "/4d/ad35a6335b/0/content_hash.txt",
+      "prompt": "/4d/ad35a6335b/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 21,
+    "cache_creation_tokens": 82293,
+    "cache_read_tokens": 580926,
+    "output_tokens": 15869,
+    "api_call_count": 9
+  }
+}
