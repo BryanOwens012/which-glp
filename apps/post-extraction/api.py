@@ -6,7 +6,7 @@ import sys
 import time
 from pathlib import Path
 from datetime import datetime
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -49,6 +49,15 @@ async def shutdown_event():
     logger.info("=" * 80)
 
 
+async def verify_internal_api_key(x_internal_api_key: str | None = Header(None)) -> None:
+    expected = os.getenv("INTERNAL_API_KEY")
+    if not expected:
+        print("[Auth] WARNING: INTERNAL_API_KEY not configured - skipping validation")
+        return
+    if not x_internal_api_key or x_internal_api_key != expected:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+
 class ExtractionRequest(BaseModel):
     subreddit: str | None = None
     limit: int | None = None
@@ -64,7 +73,7 @@ async def health_check():
     return {"status": "healthy", "service": "post-extraction", "model": "glm-4.7-flashx"}
 
 
-@app.post("/api/extract")
+@app.post("/api/extract", dependencies=[Depends(verify_internal_api_key)])
 async def trigger_extraction(
     request: ExtractionRequest, background_tasks: BackgroundTasks
 ):
@@ -354,7 +363,7 @@ async def trigger_extraction(
     return {"status": "started", "message": f"Extraction started with GLM-4.7-FlashX"}
 
 
-@app.get("/api/status")
+@app.get("/api/status", dependencies=[Depends(verify_internal_api_key)])
 async def get_status():
     return {"extraction_running": _extraction_running}
 
