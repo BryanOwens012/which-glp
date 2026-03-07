@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "b2f1bfda96b9",
+  "strategy": "manual-commit",
+  "branch": "bryan/whi-103-harden-with-rls-and-internal-api-key",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/api/src/lib/supabase.ts",
+    "apps/api/src/routers/recommendations.ts",
+    "apps/post-extraction/api.py",
+    "apps/post-ingestion/api.py",
+    "apps/rec-engine/api.py",
+    "apps/shared/migrations/032_enable_rls.down.sql",
+    "apps/shared/migrations/032_enable_rls.up.sql",
+    "apps/user-extraction/api.py",
+    "scripts/cron/post-extraction-cron.ts",
+    "scripts/cron/post-ingestion-cron.ts",
+    "scripts/cron/user-extraction-cron.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/b2/f1bfda96b9/0/metadata.json",
+      "transcript": "/b2/f1bfda96b9/0/full.jsonl",
+      "context": "/b2/f1bfda96b9/0/context.md",
+      "content_hash": "/b2/f1bfda96b9/0/content_hash.txt",
+      "prompt": "/b2/f1bfda96b9/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 26,
+    "cache_creation_tokens": 49765,
+    "cache_read_tokens": 673802,
+    "output_tokens": 8934,
+    "api_call_count": 18
+  }
+}
