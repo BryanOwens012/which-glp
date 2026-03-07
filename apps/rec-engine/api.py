@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import List, Optional
 
 import pandas as pd
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from supabase import create_client, Client
@@ -79,6 +79,15 @@ class RecommendationsResponse(BaseModel):
     processingTime: Optional[float] = None
 
 
+async def verify_internal_api_key(x_internal_api_key: Optional[str] = Header(None)) -> None:
+    expected = os.getenv("INTERNAL_API_KEY")
+    if not expected:
+        print("[Auth] WARNING: INTERNAL_API_KEY not configured - skipping validation")
+        return
+    if not x_internal_api_key or x_internal_api_key != expected:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+
 # Initialize Supabase (cached)
 _supabase_client: Optional[Client] = None
 
@@ -89,10 +98,10 @@ def get_supabase_client() -> Client:
 
     if _supabase_client is None:
         url = os.getenv("SUPABASE_URL")
-        key = os.getenv("SUPABASE_ANON_KEY") or os.getenv("SUPABASE_SERVICE_KEY")
+        key = os.getenv("SUPABASE_SERVICE_KEY")
 
         if not url or not key:
-            raise ValueError("Missing SUPABASE_URL or SUPABASE_ANON_KEY environment variables")
+            raise ValueError("Missing SUPABASE_URL or SUPABASE_SERVICE_KEY environment variables")
 
         _supabase_client = create_client(url, key)
 
@@ -146,7 +155,7 @@ async def health_check():
     return {"status": "healthy", "service": "rec-engine-api"}
 
 
-@app.post("/api/recommendations", response_model=RecommendationsResponse)
+@app.post("/api/recommendations", response_model=RecommendationsResponse, dependencies=[Depends(verify_internal_api_key)])
 async def get_recommendations(request: RecommendationRequest):
     """
     Generate drug recommendations based on user profile.
@@ -197,7 +206,7 @@ async def get_recommendations(request: RecommendationRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/api/cache/clear")
+@app.get("/api/cache/clear", dependencies=[Depends(verify_internal_api_key)])
 async def clear_cache():
     """Clear the experiences cache (admin endpoint)."""
     global _experiences_cache

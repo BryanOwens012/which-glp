@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Optional, List
 from datetime import datetime
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -40,6 +40,15 @@ async def shutdown_event():
     logger.info(f"   Time: {datetime.now().isoformat()}")
     logger.info("=" * 80)
 
+async def verify_internal_api_key(x_internal_api_key: Optional[str] = Header(None)) -> None:
+    expected = os.getenv("INTERNAL_API_KEY")
+    if not expected:
+        print("[Auth] WARNING: INTERNAL_API_KEY not configured - skipping validation")
+        return
+    if not x_internal_api_key or x_internal_api_key != expected:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+
 class IngestRequest(BaseModel):
     subreddit: Optional[str] = None
     posts_limit: int = 100
@@ -54,7 +63,7 @@ _ingestion_running = False
 async def health_check():
     return {"status": "healthy", "service": "post-ingestion"}
 
-@app.post("/api/ingest")
+@app.post("/api/ingest", dependencies=[Depends(verify_internal_api_key)])
 async def trigger_ingestion(request: IngestRequest, background_tasks: BackgroundTasks):
     global _ingestion_running
 
@@ -126,7 +135,7 @@ async def trigger_ingestion(request: IngestRequest, background_tasks: Background
     logger.info("✅ Ingestion task queued successfully")
     return {"status": "started", "message": f"Ingestion started"}
 
-@app.get("/api/status")
+@app.get("/api/status", dependencies=[Depends(verify_internal_api_key)])
 async def get_status():
     return {"ingestion_running": _ingestion_running}
 

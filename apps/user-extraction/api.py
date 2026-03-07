@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Optional
 from datetime import datetime
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -60,6 +60,15 @@ async def shutdown_event():
     logger.info("=" * 80)
 
 
+async def verify_internal_api_key(x_internal_api_key: Optional[str] = Header(None)) -> None:
+    expected = os.getenv("INTERNAL_API_KEY")
+    if not expected:
+        print("[Auth] WARNING: INTERNAL_API_KEY not configured - skipping validation")
+        return
+    if not x_internal_api_key or x_internal_api_key != expected:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+
 # Request/Response models
 class AnalyzeRequest(BaseModel):
     limit: Optional[int] = 10
@@ -90,7 +99,7 @@ async def health_check():
     }
 
 
-@app.get("/api/stats", response_model=StatsResponse)
+@app.get("/api/stats", response_model=StatsResponse, dependencies=[Depends(verify_internal_api_key)])
 async def get_stats():
     """Get statistics about analyzed vs unanalyzed users."""
     try:
@@ -126,7 +135,7 @@ async def get_stats():
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/api/analyze", response_model=AnalyzeResponse)
+@app.post("/api/analyze", response_model=AnalyzeResponse, dependencies=[Depends(verify_internal_api_key)])
 async def trigger_analysis(
     request: AnalyzeRequest,
     background_tasks: BackgroundTasks
@@ -199,7 +208,7 @@ async def trigger_analysis(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/api/status")
+@app.get("/api/status", dependencies=[Depends(verify_internal_api_key)])
 async def get_status():
     """Get current analysis status."""
     return {
