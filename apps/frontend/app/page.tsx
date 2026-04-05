@@ -1,5 +1,6 @@
 "use client";
 
+import posthog from 'posthog-js';
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -143,6 +144,7 @@ const HomePage = () => {
             <Button
               size="lg"
               onClick={() => {
+                posthog.capture('compare_cta_clicked', { source: 'hero' });
                 document
                   .getElementById("drug-comparison")
                   ?.scrollIntoView({ behavior: "smooth" });
@@ -151,7 +153,7 @@ const HomePage = () => {
               Compare
             </Button>
             <Button size="lg" variant="outline" asChild>
-              <Link href="/recommendations">Recommend for Me (AI)</Link>
+              <Link href="/recommendations" onClick={() => posthog.capture('recommendation_cta_clicked', { source: 'hero' })}>Recommend for Me (AI)</Link>
             </Button>
           </div>
         </div>
@@ -169,7 +171,7 @@ const HomePage = () => {
               Based on your profile, location, and health conditions
             </p>
             <Button size="lg" className="gap-2" asChild>
-              <Link href="/recommendations">
+              <Link href="/recommendations" onClick={() => posthog.capture('recommendation_cta_clicked', { source: 'bottom' })}>
                 Recommend for Me (AI) <ArrowRight className="h-4 w-4" />
               </Link>
             </Button>

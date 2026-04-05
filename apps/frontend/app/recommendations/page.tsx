@@ -1,5 +1,6 @@
 "use client";
 
+import posthog from 'posthog-js';
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Navigation } from "@/components/navigation";
@@ -48,6 +49,12 @@ const RecommendationsPage = () => {
   const getRecommendationsMutation =
     trpc.recommendations.getForUser.useMutation({
       onSuccess: (data) => {
+        posthog.capture('recommendation_results_received', {
+          result_count: data.recommendations.length,
+          top_drug: data.recommendations[0]?.drug,
+          top_match_score: data.recommendations[0]?.matchScore,
+          processing_time_ms: data.processingTime,
+        });
         setRecommendations(data.recommendations);
         window.scrollTo({
           top: document.getElementById("results")?.offsetTop,
@@ -55,6 +62,7 @@ const RecommendationsPage = () => {
         });
       },
       onError: (error) => {
+        posthog.capture('recommendation_error', { error: error.message });
         console.error("Recommendation error:", error);
         setErrors({
           general:
@@ -93,6 +101,16 @@ const RecommendationsPage = () => {
       return;
     }
 
+    posthog.capture('recommendation_form_submitted', {
+      has_age: !!formData.age,
+      has_sex: !!formData.sex,
+      has_state: !!formData.state,
+      has_insurance: formData.hasInsurance,
+      has_budget: !!formData.maxBudget,
+      comorbidity_count: formData.comorbidities?.length ?? 0,
+      side_effect_concern_count: formData.sideEffectConcerns?.length ?? 0,
+    });
+
     // Call the ML recommendation API
     getRecommendationsMutation.mutate(formData as PredictionInput);
   };
@@ -127,7 +145,8 @@ const RecommendationsPage = () => {
     }
   };
 
-  const handleRecommendationClick = (drugName: string) => {
+  const handleRecommendationClick = (drugName: string, matchScore: number, rank: number) => {
+    posthog.capture('recommendation_result_clicked', { drug: drugName, match_score: matchScore, rank });
     // Build URL params
     const params = new URLSearchParams();
     params.set("drug", drugName);
@@ -449,7 +468,7 @@ const RecommendationsPage = () => {
                   className={`border-border/40 bg-card p-6 relative cursor-pointer transition-all hover:shadow-lg hover:border-primary/50 ${
                     index === 0 ? "ring-2 ring-primary" : ""
                   }`}
-                  onClick={() => handleRecommendationClick(recommendation.drug)}
+                  onClick={() => handleRecommendationClick(recommendation.drug, recommendation.matchScore, index + 1)}
                 >
                   {index === 0 && (
                     <Badge className="absolute -top-3 left-1/2 -translate-x-1/2">
