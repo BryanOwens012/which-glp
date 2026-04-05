@@ -1,5 +1,6 @@
 "use client"
 
+import posthog from 'posthog-js'
 import { Navigation } from "@/components/navigation"
 import { Card } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -136,7 +137,7 @@ const DashboardPage = () => {
         </div>
 
         {/* Main Dashboard Content */}
-        <Tabs defaultValue="effectiveness" className="w-full">
+        <Tabs defaultValue="effectiveness" className="w-full" onValueChange={(tab) => posthog.capture('dashboard_tab_viewed', { tab })}>
           <TabsList className="mb-6">
             <TabsTrigger value="effectiveness">Effectiveness</TabsTrigger>
             <TabsTrigger value="demographics">Demographics</TabsTrigger>

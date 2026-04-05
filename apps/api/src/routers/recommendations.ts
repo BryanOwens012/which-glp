@@ -1,4 +1,5 @@
 import { router, publicProcedure } from '../lib/trpc.js'
+import { captureEvent } from '../lib/posthog.js'
 import { z } from 'zod'
 
 // Input validation schema
@@ -53,6 +54,18 @@ export const recommendationsRouter = router({
     .mutation(async ({ input }) => {
       const startTime = Date.now()
 
+      captureEvent('api', 'recommendation_requested', {
+        weight_loss_goal_pct: input.currentWeight > 0
+          ? Math.round(((input.currentWeight - input.goalWeight) / input.currentWeight) * 100)
+          : 0,
+        age: input.age,
+        sex: input.sex,
+        state: input.state,
+        has_insurance: input.hasInsurance,
+        comorbidity_count: input.comorbidities.length,
+        side_effect_concern_count: input.sideEffectConcerns.length,
+      })
+
       try {
         // Get rec-engine API URL from environment or default to 127.0.0.1
         // On Railway: Use the REC_ENGINE_URL env var with the internal service URL
@@ -86,12 +99,24 @@ export const recommendationsRouter = router({
         const result = await response.json()
         const processingTime = Date.now() - startTime
 
+        captureEvent('api', 'recommendation_completed', {
+          drug_count: result.recommendations.length,
+          processing_time_ms: processingTime,
+          top_drug: result.recommendations[0]?.drug,
+          top_match_score: result.recommendations[0]?.matchScore,
+        })
+
         return {
           recommendations: result.recommendations,
           processingTime,
         }
       } catch (error) {
         console.error('Recommendation error:', error)
+
+        captureEvent('api', 'recommendation_failed', {
+          error: error instanceof Error ? error.message : 'Unknown error',
+          processing_time_ms: Date.now() - startTime,
+        })
 
         // Return user-friendly error
         if (error instanceof Error) {

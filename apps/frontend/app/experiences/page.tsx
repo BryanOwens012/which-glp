@@ -1,5 +1,6 @@
 "use client"
 
+import posthog from 'posthog-js'
 import { useState, useEffect, useRef } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { Navigation } from "@/components/navigation"
@@ -58,10 +59,13 @@ const ExperiencesPage = () => {
     router.replace(newUrl, { scroll: false })
   }, [selectedDrug, searchText, sortBy, sortOrder, router])
 
-  // Debounce search input
+  // Debounce search input and capture event
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearchText(searchText)
+      if (searchText) {
+        posthog.capture('experience_search', { query: searchText })
+      }
     }, 200)
 
     return () => clearTimeout(timer)
@@ -110,6 +114,13 @@ const ExperiencesPage = () => {
     { enabled: !!selectedExperienceId }
   )
 
+  // Track experience detail view
+  useEffect(() => {
+    if (selectedExperience) {
+      posthog.capture('experience_detail_viewed', { experience_id: selectedExperience.id, drug: selectedExperience.primary_drug })
+    }
+  }, [selectedExperience])
+
   // Intersection observer for infinite scroll
   useEffect(() => {
     if (!loadMoreRef.current || !hasNextPage || isFetchingNextPage) return
@@ -117,6 +128,8 @@ const ExperiencesPage = () => {
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0]?.isIntersecting) {
+          const loadedCount = data?.pages.reduce((sum: number, page: any) => sum + page.experiences.length, 0) ?? 0
+          posthog.capture('experience_page_loaded', { page: (data?.pages.length ?? 0) + 1, total_loaded: loadedCount })
           fetchNextPage()
         }
       },
@@ -169,7 +182,7 @@ const ExperiencesPage = () => {
             {/* Drug Filter */}
             <div className="space-y-2">
               <Label htmlFor="drug">Drug</Label>
-              <Select value={selectedDrug} onValueChange={setSelectedDrug}>
+              <Select value={selectedDrug} onValueChange={(value) => { posthog.capture('experience_filter_changed', { filter: 'drug', value }); setSelectedDrug(value); }}>
                 <SelectTrigger id="drug">
                   <SelectValue placeholder="All drugs" />
                 </SelectTrigger>
@@ -188,7 +201,7 @@ const ExperiencesPage = () => {
             <div className="space-y-2">
               <Label htmlFor="sortBy">Sort By</Label>
               <div className="flex gap-2">
-                <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortFieldType)}>
+                <Select value={sortBy} onValueChange={(value) => { posthog.capture('experience_filter_changed', { filter: 'sort_by', value }); setSortBy(value as SortFieldType); }}>
                   <SelectTrigger id="sortBy" className="flex-1">
                     <SelectValue />
                   </SelectTrigger>
@@ -203,7 +216,7 @@ const ExperiencesPage = () => {
                 <Button
                   variant="outline"
                   size="icon"
-                  onClick={() => setSortOrder(sortOrder === SortDirection.ASC ? SortDirection.DESC : SortDirection.ASC)}
+                  onClick={() => { const newOrder = sortOrder === SortDirection.ASC ? SortDirection.DESC : SortDirection.ASC; posthog.capture('experience_filter_changed', { filter: 'sort_order', value: newOrder }); setSortOrder(newOrder); }}
                   title={SORT_DIRECTION_TOOLTIPS[sortOrder as SortDirection]}
                   aria-label={`Toggle sort order: ${SORT_DIRECTION_TOOLTIPS[sortOrder as SortDirection]}`}
                   className="shrink-0 cursor-pointer"
@@ -219,6 +232,7 @@ const ExperiencesPage = () => {
             <Button
               variant="outline"
               onClick={() => {
+                posthog.capture('experience_filters_cleared')
                 setSearchText("")
                 setSelectedDrug("all")
                 setSortBy(SortField.DATE)
@@ -287,7 +301,10 @@ const ExperiencesPage = () => {
                 <ExperienceCardComponent
                   key={`${experience.id}-${index}`}
                   experience={experience}
-                  onClick={() => setSelectedExperienceId(experience.id)}
+                  onClick={() => {
+                    posthog.capture('experience_card_clicked', { experience_id: experience.id, drug: experience.primary_drug })
+                    setSelectedExperienceId(experience.id)
+                  }}
                 />
               ))}
             </div>
@@ -494,7 +511,7 @@ const ExperiencesPage = () => {
                     </div>
                   )}
                   {getRedditReference(selectedExperience) && (
-                    <div>
+                    <div onClick={() => posthog.capture('experience_reddit_link_clicked', { experience_id: selectedExperience.id })}>
                       <RedditLink
                         reference={getRedditReference(selectedExperience)!}
                         showText

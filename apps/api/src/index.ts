@@ -1,6 +1,7 @@
 import 'dotenv/config'
 import { createServer } from 'http'
 import { fetchRequestHandler } from '@trpc/server/adapters/fetch'
+import { initPostHog, shutdownPostHog } from './lib/posthog.js'
 import { appRouter } from './routers/index.js'
 
 const PORT = process.env.PORT || 3002
@@ -60,5 +61,19 @@ const server = createServer(async (req, res) => {
   res.end(await response.text())
 })
 
+initPostHog()
+
 server.listen(PORT)
 console.log(`✅ tRPC server running on http://localhost:${PORT}`)
+
+// Graceful shutdown
+const shutdown = async () => {
+  console.log('\n🔄 Shutting down...')
+  server.close(async () => {
+    await shutdownPostHog()
+    process.exit(0)
+  })
+}
+
+process.on('SIGTERM', shutdown)
+process.on('SIGINT', shutdown)

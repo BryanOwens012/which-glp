@@ -1,5 +1,6 @@
 "use client";
 
+import posthog from 'posthog-js';
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -35,6 +36,7 @@ export const DrugComparison = () => {
 
   // Navigate to experiences page with drug filter
   const handleDrugClick = (drugName: string) => {
+    posthog.capture('comparison_drug_clicked', { drug: drugName });
     router.push(`/experiences?drug=${encodeURIComponent(drugName)}`);
   };
 
@@ -68,11 +70,13 @@ export const DrugComparison = () => {
   const toggleDrug = (drug: string) => {
     if (selectedMeds.includes(drug)) {
       if (selectedMeds.length > 1) {
+        posthog.capture('drug_deselected', { drug, selected_count: selectedMeds.length - 1 });
         setSelectedMeds(selectedMeds.filter((m) => m !== drug));
         setErrorMessage(null);
       }
     } else {
       if (selectedMeds.length < 6) {
+        posthog.capture('drug_selected', { drug, selected_count: selectedMeds.length + 1 });
         setSelectedMeds([...selectedMeds, drug]);
         setErrorMessage(null);
       } else {
@@ -163,7 +167,7 @@ export const DrugComparison = () => {
       </Card>
 
       {/* Comparison Table */}
-      <Tabs defaultValue="effectiveness" className="w-full">
+      <Tabs defaultValue="effectiveness" className="w-full" onValueChange={(tab) => posthog.capture('comparison_tab_viewed', { tab })}>
         <TabsList className="mb-6">
           <TabsTrigger value="effectiveness" className="cursor-pointer">
             Overview
