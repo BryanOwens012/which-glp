@@ -138,7 +138,7 @@ supabase-functions==2.21.1
 terminado==0.18.1
 threadpoolctl==3.6.0
 tinycss2==1.4.0
-tornado==6.5.2
+tornado==6.5.5
 traitlets==5.14.3
 types-python-dateutil==2.9.0.20250822
 typing-inspection==0.4.2
