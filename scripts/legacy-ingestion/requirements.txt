@@ -1,13 +1,13 @@
 # FastAPI server
 fastapi==0.128.8
 uvicorn[standard]==0.39.0
-pydantic==2.13.0
+pydantic==2.13.1
 
 # Reddit API
 praw==7.8.1
 
 # Anthropic AI
-anthropic==0.94.1
+anthropic==0.96.0
 
 # Database
 psycopg2-binary==2.9.11
