@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "99e2a53cf063",
+  "session_id": "2db506b3-08f2-472a-931c-633e03950354",
+  "strategy": "manual-commit",
+  "created_at": "2026-06-08T21:26:58.355927Z",
+  "branch": "bryan/rls-and-gpt5-nano-migration",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/shared/migrations/033_comprehensive_rls_grants.down.sql"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "5db4335f-3b09-4051-a0ae-46357a00dcb9",
+  "checkpoint_transcript_start": 639,
+  "transcript_lines_at_start": 639,
+  "token_usage": {
+    "input_tokens": 560,
+    "cache_creation_tokens": 36389,
+    "cache_read_tokens": 4351790,
+    "output_tokens": 29152,
+    "api_call_count": 22
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-06-08T21:26:58.259957Z",
+    "agent_lines": 5,
+    "human_added": 99,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 104,
+    "agent_percentage": 4.807692307692308
+  }
+}
