@@ -1,0 +1,53 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "d7a5bbb5a423",
+  "strategy": "manual-commit",
+  "branch": "bryan/rls-and-gpt5-nano-migration",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".env.example",
+    "CLAUDE.md",
+    "apps/frontend/app/privacy/page.tsx",
+    "apps/post-extraction/api.py",
+    "apps/post-extraction/minimum_field_filters.py",
+    "apps/post-extraction/openai_client.py",
+    "apps/post-extraction/requirements.txt",
+    "apps/post-extraction/schema.py",
+    "apps/post-extraction/start.sh",
+    "apps/shared/migrations/033_comprehensive_rls_grants.down.sql",
+    "apps/shared/migrations/033_comprehensive_rls_grants.up.sql",
+    "apps/user-extraction/api.py",
+    "apps/user-extraction/openai_client.py",
+    "apps/user-extraction/prompts.py",
+    "apps/user-extraction/requirements.txt",
+    "apps/user-extraction/schema.py",
+    "apps/user-extraction/user_analyzer.py",
+    "requirements.txt",
+    "scripts/legacy-ingestion/extraction/ai_client.py",
+    "scripts/legacy-ingestion/extraction/ai_extraction.py",
+    "scripts/legacy-ingestion/extraction/prompts.py",
+    "scripts/legacy-ingestion/extraction/schema.py",
+    "scripts/legacy-ingestion/requirements.txt",
+    "scripts/legacy-ingestion/setup.py",
+    "scripts/tests/test_full_user_analysis.py",
+    "scripts/tests/test_minimum_field_filters.py",
+    "scripts/tests/test_openai_client.py",
+    "scripts/tests/test_openai_minimal.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/d7/a5bbb5a423/0/metadata.json",
+      "transcript": "/d7/a5bbb5a423/0/full.jsonl",
+      "context": "/d7/a5bbb5a423/0/context.md",
+      "content_hash": "/d7/a5bbb5a423/0/content_hash.txt",
+      "prompt": "/d7/a5bbb5a423/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 14681,
+    "cache_creation_tokens": 227193,
+    "cache_read_tokens": 10672057,
+    "output_tokens": 85456,
+    "api_call_count": 86
+  }
+}
