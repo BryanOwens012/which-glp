@@ -65,7 +65,7 @@ ai_client = get_client()
 print("✓ Calling OpenAI API...")
 demographics, metadata = ai_client.extract_demographics(prompt)
 
-print(f"\n✓ EXTRACTION SUCCESSFUL")
+print("\n✓ EXTRACTION SUCCESSFUL")
 print(f"  Cost: ${metadata['cost_usd']:.6f}")
 print(f"  Confidence: {demographics.confidence_score}")
 print(f"  Age: {demographics.age}, Sex: {demographics.sex}, State: {demographics.state}")
@@ -89,7 +89,7 @@ with db.conn.cursor() as cursor:
     ))
     db.conn.commit()
 
-print(f"✓ Inserted to database")
+print("✓ Inserted to database")
 
 print("\n" + "=" * 60)
 print("TEST COMPLETE!")

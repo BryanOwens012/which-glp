@@ -164,6 +164,10 @@ class OpenAIClient:
 
                 # Extract text from response
                 response_text = response.choices[0].message.content
+                if not response_text:
+                    # Empty/None content (e.g. content filter or length cutoff);
+                    # treat as a transient failure and let the retry loop handle it.
+                    raise ValueError("Empty response content from model")
 
                 # Parse JSON
                 try:

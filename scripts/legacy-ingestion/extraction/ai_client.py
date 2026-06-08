@@ -171,6 +171,10 @@ class OpenAIClient:
 
                 # Extract text from response
                 response_text = response.choices[0].message.content
+                if not response_text:
+                    # Empty/None content (e.g. content filter or length cutoff);
+                    # treat as a transient failure and let the retry loop handle it.
+                    raise ValueError("Empty response content from model")
 
                 # Parse JSON
                 try:
@@ -247,7 +251,7 @@ class OpenAIClient:
             except Exception as e:
                 is_rate_limit = "429" in str(e) or "rate limit" in str(e).lower()
                 if is_rate_limit:
-                    wait_time = 60 * (attempt + 1)  # Exponential backoff
+                    wait_time = 60 * (attempt + 1)  # Linear backoff (wait grows each attempt)
                     logger.warning(
                         f"Rate limit hit (attempt {attempt + 1}/{max_retries}). "
                         f"Waiting {wait_time}s..."

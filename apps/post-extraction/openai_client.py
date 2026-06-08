@@ -20,7 +20,6 @@ from typing import Optional, Tuple, Dict, Any
 from pathlib import Path
 from dotenv import load_dotenv
 from openai import OpenAI
-from pydantic import ValidationError
 
 from schema import ExtractedFeatures
 from shared.config import get_logger
@@ -92,6 +91,10 @@ class OpenAIClient:
                 processing_time_ms = int((time.time() - start_time) * 1000)
 
                 response_text = response.choices[0].message.content
+                if not response_text:
+                    # Empty/None content (e.g. content filter or length cutoff);
+                    # treat as a transient failure and let the retry loop handle it.
+                    raise ValueError("Empty response content from model")
 
                 # Parse JSON
                 try:

@@ -34,8 +34,8 @@ app.add_middleware(
 async def startup_event():
     logger.info("=" * 80)
     logger.info("🚀 POST EXTRACTION SERVICE STARTING UP")
-    logger.info(f"   Service: post-extraction")
-    logger.info(f"   Model: GPT-5-nano")
+    logger.info("   Service: post-extraction")
+    logger.info("   Model: GPT-5-nano")
     logger.info(f"   Port: {os.getenv('PORT', '8004')}")
     logger.info(f"   Time: {datetime.now().isoformat()}")
     logger.info("=" * 80)
@@ -360,7 +360,7 @@ async def trigger_extraction(
 
     background_tasks.add_task(run_extraction)
     logger.info("✅ Extraction task queued successfully")
-    return {"status": "started", "message": f"Extraction started with GPT-5-nano"}
+    return {"status": "started", "message": "Extraction started with GPT-5-nano"}
 
 
 @app.get("/api/status")

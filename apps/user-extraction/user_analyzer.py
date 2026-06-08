@@ -23,7 +23,6 @@ from shared.database import DatabaseManager
 from shared.config import get_logger
 from openai_client import get_client
 from prompts import build_user_prompt
-from schema import UserDemographics
 
 # Import PRAW
 try:
@@ -289,7 +288,7 @@ class RedditUserAnalyzer:
 
         # Use Supabase upsert (automatically handles conflicts)
         try:
-            response = self.db.client.table('reddit_users').upsert(
+            self.db.client.table('reddit_users').upsert(
                 clean_data,
                 on_conflict='username'
             ).execute()
@@ -326,8 +325,8 @@ class RedditUserAnalyzer:
             except Exception as mark_error:
                 logger.debug(f"Could not mark user as failed: {mark_error}")
 
-            # Don't raise - let the caller handle the error
-            # This allows the pipeline to continue processing other users
+            # Re-raise so the caller (run) records the failure and moves on to
+            # the next user; analyze_user must not silently swallow errors.
             raise
 
     OPENAI_RATE_LIMIT_DELAY = 5.0  # Seconds between requests (GPT-5-nano)
