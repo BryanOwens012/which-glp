@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "7f2eb3e56e03",
+  "strategy": "manual-commit",
+  "branch": "bryan/rls-and-gpt5-nano-migration",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/shared/migrations/033_comprehensive_rls_grants.down.sql",
+    "apps/shared/migrations/033_comprehensive_rls_grants.up.sql",
+    "apps/shared/migrations/034_secure_rpc_functions.down.sql",
+    "apps/shared/migrations/034_secure_rpc_functions.up.sql"
+  ],
+  "sessions": [
+    {
+      "metadata": "/7f/2eb3e56e03/0/metadata.json",
+      "transcript": "/7f/2eb3e56e03/0/full.jsonl",
+      "context": "/7f/2eb3e56e03/0/context.md",
+      "content_hash": "/7f/2eb3e56e03/0/content_hash.txt",
+      "prompt": "/7f/2eb3e56e03/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 278,
+    "cache_creation_tokens": 23784,
+    "cache_read_tokens": 3149963,
+    "output_tokens": 22496,
+    "api_call_count": 10
+  }
+}
