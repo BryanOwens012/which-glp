@@ -99,3 +99,27 @@ GRANT SELECT ON TABLE mv_experiences_denormalized TO service_role;
 -- ---------------------------------------------------------------------------
 REVOKE ALL ON FUNCTION refresh_materialized_view_function(text) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION refresh_materialized_view_function(text) TO service_role;
+
+-- ---------------------------------------------------------------------------
+-- 6. Restrict the read/operational RPC functions to service_role only.
+--    Every caller uses the service_role key: the tRPC API (SUPABASE_SERVICE_KEY)
+--    and the Python services (SUPABASE_SERVICE_KEY). The frontend never calls
+--    Supabase directly — it only talks to the tRPC API. These functions are
+--    SECURITY INVOKER (so RLS on the underlying tables already applies to the
+--    caller), but least-privilege means anon/authenticated should not hold
+--    EXECUTE either. Postgres grants EXECUTE to PUBLIC by default, so the
+--    REVOKE FROM PUBLIC is what actually closes the public surface.
+-- ---------------------------------------------------------------------------
+REVOKE ALL ON FUNCTION get_demographics_stats()             FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION get_drug_stats()                     FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION get_location_stats()                 FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION get_platform_stats()                 FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION get_unprocessed_posts(text, integer) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION get_unanalyzed_users(integer)        FROM PUBLIC, anon, authenticated;
+
+GRANT EXECUTE ON FUNCTION get_demographics_stats()             TO service_role;
+GRANT EXECUTE ON FUNCTION get_drug_stats()                     TO service_role;
+GRANT EXECUTE ON FUNCTION get_location_stats()                 TO service_role;
+GRANT EXECUTE ON FUNCTION get_platform_stats()                 TO service_role;
+GRANT EXECUTE ON FUNCTION get_unprocessed_posts(text, integer) TO service_role;
+GRANT EXECUTE ON FUNCTION get_unanalyzed_users(integer)        TO service_role;
