@@ -86,3 +86,16 @@ CREATE POLICY "platform_config_service_role_all" ON platform_config
 -- ---------------------------------------------------------------------------
 REVOKE ALL ON TABLE mv_experiences_denormalized FROM anon, authenticated, PUBLIC;
 GRANT SELECT ON TABLE mv_experiences_denormalized TO service_role;
+
+-- ---------------------------------------------------------------------------
+-- 5. Lock down the matview-refresh RPC to service_role only.
+--    refresh_materialized_view_function() is SECURITY DEFINER (runs with the
+--    owner's privileges) and takes an arbitrary view name. Postgres grants
+--    EXECUTE to PUBLIC by default, and migration 016 additionally granted it
+--    to `authenticated` — so today any anon/authenticated caller could trigger
+--    expensive refreshes of arbitrary matviews. Nothing actually calls this
+--    RPC (the view-refresher cron refreshes directly as the postgres role via
+--    the session pooler), so restrict EXECUTE to service_role only.
+-- ---------------------------------------------------------------------------
+REVOKE ALL ON FUNCTION refresh_materialized_view_function(text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION refresh_materialized_view_function(text) TO service_role;

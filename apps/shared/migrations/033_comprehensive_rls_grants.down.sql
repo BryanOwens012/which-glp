@@ -11,6 +11,16 @@
 -- All statements are idempotent and safe to run more than once.
 
 -- ---------------------------------------------------------------------------
+-- Reverse step 5: restore the pre-033 grants on the matview-refresh RPC —
+-- the default PUBLIC EXECUTE that CREATE FUNCTION grants, plus the explicit
+-- `authenticated` grant that migration 016 added. (service_role already has
+-- EXECUTE and keeps it.) NOTE: this intentionally restores the broad/insecure
+-- pre-033 state; it is not a recommendation to keep it.
+-- ---------------------------------------------------------------------------
+GRANT EXECUTE ON FUNCTION refresh_materialized_view_function(text) TO PUBLIC;
+GRANT EXECUTE ON FUNCTION refresh_materialized_view_function(text) TO authenticated;
+
+-- ---------------------------------------------------------------------------
 -- Reverse step 4 (matview): nothing to undo. 033 only made the existing state
 -- explicit — PUBLIC never had matview access, anon/authenticated already lost
 -- SELECT in 032, and service_role's SELECT predates 033 (legacy auto-grant).
