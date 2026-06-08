@@ -10,28 +10,8 @@
 --
 -- All statements are idempotent and safe to run more than once.
 
--- ---------------------------------------------------------------------------
--- Reverse step 6: restore the pre-033 EXECUTE grants on the read/operational
--- RPCs — the default PUBLIC EXECUTE plus the explicit anon/authenticated
--- grants from earlier migrations. (service_role keeps EXECUTE.) This restores
--- the broad pre-033 state; it is not a recommendation to keep it.
--- ---------------------------------------------------------------------------
-GRANT EXECUTE ON FUNCTION get_demographics_stats()             TO PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION get_drug_stats()                     TO PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION get_location_stats()                 TO PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION get_platform_stats()                 TO PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION get_unprocessed_posts(text, integer) TO PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION get_unanalyzed_users(integer)        TO PUBLIC, anon, authenticated;
-
--- ---------------------------------------------------------------------------
--- Reverse step 5: restore the pre-033 grants on the matview-refresh RPC —
--- the default PUBLIC EXECUTE that CREATE FUNCTION grants, plus the explicit
--- `authenticated` grant that migration 016 added. (service_role already has
--- EXECUTE and keeps it.) NOTE: this intentionally restores the broad/insecure
--- pre-033 state; it is not a recommendation to keep it.
--- ---------------------------------------------------------------------------
-GRANT EXECUTE ON FUNCTION refresh_materialized_view_function(text) TO PUBLIC;
-GRANT EXECUTE ON FUNCTION refresh_materialized_view_function(text) TO authenticated;
+-- NOTE: RPC function grants/hardening are owned by migration 034; its own
+-- down migration reverses them. Nothing function-related to undo here.
 
 -- ---------------------------------------------------------------------------
 -- Reverse step 4 (matview): nothing to undo. 033 only made the existing state
