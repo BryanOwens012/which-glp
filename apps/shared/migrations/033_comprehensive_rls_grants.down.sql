@@ -11,8 +11,11 @@
 -- All statements are idempotent and safe to run more than once.
 
 -- ---------------------------------------------------------------------------
--- Reverse step 4: the matview revoke/grant is owned by migration 032, so we
--- leave it as-is here (service_role-only). Nothing to undo for 033.
+-- Reverse step 4 (matview): nothing to undo. 033 only made the existing state
+-- explicit — PUBLIC never had matview access, anon/authenticated already lost
+-- SELECT in 032, and service_role's SELECT predates 033 (legacy auto-grant).
+-- Re-granting matview access to anon/authenticated is intentionally NOT done:
+-- 032 owns that revoke, and it must stay revoked at the pre-033 state.
 -- ---------------------------------------------------------------------------
 
 -- ---------------------------------------------------------------------------
