@@ -70,18 +70,19 @@ CREATE POLICY "platform_config_service_role_all" ON platform_config
   FOR ALL TO service_role USING (TRUE) WITH CHECK (TRUE);
 
 -- ---------------------------------------------------------------------------
--- Reverse step 2: service_role grants predate 033; leave them in place.
+-- Reverse step 2: the service_role table/sequence grants are kept (they are
+-- the desired backend access and/or predate 033). Restore the sequence access
+-- that step 2 of the up revoked from anon/authenticated.
 -- ---------------------------------------------------------------------------
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated;
 
 -- ---------------------------------------------------------------------------
 -- Reverse step 1: restore the legacy Supabase auto-grants that 033 revoked
--- from anon/authenticated. (RLS still gates row access; these grants merely
--- restore the privilege state that existed before 033.)
+-- from anon/authenticated on the base tables. (RLS still gates row access;
+-- these grants merely restore the privilege state that existed before 033.)
 -- ---------------------------------------------------------------------------
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE reddit_posts        TO anon, authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE reddit_comments     TO anon, authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE extracted_features  TO anon, authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE reddit_users        TO anon, authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE platform_config     TO anon, authenticated;
-
-GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated;
