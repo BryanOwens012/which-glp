@@ -13,7 +13,7 @@ load_dotenv()
 
 import praw
 from shared.database import DatabaseManager
-from glm_client import get_client
+from openai_client import get_client
 from prompts import build_user_prompt
 
 print("=" * 60)
@@ -60,10 +60,10 @@ print(f"✓ Fetched {len(posts)} posts, {len(comments)} comments")
 prompt = build_user_prompt(username, posts, comments)
 print(f"✓ Built prompt ({len(prompt)} chars)")
 
-# Extract with GLM
-glm = get_client()
-print("✓ Calling GLM API...")
-demographics, metadata = glm.extract_demographics(prompt)
+# Extract with GPT-5-nano
+ai_client = get_client()
+print("✓ Calling OpenAI API...")
+demographics, metadata = ai_client.extract_demographics(prompt)
 
 print(f"\n✓ EXTRACTION SUCCESSFUL")
 print(f"  Cost: ${metadata['cost_usd']:.6f}")

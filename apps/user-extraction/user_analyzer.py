@@ -5,7 +5,7 @@ User demographics analyzer for Reddit users.
 This script:
 1. Fetches unique usernames from extracted_features table (users with already-extracted posts)
 2. Uses PRAW to get last 20 posts + 20 comments per user
-3. Sends to GLM-4.7-FlashX for demographic extraction
+3. Sends to GPT-5-nano for demographic extraction
 4. Inserts results to reddit_users table
 """
 
@@ -21,7 +21,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from shared.database import DatabaseManager
 from shared.config import get_logger
-from glm_client import get_client
+from openai_client import get_client
 from prompts import build_user_prompt
 from schema import UserDemographics
 
@@ -40,13 +40,13 @@ class RedditUserAnalyzer:
     """
     Analyzes Reddit users to extract demographic information.
 
-    Uses PRAW to fetch user history and GLM-4.7-FlashX to extract demographics.
+    Uses PRAW to fetch user history and GPT-5-nano to extract demographics.
     """
 
     def __init__(self):
         """Initialize analyzer with database and API clients."""
         self.db = DatabaseManager()
-        self.glm_client = get_client()
+        self.ai_client = get_client()
         self.reddit = self._init_reddit()
 
         logger.info("User analyzer initialized")
@@ -181,9 +181,9 @@ class RedditUserAnalyzer:
         # Build prompt
         prompt = build_user_prompt(username, posts, comments)
 
-        # Extract demographics with GLM
+        # Extract demographics with GPT-5-nano
         try:
-            demographics, metadata = self.glm_client.extract_demographics(prompt)
+            demographics, metadata = self.ai_client.extract_demographics(prompt)
 
             # Build database row
             user_data = {
@@ -330,9 +330,9 @@ class RedditUserAnalyzer:
             # This allows the pipeline to continue processing other users
             raise
 
-    GLM_RATE_LIMIT_DELAY = 5.0  # Seconds between requests (GLM-4.7-FlashX paid tier)
+    OPENAI_RATE_LIMIT_DELAY = 5.0  # Seconds between requests (GPT-5-nano)
 
-    def run(self, limit: Optional[int] = None, rate_limit_delay: float = GLM_RATE_LIMIT_DELAY):
+    def run(self, limit: Optional[int] = None, rate_limit_delay: float = OPENAI_RATE_LIMIT_DELAY):
         """
         Run the full user analysis pipeline.
 
@@ -409,8 +409,8 @@ def main():
     parser.add_argument(
         "--rate-limit",
         type=float,
-        default=RedditUserAnalyzer.GLM_RATE_LIMIT_DELAY,
-        help=f"Delay in seconds between users (default: {RedditUserAnalyzer.GLM_RATE_LIMIT_DELAY})"
+        default=RedditUserAnalyzer.OPENAI_RATE_LIMIT_DELAY,
+        help=f"Delay in seconds between users (default: {RedditUserAnalyzer.OPENAI_RATE_LIMIT_DELAY})"
     )
 
     args = parser.parse_args()

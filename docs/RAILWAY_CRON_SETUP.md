@@ -6,8 +6,8 @@ This guide explains how to set up automated cron jobs on Railway to run the post
 
 We have 3 services that need to run on a schedule:
 1. **Post Ingestion** - Fetches new posts from Reddit (Tier 1 subreddits)
-2. **Post Extraction** - Extracts features from posts using GLM-4.5-Air
-3. **User Extraction** - Analyzes user demographics using GLM-4.5-Air
+2. **Post Extraction** - Extracts features from posts using GPT-5-nano
+3. **User Extraction** - Analyzes user demographics using GPT-5-nano
 
 Each service has a retry wrapper script with:
 - Exponential backoff

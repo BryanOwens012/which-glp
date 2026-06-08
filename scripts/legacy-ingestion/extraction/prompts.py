@@ -1,11 +1,11 @@
 """
-Prompt templates for Claude AI extraction of structured data from Reddit posts/comments.
+Prompt templates for GPT-5-nano extraction of structured data from Reddit posts/comments.
 
-These templates guide Claude to extract weight loss features, costs, and experiences
+These templates guide the model to extract weight loss features, costs, and experiences
 in a structured format while maintaining accuracy and not hallucinating data.
 """
 
-# System prompt that defines Claude's role and extraction rules
+# System prompt that defines the model's role and extraction rules
 SYSTEM_PROMPT = """You are analyzing Reddit posts and comments about GLP-1 weight loss medications (Ozempic, Wegovy, Mounjaro, Zepbound, semaglutide, tirzepatide, liraglutide, etc.).
 
 Your task is to:
@@ -761,7 +761,7 @@ def build_post_prompt(
         author_flair: Author flair text (may contain structured data)
 
     Returns:
-        Formatted user prompt for Claude
+        Formatted user prompt for the model
     """
     flair_section = f"\nAUTHOR FLAIR: {author_flair}\n" if author_flair else ""
 
@@ -790,7 +790,7 @@ def build_comment_prompt(
     Build extraction prompt for a Reddit comment with full context chain.
 
     The comment chain provides context from the original post down to the target comment.
-    This allows Claude to understand the full conversation context.
+    This allows the model to understand the full conversation context.
 
     Args:
         post_title: Original post title

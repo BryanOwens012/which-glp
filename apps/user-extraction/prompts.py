@@ -1,5 +1,5 @@
 """
-Prompts for GLM-4.7-FlashX to extract demographic data from Reddit user history.
+Prompts for GPT-5-nano to extract demographic data from Reddit user history.
 """
 
 SYSTEM_PROMPT = """You are a demographic data extraction assistant analyzing Reddit user post histories to build personalized medication recommendation profiles.

@@ -1,11 +1,19 @@
 """
-GLM-4.7-FlashX client for extracting demographic data from Reddit user history.
+OpenAI GPT-5-nano client for extracting demographic data from Reddit user history.
 
-This module provides a wrapper around the Z.AI SDK (GLM-4.7-FlashX) with:
+This module provides a wrapper around the OpenAI SDK (GPT-5-nano) with:
 - Cost tracking per API call
 - Automatic JSON parsing and validation
 - Error handling and retries
-- ~3x cheaper than GLM-4.5-Air ($0.07/$0.40 vs $0.20/$1.10 per 1M tokens)
+
+Pricing (USD per 1M tokens): GPT-5-nano $0.05 / $0.40
+
+GPT-5-nano is a reasoning model, so it does NOT accept sampling parameters
+(temperature, top_p, etc.) — sending them returns a 400. Low-latency,
+deterministic-ish extraction is achieved via reasoning_effort="minimal" plus
+JSON response formatting.
+
+Docs: https://developers.openai.com/api/docs/models/gpt-5-nano
 """
 
 import os
@@ -14,7 +22,7 @@ import time
 from typing import Optional, Tuple, Dict, Any
 from pathlib import Path
 from dotenv import load_dotenv
-from zai import ZaiClient
+from openai import OpenAI
 from pydantic import ValidationError
 
 from schema import UserDemographics
@@ -27,68 +35,59 @@ load_dotenv(env_path)
 # Initialize logger
 logger = get_logger(__name__)
 
-# GLM model pricing (as of 2026, per million tokens)
+# OpenAI model pricing (as of 2026, per million tokens)
 MODEL_PRICING = {
-    "glm-4.7-flashx": {
-        "input": 0.07,   # $0.07 per MTok
+    "gpt-5-nano": {
+        "input": 0.05,   # $0.05 per MTok
         "output": 0.40,  # $0.40 per MTok
-    },
-    "glm-4.7-flash": {
-        "input": 0.0,    # Free tier
-        "output": 0.0,   # Free tier
-    },
-    "glm-4.5-air": {
-        "input": 0.20,   # $0.20 per MTok
-        "output": 1.10,  # $1.10 per MTok
-    },
-    "glm-4.5": {
-        "input": 0.60,   # $0.60 per MTok
-        "output": 2.20,  # $2.20 per MTok
     },
 }
 
 # Default model
-DEFAULT_MODEL = "glm-4.7-flashx"
+DEFAULT_MODEL = "gpt-5-nano"
+# GPT-5-nano is a reasoning model; "minimal" keeps latency and cost low for
+# straightforward extraction/classification tasks.
+DEFAULT_REASONING_EFFORT = "minimal"
 
 
-class GLMClientConfigurationError(Exception):
-    """Raised when GLM client configuration is invalid"""
+class OpenAIClientConfigurationError(Exception):
+    """Raised when OpenAI client configuration is invalid"""
     pass
 
 
-class GLMExtractionError(Exception):
-    """Raised when GLM extraction fails"""
+class OpenAIExtractionError(Exception):
+    """Raised when OpenAI extraction fails"""
     pass
 
 
-class GLMClient:
+class OpenAIClient:
     """
-    Client for GLM-4.7-FlashX API with demographic data extraction.
+    Client for GPT-5-nano API with demographic data extraction.
 
     Handles API calls, cost tracking, JSON parsing, and Pydantic validation.
     """
 
     def __init__(self, api_key: Optional[str] = None):
         """
-        Initialize GLM client.
+        Initialize OpenAI client.
 
         Args:
-            api_key: Z.AI API key (defaults to GLM_API_KEY env var)
+            api_key: OpenAI API key (defaults to OPENAI_API_KEY env var)
 
         Raises:
-            GLMClientConfigurationError: If API key is missing
+            OpenAIClientConfigurationError: If API key is missing
         """
-        self.api_key = api_key or os.getenv("GLM_API_KEY")
+        self.api_key = api_key or os.getenv("OPENAI_API_KEY")
 
         if not self.api_key:
-            raise GLMClientConfigurationError(
-                "GLM API key not found.\n"
-                "Please set GLM_API_KEY in your .env file.\n"
-                "Get your API key at: https://z.ai/model-api"
+            raise OpenAIClientConfigurationError(
+                "OpenAI API key not found.\n"
+                "Please set OPENAI_API_KEY in your .env file.\n"
+                "Get your API key at: https://platform.openai.com/api-keys"
             )
 
-        self.client = ZaiClient(api_key=self.api_key)
-        logger.info("GLM AI client initialized")
+        self.client = OpenAI(api_key=self.api_key)
+        logger.info("OpenAI client initialized")
 
     def calculate_cost(
         self,
@@ -108,7 +107,7 @@ class GLMClient:
             Cost in USD
         """
         if model not in MODEL_PRICING:
-            logger.warning(f"Unknown model {model}, using glm-4.7-flashx pricing")
+            logger.warning(f"Unknown model {model}, using gpt-5-nano pricing")
             pricing = MODEL_PRICING[DEFAULT_MODEL]
         else:
             pricing = MODEL_PRICING[model]
@@ -129,7 +128,7 @@ class GLMClient:
 
         Args:
             user_prompt: Formatted prompt with user's posts/comments
-            model: GLM model to use (defaults to glm-4.7-flashx)
+            model: OpenAI model to use (defaults to gpt-5-nano)
             max_retries: Number of retries on failure
 
         Returns:
@@ -137,7 +136,7 @@ class GLMClient:
             metadata includes: model, cost, tokens, processing_time_ms
 
         Raises:
-            GLMExtractionError: If extraction fails after retries
+            OpenAIExtractionError: If extraction fails after retries
         """
         # Use default model if not specified
         if model is None:
@@ -150,14 +149,15 @@ class GLMClient:
             try:
                 start_time = time.time()
 
-                # Call GLM API (disable streaming to get usage stats)
+                # Call OpenAI API. GPT-5-nano is a reasoning model: no sampling
+                # params (temperature/top_p); use reasoning_effort + JSON output.
                 response = self.client.chat.completions.create(
                     model=model,
                     messages=[
                         {"role": "user", "content": user_prompt}
                     ],
-                    temperature=0,  # Deterministic extraction
-                    stream=False,  # Disable streaming to get full response with usage
+                    reasoning_effort=DEFAULT_REASONING_EFFORT,
+                    response_format={"type": "json_object"},
                 )
 
                 processing_time_ms = int((time.time() - start_time) * 1000)
@@ -183,12 +183,12 @@ class GLMClient:
                         try:
                             extracted_data = json.loads(json_str)
                         except json.JSONDecodeError:
-                            raise GLMExtractionError(
+                            raise OpenAIExtractionError(
                                 f"Failed to parse JSON response: {e}\n"
                                 f"Response: {response_text[:200]}..."
                             ) from e
                     else:
-                        raise GLMExtractionError(
+                        raise OpenAIExtractionError(
                             f"Failed to parse JSON response: {e}\n"
                             f"Response: {response_text[:200]}..."
                         ) from e
@@ -231,7 +231,7 @@ class GLMClient:
                 return demographics, metadata
 
             except ValidationError as e:
-                raise GLMExtractionError(
+                raise OpenAIExtractionError(
                     f"Pydantic validation failed for extracted data: {e}\n"
                     f"Extracted data: {extracted_data}"
                 )
@@ -243,31 +243,31 @@ class GLMClient:
                     logger.warning(f"Rate limited (attempt {attempt + 1}/{max_retries}), waiting {wait_time}s...")
                 else:
                     wait_time = 5 * (attempt + 1)
-                    logger.error(f"GLM API error (attempt {attempt + 1}/{max_retries}): {e}")
+                    logger.error(f"OpenAI API error (attempt {attempt + 1}/{max_retries}): {e}")
                 if attempt < max_retries - 1:
                     logger.info(f"Retrying in {wait_time}s...")
                     time.sleep(wait_time)
                 else:
-                    raise GLMExtractionError(
+                    raise OpenAIExtractionError(
                         f"Extraction failed after {max_retries} retries: {e}"
                     )
 
         # Should never reach here
-        raise GLMExtractionError(f"Extraction failed after {max_retries} retries")
+        raise OpenAIExtractionError(f"Extraction failed after {max_retries} retries")
 
 
 # Module-level client instance (lazy initialization)
-_client_instance: Optional[GLMClient] = None
+_client_instance: Optional[OpenAIClient] = None
 
 
-def get_client() -> GLMClient:
+def get_client() -> OpenAIClient:
     """
-    Get or create the global GLM client instance.
+    Get or create the global OpenAI client instance.
 
     Returns:
-        GLMClient instance
+        OpenAIClient instance
     """
     global _client_instance
     if _client_instance is None:
-        _client_instance = GLMClient()
+        _client_instance = OpenAIClient()
     return _client_instance

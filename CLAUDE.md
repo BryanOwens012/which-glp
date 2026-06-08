@@ -52,7 +52,7 @@ This is a monorepo with the following structure:
 │   ├── rec-engine/        # FastAPI recommendation engine
 │   ├── user-extraction/   # User demographics extraction service
 │   ├── post-ingestion/    # Reddit post fetching service
-│   ├── post-extraction/   # GLM-based feature extraction service
+│   ├── post-extraction/   # GPT-5-nano-based feature extraction service
 │   └── shared/            # Shared database migrations and utilities
 ├── scripts/               # One-off scripts, tests, analysis, legacy code
 │   ├── legacy-ingestion/  # Old Claude-based ingestion (deprecated)

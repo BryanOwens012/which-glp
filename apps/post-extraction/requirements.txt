@@ -1,6 +1,6 @@
 fastapi==0.135.3
 uvicorn[standard]==0.44.0
-zai-sdk==0.2.2
+openai>=1.99.0
 psycopg2-binary==2.9.11
 pydantic==2.13.0
 python-dotenv==1.2.2

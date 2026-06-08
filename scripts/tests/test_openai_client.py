@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Quick test of GLM client to verify API key works."""
+"""Quick test of the OpenAI (GPT-5-nano) client to verify API key works."""
 
 import sys
 from pathlib import Path
@@ -8,7 +8,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "apps" / "user-extraction"))
 sys.path.insert(0, str(Path(__file__).parent.parent / "apps" / "shared"))
 
-from glm_client import get_client
+from openai_client import get_client
 from prompts import build_user_prompt
 
 # Test data
@@ -25,14 +25,14 @@ test_comments = [
     }
 ]
 
-print("Testing GLM client...")
+print("Testing OpenAI client...")
 print("=" * 60)
 
 # Build prompt
 prompt = build_user_prompt("test_user", test_posts, test_comments)
 
 print(f"\nPrompt length: {len(prompt)} chars")
-print("\nCalling GLM API...")
+print("\nCalling OpenAI API...")
 
 # Get client and extract
 client = get_client()
@@ -57,4 +57,4 @@ print(f"  Input tokens: {metadata['tokens_input']}")
 print(f"  Output tokens: {metadata['tokens_output']}")
 print(f"  Processing time: {metadata['processing_time_ms']}ms")
 
-print("\n✓ GLM API key is working!")
+print("\n✓ OpenAI API key is working!")

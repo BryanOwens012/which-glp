@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""FastAPI service for post extraction using GLM-4.7-FlashX (replaces Claude)."""
+"""FastAPI service for post extraction using GPT-5-nano (replaces Claude)."""
 
 import os
 import sys
@@ -13,8 +13,8 @@ from pydantic import BaseModel
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 # Import the extraction pipeline - reuses most code from data-ingestion
-# Just swaps out the AI client from Claude to GLM
-from glm_client import get_client
+# Just swaps out the AI client from Claude to OpenAI GPT-5-nano
+from openai_client import get_client
 from shared.config import get_logger
 
 logger = get_logger(__name__)
@@ -35,7 +35,7 @@ async def startup_event():
     logger.info("=" * 80)
     logger.info("🚀 POST EXTRACTION SERVICE STARTING UP")
     logger.info(f"   Service: post-extraction")
-    logger.info(f"   Model: GLM-4.7-FlashX")
+    logger.info(f"   Model: GPT-5-nano")
     logger.info(f"   Port: {os.getenv('PORT', '8004')}")
     logger.info(f"   Time: {datetime.now().isoformat()}")
     logger.info("=" * 80)
@@ -65,12 +65,12 @@ class ExtractionRequest(BaseModel):
 
 
 _extraction_running = False
-GLM_RATE_LIMIT_DELAY = 5.0  # Seconds between requests (GLM-4.7-FlashX paid tier)
+OPENAI_RATE_LIMIT_DELAY = 5.0  # Seconds between requests (GPT-5-nano)
 
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy", "service": "post-extraction", "model": "glm-4.7-flashx"}
+    return {"status": "healthy", "service": "post-extraction", "model": "gpt-5-nano"}
 
 
 @app.post("/api/extract")
@@ -111,8 +111,8 @@ async def trigger_extraction(
             db = DatabaseManager()
             logger.info("✅ Database connection established")
 
-            glm = get_client()
-            logger.info("✅ GLM client initialized")
+            ai_client = get_client()
+            logger.info("✅ OpenAI client initialized")
 
             # Query unprocessed posts using PostgreSQL function
             # This uses extraction_status flag for efficient filtering
@@ -193,9 +193,9 @@ async def trigger_extraction(
                     prompt = build_post_prompt(
                         subreddit, title, body or "", flair or ""
                     )
-                    logger.debug(f"🤖 Sending to GLM for extraction: {post_id}")
+                    logger.debug(f"🤖 Sending to GPT-5-nano for extraction: {post_id}")
 
-                    features, metadata = glm.extract_features(prompt)
+                    features, metadata = ai_client.extract_features(prompt)
 
                     cost = metadata.get("cost_usd", 0)
                     total_cost += cost
@@ -320,9 +320,9 @@ async def trigger_extraction(
                         f"❌ Failed to extract {post_id}: {str(e)}", exc_info=True
                     )
 
-                # Rate limit: GLM-4.7-FlashX paid tier
+                # Rate limit: GPT-5-nano
                 if i < len(posts):
-                    time.sleep(GLM_RATE_LIMIT_DELAY)
+                    time.sleep(OPENAI_RATE_LIMIT_DELAY)
 
             db.close()
             logger.info("🔌 Database connection closed")
@@ -332,7 +332,7 @@ async def trigger_extraction(
             logger.info("=" * 80)
             logger.info("✨ EXTRACTION BATCH COMPLETED")
             logger.info(f"   Total posts queried: {len(posts)}")
-            logger.info(f"   Processed by GLM: {processed}")
+            logger.info(f"   Processed by GPT-5-nano: {processed}")
             logger.info(f"   Failed: {failed}")
             logger.info(f"   Skipped (filtered): {skipped}")
             logger.info(
@@ -360,7 +360,7 @@ async def trigger_extraction(
 
     background_tasks.add_task(run_extraction)
     logger.info("✅ Extraction task queued successfully")
-    return {"status": "started", "message": f"Extraction started with GLM-4.7-FlashX"}
+    return {"status": "started", "message": f"Extraction started with GPT-5-nano"}
 
 
 @app.get("/api/status")

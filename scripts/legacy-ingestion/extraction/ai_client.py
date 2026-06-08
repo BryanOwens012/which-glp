@@ -1,11 +1,17 @@
 """
-Claude AI client for extracting structured data from Reddit posts/comments.
+OpenAI GPT-5-nano client for extracting structured data from Reddit posts/comments.
 
-This module provides a wrapper around the Anthropic API with:
+This module provides a wrapper around the OpenAI SDK with:
 - Cost tracking per API call
 - Automatic JSON parsing and validation
 - Error handling and retries
-- Model selection based on content complexity
+
+GPT-5-nano is a reasoning model, so it does NOT accept sampling parameters
+(temperature, top_p, etc.) — sending them returns a 400. Deterministic-ish,
+low-latency extraction is achieved via reasoning_effort="minimal" plus JSON
+response formatting.
+
+Docs: https://developers.openai.com/api/docs/models/gpt-5-nano
 """
 
 import os
@@ -14,7 +20,7 @@ import time
 from typing import Optional, Tuple
 from pathlib import Path
 from dotenv import load_dotenv
-from anthropic import Anthropic, APIError, RateLimitError
+from openai import OpenAI
 from pydantic import ValidationError
 
 from extraction.schema import ExtractedFeatures
@@ -28,21 +34,19 @@ load_dotenv(env_path)
 # Initialize logger
 logger = get_logger(__name__)
 
-# Claude model pricing (as of 2025, per million tokens)
+# OpenAI model pricing (per million tokens)
 MODEL_PRICING = {
-    "claude-sonnet-4-20250514": {
-        "input": 3.00,    # $3 per MTok
-        "output": 15.00,  # $15 per MTok
-    },
-    "claude-3-5-haiku-20241022": {
-        "input": 0.80,    # $0.80 per MTok
-        "output": 4.00,   # $4 per MTok
+    "gpt-5-nano": {
+        "input": 0.05,   # $0.05 per MTok
+        "output": 0.40,  # $0.40 per MTok
     },
 }
 
-# Default models
-DEFAULT_MODEL_SIMPLE = "claude-3-5-haiku-20241022"  # For simple posts
-DEFAULT_MODEL_COMPLEX = "claude-sonnet-4-20250514"  # For complex comment chains
+# Default model
+DEFAULT_MODEL = "gpt-5-nano"
+# GPT-5-nano is a reasoning model; "minimal" keeps latency and cost low for
+# straightforward extraction/classification tasks.
+DEFAULT_REASONING_EFFORT = "minimal"
 
 
 class AIClientConfigurationError(Exception):
@@ -55,55 +59,34 @@ class AIExtractionError(Exception):
     pass
 
 
-class ClaudeClient:
+class OpenAIClient:
     """
-    Client for Claude API with structured data extraction.
+    Client for the OpenAI GPT-5-nano API with structured data extraction.
 
     Handles API calls, cost tracking, JSON parsing, and Pydantic validation.
     """
 
     def __init__(self, api_key: Optional[str] = None):
         """
-        Initialize Claude client.
+        Initialize OpenAI client.
 
         Args:
-            api_key: Anthropic API key (defaults to ANTHROPIC_API_KEY env var)
+            api_key: OpenAI API key (defaults to OPENAI_API_KEY env var)
 
         Raises:
             AIClientConfigurationError: If API key is missing
         """
-        self.api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
+        self.api_key = api_key or os.getenv("OPENAI_API_KEY")
 
         if not self.api_key:
             raise AIClientConfigurationError(
-                "Anthropic API key not found.\n"
-                "Please set ANTHROPIC_API_KEY in your .env file.\n"
-                "Get your API key at: https://console.anthropic.com/settings/keys"
+                "OpenAI API key not found.\n"
+                "Please set OPENAI_API_KEY in your .env file.\n"
+                "Get your API key at: https://platform.openai.com/api-keys"
             )
 
-        self.client = Anthropic(api_key=self.api_key)
-        logger.info("Claude AI client initialized")
-
-    def select_model(self, prompt: str, threshold_tokens: int = 500) -> str:
-        """
-        Select appropriate model based on prompt complexity.
-
-        Uses Haiku for simple posts (<500 tokens) and Sonnet for complex ones.
-
-        Args:
-            prompt: User prompt text
-            threshold_tokens: Token threshold for model selection
-
-        Returns:
-            Model identifier string
-        """
-        # Rough token estimation: ~4 characters per token
-        estimated_tokens = len(prompt) // 4
-
-        if estimated_tokens < threshold_tokens:
-            return DEFAULT_MODEL_SIMPLE
-        else:
-            return DEFAULT_MODEL_COMPLEX
+        self.client = OpenAI(api_key=self.api_key)
+        logger.info("OpenAI client initialized")
 
     def calculate_cost(
         self,
@@ -123,8 +106,8 @@ class ClaudeClient:
             Cost in USD
         """
         if model not in MODEL_PRICING:
-            logger.warning(f"Unknown model {model}, using Sonnet pricing")
-            pricing = MODEL_PRICING[DEFAULT_MODEL_COMPLEX]
+            logger.warning(f"Unknown model {model}, using gpt-5-nano pricing")
+            pricing = MODEL_PRICING[DEFAULT_MODEL]
         else:
             pricing = MODEL_PRICING[model]
 
@@ -144,7 +127,7 @@ class ClaudeClient:
 
         Args:
             prompts: Either a tuple of (system_prompt, user_prompt) or just user_prompt string
-            model: Claude model to use (auto-selected if None)
+            model: OpenAI model to use (defaults to gpt-5-nano)
             max_retries: Number of retries on failure
 
         Returns:
@@ -161,9 +144,9 @@ class ClaudeClient:
             system_prompt = SYSTEM_PROMPT
             user_prompt = prompts
 
-        # Auto-select model if not specified
+        # Use default model if not specified
         if model is None:
-            model = self.select_model(user_prompt)
+            model = DEFAULT_MODEL
 
         logger.debug(f"Using model: {model}")
 
@@ -172,21 +155,22 @@ class ClaudeClient:
             try:
                 start_time = time.time()
 
-                # Call Claude API
-                response = self.client.messages.create(
+                # Call OpenAI API. GPT-5-nano is a reasoning model: no sampling
+                # params (temperature/top_p); use reasoning_effort + JSON output.
+                response = self.client.chat.completions.create(
                     model=model,
-                    max_tokens=2048,
-                    temperature=0,  # Deterministic extraction
-                    system=system_prompt,
                     messages=[
-                        {"role": "user", "content": user_prompt}
-                    ]
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    reasoning_effort=DEFAULT_REASONING_EFFORT,
+                    response_format={"type": "json_object"},
                 )
 
                 processing_time_ms = int((time.time() - start_time) * 1000)
 
                 # Extract text from response
-                response_text = response.content[0].text
+                response_text = response.choices[0].message.content
 
                 # Parse JSON
                 try:
@@ -221,8 +205,8 @@ class ClaudeClient:
                 features = ExtractedFeatures(**extracted_data)
 
                 # Calculate cost
-                tokens_input = response.usage.input_tokens
-                tokens_output = response.usage.output_tokens
+                tokens_input = response.usage.prompt_tokens
+                tokens_output = response.usage.completion_tokens
                 cost_usd = self.calculate_cost(model, tokens_input, tokens_output)
 
                 # Build metadata with full API response
@@ -235,13 +219,12 @@ class ClaudeClient:
                     "raw_response": {
                         "id": response.id,
                         "model": response.model,
-                        "role": response.role,
-                        "content": [{"type": c.type, "text": c.text} for c in response.content],
-                        "stop_reason": response.stop_reason,
-                        "stop_sequence": response.stop_sequence,
+                        "content": response_text,
+                        "finish_reason": response.choices[0].finish_reason,
                         "usage": {
-                            "input_tokens": response.usage.input_tokens,
-                            "output_tokens": response.usage.output_tokens,
+                            "prompt_tokens": tokens_input,
+                            "completion_tokens": tokens_output,
+                            "total_tokens": response.usage.total_tokens,
                         }
                     },
                 }
@@ -255,55 +238,46 @@ class ClaudeClient:
 
                 return features, metadata
 
-            except RateLimitError as e:
-                wait_time = 60 * (attempt + 1)  # Exponential backoff
-                logger.warning(
-                    f"Rate limit hit (attempt {attempt + 1}/{max_retries}). "
-                    f"Waiting {wait_time}s..."
-                )
-                if attempt < max_retries - 1:
-                    time.sleep(wait_time)
-                else:
-                    raise AIExtractionError(
-                        f"Rate limit exceeded after {max_retries} retries: {e}"
-                    )
-
             except ValidationError as e:
                 raise AIExtractionError(
                     f"Pydantic validation failed for extracted data: {e}\n"
                     f"Extracted data: {extracted_data}"
                 )
 
-            except APIError as e:
-                logger.error(f"Anthropic API error (attempt {attempt + 1}/{max_retries}): {e}")
+            except Exception as e:
+                is_rate_limit = "429" in str(e) or "rate limit" in str(e).lower()
+                if is_rate_limit:
+                    wait_time = 60 * (attempt + 1)  # Exponential backoff
+                    logger.warning(
+                        f"Rate limit hit (attempt {attempt + 1}/{max_retries}). "
+                        f"Waiting {wait_time}s..."
+                    )
+                else:
+                    wait_time = 5 * (attempt + 1)  # Short backoff
+                    logger.error(f"OpenAI API error (attempt {attempt + 1}/{max_retries}): {e}")
                 if attempt < max_retries - 1:
-                    time.sleep(5 * (attempt + 1))  # Short backoff
+                    time.sleep(wait_time)
                 else:
                     raise AIExtractionError(
                         f"API error after {max_retries} retries: {e}"
                     )
-
-            except Exception as e:
-                raise AIExtractionError(
-                    f"Unexpected error during extraction: {e}"
-                )
 
         # Should never reach here, but just in case
         raise AIExtractionError(f"Extraction failed after {max_retries} retries")
 
 
 # Module-level client instance (lazy initialization)
-_client_instance: Optional[ClaudeClient] = None
+_client_instance: Optional[OpenAIClient] = None
 
 
-def get_client() -> ClaudeClient:
+def get_client() -> OpenAIClient:
     """
-    Get or create the global Claude client instance.
+    Get or create the global OpenAI client instance.
 
     Returns:
-        ClaudeClient instance
+        OpenAIClient instance
     """
     global _client_instance
     if _client_instance is None:
-        _client_instance = ClaudeClient()
+        _client_instance = OpenAIClient()
     return _client_instance

@@ -337,14 +337,14 @@
 - **Framework:** FastAPI + uvicorn
 - **Language:** Python 3.13+
 - **Database:** Supabase client
-- **AI Model:** GLM-4.5-Air (via Z.ai SDK)
+- **AI Model:** GPT-5-nano (via OpenAI SDK)
 - **Function:** Extract structured drug experience data from posts
 
 **4. User Extraction** (`apps/user-extraction`)
 - **Framework:** FastAPI + uvicorn
 - **Language:** Python 3.13+
 - **Database:** Supabase client
-- **AI Model:** GLM-4.5-Air (via Z.ai SDK)
+- **AI Model:** GPT-5-nano (via OpenAI SDK)
 - **Function:** Extract user demographics from Reddit user history
 
 **5. Recommendation Engine** (`apps/rec-engine`)
@@ -381,7 +381,7 @@
 
 - **Primary ingestion:** Reddit API (PRAW) via scheduled cron jobs
 - **Type safety:** tRPC ensures frontend/backend contract enforcement
-- **AI Processing:** GLM-4.5-Air (cost-effective alternative to Claude Sonnet 4)
+- **AI Processing:** GPT-5-nano (cost-effective alternative to Claude Sonnet 4)
 - **Automated Pipeline:** Cron jobs orchestrate the data ingestion → extraction → view refresh cycle
 - **Microservices:** Each service independently scalable on Railway
 
@@ -432,12 +432,12 @@
 
 **Goal:** Convert unstructured post/comment text into structured data
 
-**Extraction Model:** GLM-4.5-Air (via Z.ai SDK) - cost-effective model for text extraction, summarization, and sentiment analysis
+**Extraction Model:** GPT-5-nano (via OpenAI SDK) - cost-effective model for text extraction, summarization, and sentiment analysis
 
 **Process:**
 1. Query unprocessed posts/comments from database
 2. Build context for each item (parent post, parent comments, top replies)
-3. Send to GLM-4.5-Air API with structured extraction prompt
+3. Send to GPT-5-nano API with structured extraction prompt
 4. Parse JSON response into database schema
 5. Store extracted features in `extracted_features` table
 6. Backup extraction results to JSON files

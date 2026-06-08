@@ -1,10 +1,16 @@
 """
-GLM-4.7-FlashX client for post feature extraction (replaces Claude).
+OpenAI GPT-5-nano client for post feature extraction (replaces Claude/GLM).
 
-Cost comparison:
-- Claude Sonnet 4: $3/$15 per 1M tokens
-- GLM-4.7-FlashX: $0.07/$0.40 per 1M tokens
-- GLM-4.5-Air: $0.20/$1.10 per 1M tokens
+Cost comparison (per 1M tokens):
+- Claude Sonnet 4: $3.00 / $15.00
+- GPT-5-nano:      $0.05 / $0.40
+
+GPT-5-nano is a reasoning model, so it does NOT accept sampling parameters
+(temperature, top_p, etc.) — sending them returns a 400. Deterministic-ish,
+low-latency extraction is achieved via reasoning_effort="minimal" plus JSON
+response formatting.
+
+Docs: https://developers.openai.com/api/docs/models/gpt-5-nano
 """
 
 import os
@@ -13,7 +19,7 @@ import time
 from typing import Optional, Tuple, Dict, Any
 from pathlib import Path
 from dotenv import load_dotenv
-from zai import ZaiClient
+from openai import OpenAI
 from pydantic import ValidationError
 
 from schema import ExtractedFeatures
@@ -24,24 +30,25 @@ load_dotenv(env_path)
 
 logger = get_logger(__name__)
 
+# OpenAI model pricing (USD per million tokens)
 MODEL_PRICING = {
-    "glm-4.7-flashx": {"input": 0.07, "output": 0.40},
-    "glm-4.7-flash": {"input": 0.0, "output": 0.0},  # Free tier
-    "glm-4.5-air": {"input": 0.20, "output": 1.10},
-    "glm-4.5": {"input": 0.60, "output": 2.20},
+    "gpt-5-nano": {"input": 0.05, "output": 0.40},
 }
 
-DEFAULT_MODEL = "glm-4.7-flashx"
+DEFAULT_MODEL = "gpt-5-nano"
+# GPT-5-nano is a reasoning model; "minimal" keeps latency and cost low for
+# straightforward extraction/classification tasks.
+DEFAULT_REASONING_EFFORT = "minimal"
 
-class GLMClient:
-    """GLM-4.7-FlashX client for extracting features from Reddit posts."""
+class OpenAIClient:
+    """OpenAI GPT-5-nano client for extracting features from Reddit posts."""
 
     def __init__(self, api_key: Optional[str] = None):
-        self.api_key = api_key or os.getenv("GLM_API_KEY")
+        self.api_key = api_key or os.getenv("OPENAI_API_KEY")
         if not self.api_key:
-            raise ValueError("GLM_API_KEY not found in environment")
-        self.client = ZaiClient(api_key=self.api_key)
-        logger.info("GLM client initialized")
+            raise ValueError("OPENAI_API_KEY not found in environment")
+        self.client = OpenAI(api_key=self.api_key)
+        logger.info("OpenAI client initialized")
 
     def calculate_cost(self, model: str, tokens_input: int, tokens_output: int) -> float:
         pricing = MODEL_PRICING.get(model, MODEL_PRICING[DEFAULT_MODEL])
@@ -49,11 +56,11 @@ class GLMClient:
 
     def extract_features(self, prompts: tuple[str, str] | str, model: Optional[str] = None, max_retries: int = 3) -> Tuple[ExtractedFeatures, Dict[str, Any]]:
         """
-        Extract features using GLM-4.7-FlashX.
+        Extract features using GPT-5-nano.
 
         Args:
             prompts: Either a tuple of (system_prompt, user_prompt) or just user_prompt string
-            model: GLM model to use (defaults to glm-4.7-flashx)
+            model: OpenAI model to use (defaults to gpt-5-nano)
             max_retries: Number of retry attempts on failure
 
         Returns:
@@ -79,8 +86,8 @@ class GLMClient:
                 response = self.client.chat.completions.create(
                     model=model,
                     messages=messages,
-                    temperature=0,
-                    stream=False  # Disable streaming to get full response with usage
+                    reasoning_effort=DEFAULT_REASONING_EFFORT,
+                    response_format={"type": "json_object"},
                 )
                 processing_time_ms = int((time.time() - start_time) * 1000)
 
@@ -131,16 +138,16 @@ class GLMClient:
                     logger.warning(f"Rate limited (attempt {attempt + 1}/{max_retries}), waiting {wait_time}s...")
                 else:
                     wait_time = 5 * (attempt + 1)
-                    logger.error(f"GLM error (attempt {attempt + 1}/{max_retries}): {e}")
+                    logger.error(f"OpenAI error (attempt {attempt + 1}/{max_retries}): {e}")
                 if attempt < max_retries - 1:
                     time.sleep(wait_time)
                 else:
                     raise
 
-_client_instance: Optional[GLMClient] = None
+_client_instance: Optional[OpenAIClient] = None
 
-def get_client() -> GLMClient:
+def get_client() -> OpenAIClient:
     global _client_instance
     if _client_instance is None:
-        _client_instance = GLMClient()
+        _client_instance = OpenAIClient()
     return _client_instance

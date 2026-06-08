@@ -4,7 +4,7 @@ AI extraction pipeline for Reddit posts and comments.
 This script:
 1. Exports unprocessed posts/comments from Supabase (bulk query)
 2. Builds in-memory lookup for fast context building
-3. Processes each item with Claude AI
+3. Processes each item with GPT-5-nano
 4. Batch inserts results back to Supabase
 
 Hybrid approach: minimize DB queries, maximize in-memory processing.
@@ -249,7 +249,7 @@ class AIExtractionPipeline:
 
     def process_post(self, post_row: tuple) -> Optional[ExtractionResult]:
         """
-        Process a single post with Claude AI.
+        Process a single post with GPT-5-nano.
 
         Args:
             post_row: (post_id, title, body, subreddit, author_flair_text)
@@ -277,7 +277,7 @@ class AIExtractionPipeline:
             # Build prompt
             prompt = build_post_prompt(subreddit, title, body or "", author_flair or "")
 
-            # Call Claude API
+            # Call OpenAI API
             features, metadata = self.ai_client.extract_features(prompt)
 
             # Build result
@@ -304,7 +304,7 @@ class AIExtractionPipeline:
     """
     def process_comment(self, comment_row: tuple) -> Optional[ExtractionResult]:
         '''
-        Process a single comment with Claude AI.
+        Process a single comment with GPT-5-nano.
 
         Args:
             comment_row: (comment_id, post_id, parent_comment_id, body, author, depth, author_flair_text)
@@ -336,7 +336,7 @@ class AIExtractionPipeline:
                 post_author_flair=post_author_flair,
             )
 
-            # Call Claude API
+            # Call OpenAI API
             features, metadata = self.ai_client.extract_features(prompt)
 
             # Build result

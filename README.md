@@ -18,11 +18,11 @@
 
 ### Engineering
 
-- **Tech stack:** AI agent orchestration (Claude Sonnet 4.5 for code generation, GitHub Copilot + ChatGPT for code review, GLM-4.5-Air for feature extraction), Python FastAPI, Node.js, Redis, Supabase (PostgreSQL), Next.js, Vercel; designed to run autonomously at <$3/day
+- **Tech stack:** AI agent orchestration (Claude Sonnet 4.5 for code generation, GitHub Copilot + ChatGPT for code review, GPT-5-nano for feature extraction), Python FastAPI, Node.js, Redis, Supabase (PostgreSQL), Next.js, Vercel; designed to run autonomously at <$3/day
 
 - **Performance:** Database optimization (materialized views, composite indexing, Redis caching) and frontend preconnecting achieve <200ms Speed Index (best case), [700ms Speed Index](https://pagespeed.web.dev/analysis/https-whichglp-com-compare/ddc3fk0bbf?form_factor=desktop) (average case), and Core Web Vitals scores (SI, LCP) superior to Google Search.
 
-- **Cost optimization:** Switched from Claude Sonnet 4 and Haiku 3.5 to GLM-4.5-Air for feature extraction, reducing costs 90% from $30/day to <$3/day while maintaining extraction accuracy; used deterministic regex filters to eliminate 70% of posts as unsuitable (off-topic or information-sparse) for extraction, avoiding unnecessary API calls
+- **Cost optimization:** Switched from Claude Sonnet 4 and Haiku 3.5 to GPT-5-nano for feature extraction, reducing costs 90% from $30/day to <$3/day while maintaining extraction accuracy; used deterministic regex filters to eliminate 70% of posts as unsuitable (off-topic or information-sparse) for extraction, avoiding unnecessary API calls
 
 ### Production Polish
 
@@ -64,14 +64,14 @@
 - **Framework:** FastAPI + uvicorn
 - **Language:** Python 3.13+
 - **Database:** Supabase client
-- **AI Model:** GLM-4.5-Air (via Z.ai SDK), a cost-effective model for simple text extraction, summarization, and sentiment analysis
+- **AI Model:** GPT-5-nano (via OpenAI SDK), a cost-effective model for simple text extraction, summarization, and sentiment analysis
 - **Function:** Extract structured drug experience data from posts
 
 **4. User Extraction** (`apps/user-extraction`)
 - **Framework:** FastAPI + uvicorn
 - **Language:** Python 3.13+
 - **Database:** Supabase client
-- **AI Model:** GLM-4.5-Air (via Z.ai SDK)
+- **AI Model:** GPT-5-nano (via OpenAI SDK)
 - **Function:** Extract user demographics from posts and comments
 
 **5. Recommendation Engine** (`apps/rec-engine`)

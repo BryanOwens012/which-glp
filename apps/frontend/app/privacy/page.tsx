@@ -130,7 +130,7 @@ const PrivacyPage = () => {
               As part of our Services, we offer products, features, or tools powered by artificial intelligence, machine learning, or similar technologies (collectively, "AI Products"). These tools are designed to enhance your experience and provide you with innovative solutions.
             </p>
             <p>
-              We provide the AI Products through third-party service providers ("AI Service Providers"), including Anthropic. Your input, output, and personal information will be shared with and processed by these AI Service Providers to enable your use of our AI Products.
+              We provide the AI Products through third-party service providers ("AI Service Providers"), including OpenAI. Your input, output, and personal information will be shared with and processed by these AI Service Providers to enable your use of our AI Products.
             </p>
             <p>Our AI Products are designed for the following functions:</p>
             <ul>

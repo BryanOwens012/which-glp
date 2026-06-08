@@ -151,7 +151,7 @@ which-glp/
 **Tech Stack:**
 - Python 3.13
 - FastAPI + uvicorn
-- GLM-4.5-Air (Z.ai SDK)
+- GPT-5-nano (OpenAI SDK)
 - Supabase client
 
 **Responsibilities:**
@@ -179,7 +179,7 @@ which-glp/
 **Tech Stack:**
 - Python 3.13
 - FastAPI + uvicorn
-- GLM-4.5-Air (Z.ai SDK)
+- GPT-5-nano (OpenAI SDK)
 - Supabase client
 
 **Responsibilities:**
@@ -279,7 +279,7 @@ which-glp/
         ▼
 ┌──────────────────┐
 │ Post-Extraction  │ ◄─── Cron (every 2 days)
-│ (GLM-4.5-Air)    │
+│ (GPT-5-nano)     │
 └────────┬─────────┘
          │
          ▼
@@ -292,7 +292,7 @@ which-glp/
         ▼
 ┌──────────────────┐
 │ User-Extraction  │ ◄─── Cron (every 2 days)
-│ (GLM-4.5-Air)    │
+│ (GPT-5-nano)     │
 └────────┬─────────┘
          │
          ▼
@@ -445,7 +445,7 @@ SUPABASE_SERVICE_KEY=your-service-key
 REDDIT_CLIENT_ID=your-client-id
 REDDIT_CLIENT_SECRET=your-client-secret
 REDDIT_USER_AGENT=whichglp-ingestion/0.1
-ZAI_API_KEY=your-zai-api-key
+OPENAI_API_KEY=your-openai-api-key
 ```
 
 2. **`apps/frontend/.env.local`**:
@@ -523,11 +523,11 @@ railway logs --service whichglp-user-extraction
 - FastAPI services boot quickly (~2-5 seconds)
 - 2-day intervals ensure fresh data without wasted cycles
 
-### Why GLM-4.5-Air Instead of Claude?
+### Why GPT-5-nano Instead of Claude?
 
 **Cost Comparison:**
 - Claude Sonnet 4: $3/1M input tokens, $15/1M output tokens
-- GLM-4.5-Air: ~$0.50/1M tokens (via Z.ai SDK)
+- GPT-5-nano: ~$0.05/$0.40 per 1M tokens (via OpenAI SDK)
 - **Savings: ~85% cost reduction**
 
 **Trade-offs:**
