@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "b003c8f8fbb3",
+  "session_id": "2db506b3-08f2-472a-931c-633e03950354",
+  "strategy": "manual-commit",
+  "created_at": "2026-06-09T00:27:19.145323Z",
+  "branch": "bryan/rls-and-gpt5-nano-migration",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "scripts/tests/test_full_user_analysis.py",
+    "scripts/tests/test_openai_client.py"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "f0be3e58-c698-4e53-a764-ec1609884619",
+  "checkpoint_transcript_start": 1724,
+  "transcript_lines_at_start": 1724,
+  "token_usage": {
+    "input_tokens": 274,
+    "cache_creation_tokens": 9713,
+    "cache_read_tokens": 4684264,
+    "output_tokens": 8656,
+    "api_call_count": 8
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-06-09T00:27:18.934403Z",
+    "agent_lines": 9,
+    "human_added": 99,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 108,
+    "agent_percentage": 8.333333333333332
+  }
+}
