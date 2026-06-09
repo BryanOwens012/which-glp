@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "4a80035a44a2",
+  "strategy": "manual-commit",
+  "branch": "bryan/upgrade-node-and-deps",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".nvmrc",
+    "apps/api/package.json",
+    "apps/frontend/package.json"
+  ],
+  "sessions": [
+    {
+      "metadata": "/4a/80035a44a2/0/metadata.json",
+      "transcript": "/4a/80035a44a2/0/full.jsonl",
+      "context": "/4a/80035a44a2/0/context.md",
+      "content_hash": "/4a/80035a44a2/0/content_hash.txt",
+      "prompt": "/4a/80035a44a2/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1040,
+    "cache_creation_tokens": 48729,
+    "cache_read_tokens": 14322287,
+    "output_tokens": 41872,
+    "api_call_count": 20
+  }
+}
