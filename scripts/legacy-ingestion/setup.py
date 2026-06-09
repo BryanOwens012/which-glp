@@ -11,11 +11,11 @@ setup(
     packages=find_packages(),
     python_requires=">=3.8",
     install_requires=[
-        "praw>=7.7.1",
-        "psycopg2-binary>=2.9.9",
-        "python-dotenv>=1.0.0",
-        "APScheduler>=3.10.4",
-        "openai>=1.99.0",
-        "pydantic>=2.0.0",
+        "praw>=7.8.2",
+        "psycopg2-binary>=2.9.12",
+        "python-dotenv>=1.2.2",
+        "APScheduler>=3.11.2",
+        "openai>=2.41.0",
+        "pydantic>=2.13.4",
     ],
 )
