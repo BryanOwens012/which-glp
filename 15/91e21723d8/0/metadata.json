@@ -1,0 +1,51 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "1591e21723d8",
+  "session_id": "2db506b3-08f2-472a-931c-633e03950354",
+  "strategy": "manual-commit",
+  "created_at": "2026-06-09T00:13:49.407548Z",
+  "branch": "bryan/rls-and-gpt5-nano-migration",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "CLAUDE.md",
+    "apps/frontend/app/dashboard/page.tsx",
+    "apps/frontend/app/experiences/page.tsx",
+    "apps/frontend/app/recommendations/page.tsx",
+    "apps/frontend/components/drug-comparison.tsx",
+    "apps/frontend/components/providers.tsx",
+    "apps/frontend/lib/types.ts",
+    "apps/frontend/next.config.mjs",
+    "apps/post-extraction/openai_client.py",
+    "apps/shared/types/trpc.ts",
+    "apps/user-extraction/README.md",
+    "apps/user-extraction/openai_client.py",
+    "apps/user-extraction/prompts.py",
+    "apps/user-extraction/schema.py",
+    "scripts/legacy-ingestion/extraction/ai_client.py",
+    "scripts/legacy-ingestion/extraction/prompts.py",
+    "scripts/legacy-ingestion/shared/openai_extractor.py",
+    "scripts/tests/test_full_user_analysis.py",
+    "scripts/tests/test_openai_client.py",
+    "scripts/tests/test_openai_client_unit.py"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "e67cf7c4-9dbb-4a2a-8412-f886a6be3bbe",
+  "checkpoint_transcript_start": 1211,
+  "transcript_lines_at_start": 1211,
+  "token_usage": {
+    "input_tokens": 5859,
+    "cache_creation_tokens": 168253,
+    "cache_read_tokens": 30284609,
+    "output_tokens": 119506,
+    "api_call_count": 61
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-06-09T00:13:49.191438Z",
+    "agent_lines": 536,
+    "human_added": 99,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 635,
+    "agent_percentage": 84.40944881889763
+  }
+}

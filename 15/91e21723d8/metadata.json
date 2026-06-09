@@ -1,0 +1,45 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "1591e21723d8",
+  "strategy": "manual-commit",
+  "branch": "bryan/rls-and-gpt5-nano-migration",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "CLAUDE.md",
+    "apps/frontend/app/dashboard/page.tsx",
+    "apps/frontend/app/experiences/page.tsx",
+    "apps/frontend/app/recommendations/page.tsx",
+    "apps/frontend/components/drug-comparison.tsx",
+    "apps/frontend/components/providers.tsx",
+    "apps/frontend/lib/types.ts",
+    "apps/frontend/next.config.mjs",
+    "apps/post-extraction/openai_client.py",
+    "apps/shared/types/trpc.ts",
+    "apps/user-extraction/README.md",
+    "apps/user-extraction/openai_client.py",
+    "apps/user-extraction/prompts.py",
+    "apps/user-extraction/schema.py",
+    "scripts/legacy-ingestion/extraction/ai_client.py",
+    "scripts/legacy-ingestion/extraction/prompts.py",
+    "scripts/legacy-ingestion/shared/openai_extractor.py",
+    "scripts/tests/test_full_user_analysis.py",
+    "scripts/tests/test_openai_client.py",
+    "scripts/tests/test_openai_client_unit.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/15/91e21723d8/0/metadata.json",
+      "transcript": "/15/91e21723d8/0/full.jsonl",
+      "context": "/15/91e21723d8/0/context.md",
+      "content_hash": "/15/91e21723d8/0/content_hash.txt",
+      "prompt": "/15/91e21723d8/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 5859,
+    "cache_creation_tokens": 168253,
+    "cache_read_tokens": 30284609,
+    "output_tokens": 119506,
+    "api_call_count": 61
+  }
+}
