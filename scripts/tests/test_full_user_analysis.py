@@ -6,8 +6,10 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 
-sys.path.insert(0, str(Path(__file__).parent.parent / "apps" / "user-extraction"))
-sys.path.insert(0, str(Path(__file__).parent.parent / "apps" / "shared"))
+# This file is scripts/tests/<file>, so the repo root is parents[2];
+# apps/user-extraction holds openai_client/prompts/schema plus the `shared` symlink.
+sys.path.insert(0, str(Path(__file__).parents[2] / "apps" / "user-extraction"))
+sys.path.insert(0, str(Path(__file__).parents[2] / "apps" / "shared"))
 
 load_dotenv()
 
