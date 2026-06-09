@@ -1,0 +1,37 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "0101c3ca1861",
+  "session_id": "2db506b3-08f2-472a-931c-633e03950354",
+  "strategy": "manual-commit",
+  "created_at": "2026-06-09T00:53:45.053122Z",
+  "branch": "bryan/update-packages-to-latest",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/api/src/lib/redis.ts",
+    "apps/api/src/types/router.ts",
+    "apps/api/tsconfig.json",
+    "apps/frontend/components/ui/calendar.tsx",
+    "apps/frontend/components/ui/resizable.tsx",
+    "scripts/legacy-ingestion/setup.py"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "0a8bfdcf-4d00-43ef-a88b-1d53f9a0b933",
+  "checkpoint_transcript_start": 1774,
+  "transcript_lines_at_start": 1774,
+  "token_usage": {
+    "input_tokens": 4301,
+    "cache_creation_tokens": 82638,
+    "cache_read_tokens": 23402818,
+    "output_tokens": 54165,
+    "api_call_count": 37
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-06-09T00:53:44.5287Z",
+    "agent_lines": 16,
+    "human_added": 1226,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 1242,
+    "agent_percentage": 1.288244766505636
+  }
+}

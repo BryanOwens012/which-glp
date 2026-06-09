@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "0101c3ca1861",
+  "strategy": "manual-commit",
+  "branch": "bryan/update-packages-to-latest",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/api/src/lib/redis.ts",
+    "apps/api/src/types/router.ts",
+    "apps/api/tsconfig.json",
+    "apps/frontend/components/ui/calendar.tsx",
+    "apps/frontend/components/ui/resizable.tsx",
+    "scripts/legacy-ingestion/setup.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/01/01c3ca1861/0/metadata.json",
+      "transcript": "/01/01c3ca1861/0/full.jsonl",
+      "context": "/01/01c3ca1861/0/context.md",
+      "content_hash": "/01/01c3ca1861/0/content_hash.txt",
+      "prompt": "/01/01c3ca1861/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 4301,
+    "cache_creation_tokens": 82638,
+    "cache_read_tokens": 23402818,
+    "output_tokens": 54165,
+    "api_call_count": 37
+  }
+}
