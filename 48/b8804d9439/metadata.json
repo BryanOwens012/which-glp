@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "48b8804d9439",
+  "strategy": "manual-commit",
+  "branch": "bryan/replace-dependabot-with-renovate",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "renovate.json"
+  ],
+  "sessions": [
+    {
+      "metadata": "/48/b8804d9439/0/metadata.json",
+      "transcript": "/48/b8804d9439/0/full.jsonl",
+      "context": "/48/b8804d9439/0/context.md",
+      "content_hash": "/48/b8804d9439/0/content_hash.txt",
+      "prompt": "/48/b8804d9439/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 349,
+    "cache_creation_tokens": 17798,
+    "cache_read_tokens": 8197758,
+    "output_tokens": 13396,
+    "api_call_count": 12
+  }
+}
