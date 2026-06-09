@@ -4,9 +4,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-WhichGLP is a GLP-1 weight-loss drug comparison platform that aggregates real-world user experiences from Reddit to help people make informed medication decisions. The project uses AI extraction (Claude Sonnet 4) to structure unstructured social media data into a searchable database.
+WhichGLP is a GLP-1 weight-loss drug comparison platform that aggregates real-world user experiences from Reddit to help people make informed medication decisions. The project uses AI extraction (GPT-5-nano) to structure unstructured social media data into a searchable database.
 
 **Mission**: Build a proprietary dataset of GLP-1 outcomes that generic LLMs cannot provide (location-specific pricing, personalized predictions, insurance coverage patterns).
+
+## Security Posture
+
+- **Least privilege (tightest scope)**: always keep security to the tightest (minimal scope) possible that still accomplishes all our goals. Grant exactly the access needed and nothing more. This applies to Supabase RLS/policies, GRANTs, and roles, as well as to code (API surface, permissions, env access, etc.).
+- **Fail-closed, not fail-open**: when an error or uncertainty occurs, the default must be to **block** access rather than grant it. Never let a failure path fall through to allowing an action; on any error, deny.
 
 ## Documentation Structure
 
