@@ -92,8 +92,6 @@ const ExperiencesPage = () => {
         const loadedCount = allPages.reduce((sum: number, page: any) => sum + page.experiences.length, 0)
         return loadedCount < lastPage.total ? loadedCount : undefined
       },
-      // Keep previous data while fetching to prevent UI flicker
-      keepPreviousData: false,
     }
   )
 

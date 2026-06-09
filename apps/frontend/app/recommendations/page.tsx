@@ -86,6 +86,11 @@ const RecommendationsPage = () => {
     "fatigue",
   ];
 
+  // The rec API only accepts male/female/other; map trans identities (ftm/mtf)
+  // to "other" since the API doesn't model them, so the request validates.
+  const toApiSex = (sex?: string): "male" | "female" | "other" | undefined =>
+    sex === "male" || sex === "female" ? sex : sex ? "other" : undefined
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
@@ -112,7 +117,12 @@ const RecommendationsPage = () => {
     });
 
     // Call the ML recommendation API
-    getRecommendationsMutation.mutate(formData as PredictionInput);
+    getRecommendationsMutation.mutate({
+      ...(formData as PredictionInput),
+      sex: toApiSex(formData.sex),
+      // API expects number | undefined (not null) for the optional budget.
+      maxBudget: formData.maxBudget ?? undefined,
+    });
   };
 
   const toggleComorbidity = (condition: string) => {

@@ -1,10 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  eslint: {
-    ignoreDuringBuilds: false,
-  },
   typescript: {
-    ignoreBuildErrors: true,
+    // Types are clean end-to-end (AppRouter is correctly wired to apps/api), so
+    // let the build fail on type errors instead of silently ignoring them.
+    ignoreBuildErrors: false,
   },
   images: {
     unoptimized: true,

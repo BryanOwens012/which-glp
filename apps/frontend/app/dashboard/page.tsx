@@ -325,7 +325,7 @@ const DashboardPage = () => {
                           fill="hsl(var(--primary))"
                           dataKey="count"
                         >
-                          {demographicData?.sexDistribution.map((entry, index) => (
+                          {demographicData?.sexDistribution.map((entry: { sex: string }, index: number) => (
                             <Cell key={`sex-${entry.sex}-${index}`} fill={chartColors[index % chartColors.length]} />
                           ))}
                         </Pie>
@@ -380,7 +380,7 @@ const DashboardPage = () => {
                         fill="hsl(var(--primary))"
                         dataKey="value"
                       >
-                        {sideEffectChartData.map((entry, index) => (
+                        {sideEffectChartData.map((entry: { name: string; color: string }, index: number) => (
                           <Cell key={`side-effect-${entry.name}-${index}`} fill={entry.color} />
                         ))}
                       </Pie>
@@ -424,7 +424,7 @@ const DashboardPage = () => {
                 Average monthly cost and experience volume by state
               </p>
               <div className="space-y-4">
-                {locationData?.map((location, index) => (
+                {locationData?.map((location: { location: string; avgCost: number; count: number }, index: number) => (
                   <div key={location.location} className="flex items-center gap-4">
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
                       {index + 1}
@@ -464,10 +464,10 @@ const DashboardPage = () => {
                   Lowest Average Cost
                 </h4>
                 <p className="mb-1 text-2xl font-bold">
-                  {locationData?.sort((a, b) => (a.avgCost || 0) - (b.avgCost || 0))[0]?.location ?? 'N/A'}
+                  {locationData?.sort((a: { avgCost?: number | null }, b: { avgCost?: number | null }) => (a.avgCost || 0) - (b.avgCost || 0))[0]?.location ?? 'N/A'}
                 </p>
                 <p className="text-lg text-primary">
-                  ${locationData?.sort((a, b) => (a.avgCost || 0) - (b.avgCost || 0))[0]?.avgCost ?? 0}/month
+                  ${locationData?.sort((a: { avgCost?: number | null }, b: { avgCost?: number | null }) => (a.avgCost || 0) - (b.avgCost || 0))[0]?.avgCost ?? 0}/month
                 </p>
               </Card>
 
@@ -476,10 +476,10 @@ const DashboardPage = () => {
                   Most Experiences
                 </h4>
                 <p className="mb-1 text-2xl font-bold">
-                  {locationData?.sort((a, b) => b.count - a.count)[0]?.location ?? 'N/A'}
+                  {locationData?.sort((a: { count: number }, b: { count: number }) => b.count - a.count)[0]?.location ?? 'N/A'}
                 </p>
                 <p className="text-lg text-primary">
-                  {locationData?.sort((a, b) => b.count - a.count)[0]?.count ?? 0} experiences
+                  {locationData?.sort((a: { count: number }, b: { count: number }) => b.count - a.count)[0]?.count ?? 0} experiences
                 </p>
               </Card>
             </div>

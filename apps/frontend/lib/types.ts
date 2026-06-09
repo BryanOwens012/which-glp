@@ -215,7 +215,7 @@ export type PredictionResult = {
     min: number
     max: number
     avg: number
-    unit: "lbs" | "kg"
+    unit: string // unit string as returned by the rec-engine (e.g. "lbs"/"kg")
   }
   successRate: number // percentage of similar users who achieved goals
   estimatedCost: number | null
