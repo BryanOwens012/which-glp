@@ -32,14 +32,14 @@ Extract the following information from the user's post and comment history:
 - Look for: "I'm 5'6\"", "height: 170cm", "5'2\" here"
 - Return as NUMBER (not string)
 
-**Starting Weight (starting_weight_lbs):**
+**Starting Weight (start_weight_lbs):**
 - Weight BEFORE starting GLP-1 medication
 - Convert to pounds: 1 kg = 2.20462 lbs
 - Look for: "SW:220", "started at 200 lbs", "was 95kg before Ozempic"
 - If multiple weights mentioned, use the EARLIEST mentioned
 - Return as NUMBER (not string)
 
-**Current Weight (current_weight_lbs):**
+**Current Weight (end_weight_lbs):**
 - Most recent weight mentioned
 - Convert to pounds: 1 kg = 2.20462 lbs
 - Look for: "CW:175", "now 180 lbs", "currently 80kg"
@@ -78,6 +78,16 @@ Extract the following information from the user's post and comment history:
 - Normalize: "high blood pressure" → "hypertension", "T2D" → "type 2 diabetes"
 - Return as ARRAY of lowercase strings (NEVER null, use [] if empty)
 
+**Insurance (has_insurance, insurance_provider):**
+- has_insurance: true / false / null
+  - true: explicit coverage signals — "my insurance covers it", "insurance approved", "copay is $25", "covered by my plan"
+  - false: explicit lack of coverage — "no insurance", "paying out of pocket", "uninsured", "cash pay", "not covered"
+  - null: no insurance information mentioned at all (do NOT infer from price alone)
+- insurance_provider: the named insurer if explicitly stated, else null
+  - Examples: "Blue Cross", "Aetna", "UnitedHealthcare", "Cigna", "Kaiser", "Medicare", "Medicaid", "NHS"
+  - Normalize obvious variants: "BCBS" → "Blue Cross", "United" → "UnitedHealthcare", "UHC" → "UnitedHealthcare"
+  - null if no provider is named (even when has_insurance is true)
+
 **Confidence Score (confidence_score):**
 - Overall confidence in extraction accuracy (0.0-1.0)
 - 0.9-1.0: Multiple explicit mentions, flair data present
@@ -85,6 +95,25 @@ Extract the following information from the user's post and comment history:
 - 0.5-0.7: Some inference needed, partial data
 - <0.5: Vague or limited mentions
 - Return as NUMBER between 0.0 and 1.0
+
+═══════════════════════════════════════════════════════════════════════════════
+NULL / EMPTY HANDLING RULES (CRITICAL FOR DATA QUALITY)
+═══════════════════════════════════════════════════════════════════════════════
+
+Being thorough means capturing everything the text SUPPORTS — it does NOT mean
+filling fields with guesses. Precision matters as much as recall.
+
+- Extract a value ONLY when it is explicitly stated or unambiguously implied.
+- If a field is not mentioned, is ambiguous, or you are unsure → return null
+  (or [] for list fields). NEVER guess, average, infer beyond the text, or
+  fabricate.
+- Treat empty strings, whitespace, "N/A", "?", "n/a", and placeholder text as
+  null — never echo them back as a value.
+- "Not mentioned" → null. Only return sex="unknown" when the text EXPLICITLY
+  states the gender is unclear; merely-missing gender is null.
+- Numbers must be real numbers (never strings); list fields are never null (use []).
+- Do not infer insurance status from price/cost alone — only from explicit
+  coverage language.
 
 ═══════════════════════════════════════════════════════════════════════════════
 DETAILED EXTRACTION EXAMPLES - STUDY THESE CAREFULLY
@@ -108,13 +137,15 @@ I'm 35 years old and this has been life-changing for my diabetes management.
 CORRECT EXTRACTION:
 {
   "height_inches": 64,
-  "starting_weight_lbs": 220,
-  "current_weight_lbs": 195,
+  "start_weight_lbs": 220,
+  "end_weight_lbs": 195,
   "age": 35,
   "sex": "female",
   "state": "Texas",
   "country": "USA",
   "comorbidities": ["pcos", "type 2 diabetes"],
+  "has_insurance": true,
+  "insurance_provider": null,
   "confidence_score": 0.95
 }
 
@@ -127,6 +158,7 @@ CORRECT EXTRACTION:
 ✓ State extracted: "Dallas, TX" → "Texas"
 ✓ Country inferred from state: "USA"
 ✓ Comorbidities from post 2: ["pcos", "type 2 diabetes"]
+✓ has_insurance: true ("insurance finally approved it"); no provider named → insurance_provider null
 ✓ High confidence (0.95) - multiple explicit mentions
 
 ---
@@ -145,8 +177,8 @@ I'm in Toronto, Canada. Paying $150 CAD per month for compounded semaglutide.
 CORRECT EXTRACTION:
 {
   "height_inches": 69,
-  "starting_weight_lbs": 242.5,
-  "current_weight_lbs": 224.9,
+  "start_weight_lbs": 242.5,
+  "end_weight_lbs": 224.9,
   "age": 28,
   "sex": "male",
   "state": null,
@@ -185,8 +217,8 @@ Anyone in California dealing with insurance issues?
 CORRECT EXTRACTION:
 {
   "height_inches": null,
-  "starting_weight_lbs": 185,
-  "current_weight_lbs": 175,
+  "start_weight_lbs": 185,
+  "end_weight_lbs": 175,
   "age": 42,
   "sex": "female",
   "state": "California",
@@ -225,8 +257,8 @@ Just weighed in at 205 this morning.
 CORRECT EXTRACTION:
 {
   "height_inches": null,
-  "starting_weight_lbs": 240,
-  "current_weight_lbs": 205,
+  "start_weight_lbs": 240,
+  "end_weight_lbs": 205,
   "age": null,
   "sex": null,
   "state": null,
@@ -259,8 +291,8 @@ Down 7 lbs! I also have sleep apnea which is improving.
 CORRECT EXTRACTION:
 {
   "height_inches": 70,
-  "starting_weight_lbs": 215,
-  "current_weight_lbs": 208,
+  "start_weight_lbs": 215,
+  "end_weight_lbs": 208,
   "age": 28,
   "sex": "male",
   "state": "New York",
@@ -287,18 +319,18 @@ COMMON MISTAKES TO AVOID - DO NOT MAKE THESE ERRORS
 ❌ WRONG: Ignoring flair data
    Post has flair "35F SW:200 CW:180" but extraction returns age=null, sex=null
 ✓ RIGHT: Extract ALL flair data
-   age=35, sex="female", starting_weight_lbs=200, current_weight_lbs=180
+   age=35, sex="female", start_weight_lbs=200, end_weight_lbs=180
 
 ❌ WRONG: Not converting units
-   "110 kg" → starting_weight_lbs=110
+   "110 kg" → start_weight_lbs=110
 ✓ RIGHT: Convert to pounds
-   110 kg × 2.20462 = 242.5 lbs → starting_weight_lbs=242.5
+   110 kg × 2.20462 = 242.5 lbs → start_weight_lbs=242.5
 
 ❌ WRONG: Using old weight as current
    Post from 6 months ago says "CW:220", recent post says "now 200 lbs"
-   → current_weight_lbs=220
+   → end_weight_lbs=220
 ✓ RIGHT: Use most recent mention
-   current_weight_lbs=200
+   end_weight_lbs=200
 
 ❌ WRONG: Wrong sex values
    sex="Female", sex="F", sex="woman"
@@ -311,9 +343,9 @@ COMMON MISTAKES TO AVOID - DO NOT MAKE THESE ERRORS
    comorbidities=[]
 
 ❌ WRONG: String numbers
-   age="35", height_inches="64", starting_weight_lbs="200.0"
+   age="35", height_inches="64", start_weight_lbs="200.0"
 ✓ RIGHT: Actual numbers
-   age=35, height_inches=64, starting_weight_lbs=200.0
+   age=35, height_inches=64, start_weight_lbs=200.0
 
 ❌ WRONG: Incorrect height conversion
    "5'6\"" → height_inches=5.6
@@ -341,14 +373,15 @@ Before returning your JSON, verify:
 □ Extracted ALL flair data (age, sex, heights, weights from SW/CW/GW)
 □ Converted heights to inches correctly (feet×12 + inches, or cm×0.393701)
 □ Converted weights to pounds correctly (kg×2.20462)
-□ Used MOST RECENT weight mention for current_weight_lbs
-□ Used EARLIEST weight mention for starting_weight_lbs
+□ Used MOST RECENT weight mention for end_weight_lbs
+□ Used EARLIEST weight mention for start_weight_lbs
 □ Sex is EXACTLY one of: "male", "female", "other", "unknown", or null
 □ age is INTEGER (not float, not string)
 □ All weights/heights are NUMBERS (not strings)
 □ comorbidities is ARRAY [], never null
 □ State extracted if any US location mentioned
 □ Country set correctly ("USA", "Canada", "UK", etc.)
+□ has_insurance set from explicit coverage language only (else null); provider named or null
 □ Confidence score reflects data quality (0.9+ for flair data, 0.5-0.7 for inferred)
 □ JSON is valid and matches schema exactly
 □ NO markdown formatting, NO explanations, ONLY JSON
@@ -361,13 +394,15 @@ Return ONLY valid JSON matching this EXACT schema (no markdown, no explanations)
 
 {
   "height_inches": null or number,
-  "starting_weight_lbs": null or number,
-  "current_weight_lbs": null or number,
+  "start_weight_lbs": null or number,
+  "end_weight_lbs": null or number,
   "age": null or integer,
   "sex": null or "male" or "female" or "other" or "unknown",
   "state": null or string,
   "country": "USA" or string,
   "comorbidities": [] or ["condition1", "condition2"],
+  "has_insurance": null or true or false,
+  "insurance_provider": null or string,
   "confidence_score": number between 0.0 and 1.0
 }
 
@@ -386,17 +421,21 @@ def build_user_prompt(username: str, posts: list, comments: list) -> str:
     Returns:
         Formatted prompt string
     """
-    # Format posts
+    # Format posts (tolerate None lists and None/empty title/body; skip empties)
     posts_text = ""
-    for i, post in enumerate(posts[:20], 1):  # Limit to 20 posts
-        title = post.get('title', '')
-        body = post.get('body', '')
+    for i, post in enumerate((posts or [])[:20], 1):  # Limit to 20 posts
+        title = (post.get('title') or '').strip()
+        body = (post.get('body') or '').strip()
+        if not title and not body:
+            continue
         posts_text += f"\n## Post {i}: {title}\n{body}\n"
 
-    # Format comments
+    # Format comments (tolerate None list and None/empty bodies; skip empties)
     comments_text = ""
-    for i, comment in enumerate(comments[:20], 1):  # Limit to 20 comments
-        body = comment.get('body', '')
+    for i, comment in enumerate((comments or [])[:20], 1):  # Limit to 20 comments
+        body = (comment.get('body') or '').strip()
+        if not body:
+            continue
         comments_text += f"\n## Comment {i}:\n{body}\n"
 
     # Build full prompt

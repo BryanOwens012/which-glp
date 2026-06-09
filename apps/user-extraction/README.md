@@ -28,8 +28,8 @@ user-extraction/
 **Table: `reddit_users`**
 - `username` (PK) - Reddit username
 - `height_inches` - Height in inches
-- `starting_weight_lbs` - Starting weight before GLP-1
-- `current_weight_lbs` - Current/most recent weight
+- `start_weight_lbs` - Starting weight before GLP-1
+- `end_weight_lbs` - Current/most recent weight
 - `state` - US state
 - `country` - Country (default USA)
 - `age` - Age in years

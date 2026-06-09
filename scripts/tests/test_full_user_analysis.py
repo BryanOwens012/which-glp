@@ -75,14 +75,14 @@ with db.conn.cursor() as cursor:
     cursor.execute("""
         INSERT INTO reddit_users (
             username, age, sex, state, country,
-            height_inches, starting_weight_lbs, current_weight_lbs,
+            height_inches, start_weight_lbs, end_weight_lbs,
             comorbidities, has_insurance, insurance_provider,
             post_count, comment_count, confidence_score,
             model_used, processing_cost_usd
         ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """, (
         username, demographics.age, demographics.sex, demographics.state, demographics.country,
-        demographics.height_inches, demographics.starting_weight_lbs, demographics.current_weight_lbs,
+        demographics.height_inches, demographics.start_weight_lbs, demographics.end_weight_lbs,
         demographics.comorbidities, demographics.has_insurance, demographics.insurance_provider,
         len(posts), len(comments), demographics.confidence_score,
         metadata['model'], metadata['cost_usd']
