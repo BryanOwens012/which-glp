@@ -1,9 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  eslint: {
-    ignoreDuringBuilds: false,
-  },
   typescript: {
+    // Must stay true: `next build` type-checks the imported apps/api router
+    // source (via the AppRouter type), but on Vercel the frontend builds in
+    // isolation without apps/api's runtime deps installed (e.g. posthog-node),
+    // so cross-package type validation can't resolve them here. Types ARE still
+    // checked in local dev / CI via `tsc --noEmit` (currently clean).
     ignoreBuildErrors: true,
   },
   images: {

@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
-"""Quick test of GLM client to verify API key works."""
+"""Quick test of the OpenAI (GPT-5-nano) client to verify API key works."""
 
 import sys
 from pathlib import Path
 
-# Add apps to path
-sys.path.insert(0, str(Path(__file__).parent.parent / "apps" / "user-extraction"))
-sys.path.insert(0, str(Path(__file__).parent.parent / "apps" / "shared"))
+# Add apps to path. This file is scripts/tests/<file>, so the repo root is
+# parents[2]; apps/user-extraction holds openai_client/prompts/schema plus the
+# `shared` symlink used by `from shared... import`.
+sys.path.insert(0, str(Path(__file__).parents[2] / "apps" / "user-extraction"))
+sys.path.insert(0, str(Path(__file__).parents[2] / "apps" / "shared"))
 
-from glm_client import get_client
+from openai_client import get_client
 from prompts import build_user_prompt
 
 # Test data
@@ -25,14 +27,14 @@ test_comments = [
     }
 ]
 
-print("Testing GLM client...")
+print("Testing OpenAI client...")
 print("=" * 60)
 
 # Build prompt
 prompt = build_user_prompt("test_user", test_posts, test_comments)
 
 print(f"\nPrompt length: {len(prompt)} chars")
-print("\nCalling GLM API...")
+print("\nCalling OpenAI API...")
 
 # Get client and extract
 client = get_client()
@@ -41,20 +43,20 @@ demographics, metadata = client.extract_demographics(prompt)
 print("\n" + "=" * 60)
 print("EXTRACTION SUCCESSFUL!")
 print("=" * 60)
-print(f"\nDemographics:")
+print("\nDemographics:")
 print(f"  Age: {demographics.age}")
 print(f"  Sex: {demographics.sex}")
 print(f"  State: {demographics.state}")
-print(f"  Starting weight: {demographics.starting_weight_lbs} lbs")
-print(f"  Current weight: {demographics.current_weight_lbs} lbs")
+print(f"  Starting weight: {demographics.start_weight_lbs} lbs")
+print(f"  Current weight: {demographics.end_weight_lbs} lbs")
 print(f"  Has insurance: {demographics.has_insurance}")
 print(f"  Insurance provider: {demographics.insurance_provider}")
 
-print(f"\nMetadata:")
+print("\nMetadata:")
 print(f"  Model: {metadata['model']}")
 print(f"  Cost: ${metadata['cost_usd']:.6f}")
 print(f"  Input tokens: {metadata['tokens_input']}")
 print(f"  Output tokens: {metadata['tokens_output']}")
 print(f"  Processing time: {metadata['processing_time_ms']}ms")
 
-print("\n✓ GLM API key is working!")
+print("\n✓ OpenAI API key is working!")

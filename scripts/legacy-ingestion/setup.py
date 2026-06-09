@@ -15,7 +15,7 @@ setup(
         "psycopg2-binary>=2.9.9",
         "python-dotenv>=1.0.0",
         "APScheduler>=3.10.4",
-        "anthropic>=0.18.0",
+        "openai>=1.99.0",
         "pydantic>=2.0.0",
     ],
 )

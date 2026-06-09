@@ -1,11 +1,11 @@
 """
-Prompt templates for Claude AI extraction of structured data from Reddit posts/comments.
+Prompt templates for GPT-5-nano extraction of structured data from Reddit posts/comments.
 
-These templates guide Claude to extract weight loss features, costs, and experiences
+These templates guide the model to extract weight loss features, costs, and experiences
 in a structured format while maintaining accuracy and not hallucinating data.
 """
 
-# System prompt that defines Claude's role and extraction rules
+# System prompt that defines the model's role and extraction rules
 SYSTEM_PROMPT = """You are analyzing Reddit posts and comments about GLP-1 weight loss medications (Ozempic, Wegovy, Mounjaro, Zepbound, semaglutide, tirzepatide, liraglutide, etc.).
 
 Your task is to:
@@ -761,17 +761,24 @@ def build_post_prompt(
         author_flair: Author flair text (may contain structured data)
 
     Returns:
-        Formatted user prompt for Claude
+        Formatted user prompt for the model
     """
+    # Tolerate None/empty inputs so the prompt never contains the literal "None".
+    subreddit = (subreddit or "").strip()
+    title = (title or "").strip()
+    body = (body or "").strip()
+    author_flair = (author_flair or "").strip()
+
     flair_section = f"\nAUTHOR FLAIR: {author_flair}\n" if author_flair else ""
+    body_section = body if body else "(no body text)"
 
     user_prompt = f"""Extract structured data from this Reddit post.
 
-SUBREDDIT NAME: {subreddit} 
-POST TITLE: {title} 
-{flair_section} 
-POST BODY: 
-{body}
+SUBREDDIT NAME: {subreddit}
+POST TITLE: {title}
+{flair_section}
+POST BODY:
+{body_section}
 
 Extract the data and return JSON."""
 
@@ -790,7 +797,7 @@ def build_comment_prompt(
     Build extraction prompt for a Reddit comment with full context chain.
 
     The comment chain provides context from the original post down to the target comment.
-    This allows Claude to understand the full conversation context.
+    This allows the model to understand the full conversation context.
 
     Args:
         post_title: Original post title
@@ -807,21 +814,31 @@ def build_comment_prompt(
     Returns:
         Tuple of (system_prompt, user_prompt)
     """
+    # Tolerate None/empty inputs (use .get with defaults; skip empty comments).
+    post_title = (post_title or "").strip()
+    post_body = (post_body or "").strip()
+    post_author_flair = (post_author_flair or "").strip()
+
     # Format the comment chain with indentation for readability
     chain_text = []
-    for comment in comment_chain:
-        indent = "  " * (comment["depth"] - 1)
-        marker = "TARGET → " if comment["comment_id"] == target_comment_id else ""
+    for comment in (comment_chain or []):
+        body = (comment.get("body") or "").strip()
+        if not body:
+            continue
+        depth = comment.get("depth") or 1
+        indent = "  " * (depth - 1)
+        marker = "TARGET → " if comment.get("comment_id") == target_comment_id else ""
+        author = comment.get("author") or "[unknown]"
         flair = (
-            f" [Flair: {comment.get('author_flair', '')}]"
+            f" [Flair: {comment.get('author_flair')}]"
             if comment.get("author_flair")
             else ""
         )
         chain_text.append(
-            f"{indent}[Depth {comment['depth']} - u/{comment['author']}]{flair} {marker}\n{indent}{comment['body']}"
+            f"{indent}[Depth {depth} - u/{author}]{flair} {marker}\n{indent}{body}"
         )
 
-    chain_str = "\n\n".join(chain_text)
+    chain_str = "\n\n".join(chain_text) if chain_text else "(no comment text available)"
     post_flair_section = (
         f"\nORIGINAL POST AUTHOR FLAIR: {post_author_flair}\n"
         if post_author_flair
@@ -833,7 +850,7 @@ def build_comment_prompt(
 ORIGINAL POST TITLE: {post_title}
 {post_flair_section}
 ORIGINAL POST BODY:
-{post_body}
+{post_body if post_body else "(no body text)"}
 
 COMMENT CHAIN (from top-level to target):
 {chain_str}

@@ -1,21 +1,21 @@
 # User Extraction Service
 
-Analyzes Reddit user post/comment history to extract demographic information using GLM-4.5-Air.
+Analyzes Reddit user post/comment history to extract demographic information using GPT-5-nano.
 
 ## Overview
 
 This service:
 1. Queries unique usernames from `reddit_posts` table
 2. Fetches last 20 posts + 20 comments per user via PRAW
-3. Sends to GLM-4.5-Air for demographic extraction
+3. Sends to GPT-5-nano for demographic extraction
 4. Inserts results to `reddit_users` table
 
 ## Architecture
 
 ```
 user-extraction/
-├── glm_client.py       # Z.AI SDK wrapper (GLM-4.5-Air)
-├── user_analyzer.py    # Main analyzer (PRAW + GLM)
+├── openai_client.py    # OpenAI SDK wrapper (GPT-5-nano)
+├── user_analyzer.py    # Main analyzer (PRAW + GPT-5-nano)
 ├── prompts.py          # Demographic extraction prompts
 ├── schema.py           # Pydantic models (UserDemographics)
 ├── api.py              # FastAPI service
@@ -28,8 +28,8 @@ user-extraction/
 **Table: `reddit_users`**
 - `username` (PK) - Reddit username
 - `height_inches` - Height in inches
-- `starting_weight_lbs` - Starting weight before GLP-1
-- `current_weight_lbs` - Current/most recent weight
+- `start_weight_lbs` - Starting weight before GLP-1
+- `end_weight_lbs` - Current/most recent weight
 - `state` - US state
 - `country` - Country (default USA)
 - `age` - Age in years
@@ -95,8 +95,8 @@ curl http://localhost:8002/api/status
 
 Required in `.env`:
 ```bash
-# Z.AI API
-GLM_API_KEY=your-glm-api-key
+# OpenAI API
+OPENAI_API_KEY=your-openai-api-key
 
 # Supabase
 SUPABASE_URL=https://your-project.supabase.co
@@ -110,14 +110,14 @@ REDDIT_API_APP_SECRET=your-app-secret
 
 ## Cost Analysis
 
-**GLM-4.5-Air Pricing:**
-- Input: $0.20 per 1M tokens
-- Output: $1.10 per 1M tokens
+**GPT-5-nano Pricing:**
+- Input: $0.05 per 1M tokens
+- Output: $0.40 per 1M tokens
 
 **Typical User Analysis:**
 - 20 posts + 20 comments ≈ 3,000 input tokens
 - Structured output ≈ 100 output tokens
-- **Cost per user: ~$0.0007** (0.07 cents)
+- **Cost per user: ~$0.0002** (0.02 cents)
 
 **Comparison to Claude Sonnet 4:**
 - Claude cost per user: ~$0.0105
@@ -139,7 +139,7 @@ REDDIT_API_APP_SECRET=your-app-secret
 ### Environment Variables
 
 Add to Railway service:
-- `GLM_API_KEY`
+- `OPENAI_API_KEY`
 - `SUPABASE_URL`
 - `SUPABASE_DB_PASSWORD`
 - `REDDIT_API_APP_NAME`
@@ -157,7 +157,7 @@ Configure Railway health check:
 
 **Logs:**
 - Service logs available via Railway dashboard
-- Check for errors in GLM API calls
+- Check for errors in OpenAI API calls
 - Monitor cost accumulation
 
 **Database:**
@@ -181,9 +181,9 @@ SELECT SUM(processing_cost_usd) as total_cost FROM reddit_users;
 - Check that `reddit_posts` table has data
 - Verify usernames aren't all `[deleted]`
 
-**GLM API errors:**
-- Check `GLM_API_KEY` is set correctly
-- Verify Z.AI account has credits
+**OpenAI API errors:**
+- Check `OPENAI_API_KEY` is set correctly
+- Verify OpenAI account has credits
 - Check network connectivity
 
 **PRAW errors:**

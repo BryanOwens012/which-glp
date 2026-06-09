@@ -1,15 +1,15 @@
 # Post Extraction Service
 
-Extracts structured features from Reddit posts using GLM-4.5-Air (replaces Claude Sonnet 4).
+Extracts structured features from Reddit posts using GPT-5-nano (replaces Claude Sonnet 4).
 
 ## Overview
 
-Uses GLM-4.5-Air API ($0.20/$1.10 per 1M tokens) instead of Claude ($3/$15 per 1M tokens) - **15x cheaper**.
+Uses GPT-5-nano API ($0.05/$0.40 per 1M tokens) instead of Claude ($3/$15 per 1M tokens) - **~60x cheaper**.
 
 ## Cost Savings
 
 - Claude cost per post: ~$0.01
-- GLM cost per post: ~$0.0007
+- GPT-5-nano cost per post: ~$0.0002
 - **Savings: ~93%** ($100 → $7 per 1,000 posts)
 
 ## Usage
@@ -25,5 +25,5 @@ curl -X POST http://localhost:8004/api/extract -d '{"subreddit":"Ozempic","limit
 ## Railway Deployment
 
 Service: `whichglp-post-extraction`
-Model: `glm-4.5-air`
-Env: `GLM_API_KEY`, `SUPABASE_URL`, `SUPABASE_DB_PASSWORD`
+Model: `gpt-5-nano`
+Env: `OPENAI_API_KEY`, `SUPABASE_URL`, `SUPABASE_DB_PASSWORD`

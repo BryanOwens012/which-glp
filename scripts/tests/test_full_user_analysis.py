@@ -6,14 +6,16 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 
-sys.path.insert(0, str(Path(__file__).parent.parent / "apps" / "user-extraction"))
-sys.path.insert(0, str(Path(__file__).parent.parent / "apps" / "shared"))
+# This file is scripts/tests/<file>, so the repo root is parents[2];
+# apps/user-extraction holds openai_client/prompts/schema plus the `shared` symlink.
+sys.path.insert(0, str(Path(__file__).parents[2] / "apps" / "user-extraction"))
+sys.path.insert(0, str(Path(__file__).parents[2] / "apps" / "shared"))
 
 load_dotenv()
 
 import praw
 from shared.database import DatabaseManager
-from glm_client import get_client
+from openai_client import get_client
 from prompts import build_user_prompt
 
 print("=" * 60)
@@ -60,12 +62,12 @@ print(f"✓ Fetched {len(posts)} posts, {len(comments)} comments")
 prompt = build_user_prompt(username, posts, comments)
 print(f"✓ Built prompt ({len(prompt)} chars)")
 
-# Extract with GLM
-glm = get_client()
-print("✓ Calling GLM API...")
-demographics, metadata = glm.extract_demographics(prompt)
+# Extract with GPT-5-nano
+ai_client = get_client()
+print("✓ Calling OpenAI API...")
+demographics, metadata = ai_client.extract_demographics(prompt)
 
-print(f"\n✓ EXTRACTION SUCCESSFUL")
+print("\n✓ EXTRACTION SUCCESSFUL")
 print(f"  Cost: ${metadata['cost_usd']:.6f}")
 print(f"  Confidence: {demographics.confidence_score}")
 print(f"  Age: {demographics.age}, Sex: {demographics.sex}, State: {demographics.state}")
@@ -75,21 +77,21 @@ with db.conn.cursor() as cursor:
     cursor.execute("""
         INSERT INTO reddit_users (
             username, age, sex, state, country,
-            height_inches, starting_weight_lbs, current_weight_lbs,
+            height_inches, start_weight_lbs, end_weight_lbs,
             comorbidities, has_insurance, insurance_provider,
             post_count, comment_count, confidence_score,
             model_used, processing_cost_usd
         ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """, (
         username, demographics.age, demographics.sex, demographics.state, demographics.country,
-        demographics.height_inches, demographics.starting_weight_lbs, demographics.current_weight_lbs,
+        demographics.height_inches, demographics.start_weight_lbs, demographics.end_weight_lbs,
         demographics.comorbidities, demographics.has_insurance, demographics.insurance_provider,
         len(posts), len(comments), demographics.confidence_score,
         metadata['model'], metadata['cost_usd']
     ))
     db.conn.commit()
 
-print(f"✓ Inserted to database")
+print("✓ Inserted to database")
 
 print("\n" + "=" * 60)
 print("TEST COMPLETE!")

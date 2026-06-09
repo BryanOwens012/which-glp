@@ -1,18 +1,22 @@
 """
 Pydantic models for user demographic data extraction.
 
-This defines the schema that GLM-4.7-FlashX should extract from Reddit user histories.
+This defines the schema that GPT-5-nano should extract from Reddit user histories.
 """
 
 from typing import Optional, List
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+# Strings the model sometimes emits for "missing" — treat all of these as null.
+_NULLISH_STRINGS = {"", "n/a", "na", "none", "null", "unknown", "?", "-", "unspecified"}
+_ALLOWED_SEX = {"male", "female", "other", "unknown"}
 
 
 class UserDemographics(BaseModel):
     """
     Demographic data extracted from a Reddit user's post/comment history.
 
-    This is what we ask GLM-4.7-FlashX to extract from analyzing
+    This is what we ask GPT-5-nano to extract from analyzing
     a user's last 20 posts + 20 comments.
     """
 
@@ -35,9 +39,7 @@ class UserDemographics(BaseModel):
     # Demographics
     age: Optional[int] = Field(
         default=None,
-        ge=18,
-        le=100,
-        description="Age in years. Extract from mentions like 'I'm 35', '42F', 'I am a 28 year old', etc."
+        description="Age in years (adults 18-100). Extract from mentions like 'I'm 35', '42F', 'I am a 28 year old', etc."
     )
 
     sex: Optional[str] = Field(
@@ -80,6 +82,37 @@ class UserDemographics(BaseModel):
         le=1.0,
         description="Confidence in extraction quality (0.0 = very uncertain, 1.0 = very certain). Based on how explicit the user's mentions are."
     )
+
+    @field_validator("state", "country", "insurance_provider", mode="before")
+    @classmethod
+    def _blank_to_none(cls, value):
+        """Coerce empty/placeholder strings (""/whitespace/"N/A"/...) to None."""
+        if isinstance(value, str):
+            return None if value.strip().lower() in _NULLISH_STRINGS else value.strip()
+        return value
+
+    @field_validator("sex", mode="before")
+    @classmethod
+    def _normalize_sex(cls, value):
+        """Lowercase sex, null out placeholders, and map any other stated gender to 'other'."""
+        if not isinstance(value, str):
+            return value
+        normalized = value.strip().lower()
+        if normalized in {"", "n/a", "na", "none", "null", "?", "-"}:
+            return None
+        return normalized if normalized in _ALLOWED_SEX else "other"
+
+    @field_validator("age", mode="before")
+    @classmethod
+    def _plausible_age(cls, value):
+        """Null out missing/implausible ages instead of failing the whole extraction."""
+        if value is None or value == "":
+            return None
+        try:
+            age = int(value)
+        except (TypeError, ValueError):
+            return None
+        return age if 18 <= age <= 100 else None
 
     class Config:
         json_schema_extra = {

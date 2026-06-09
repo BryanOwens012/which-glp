@@ -60,7 +60,7 @@ def run_tests():
     passed = 0
 
     # ========================================================================
-    # POSITIVE TEST CASES - Should PASS filter (be processed by GLM)
+    # POSITIVE TEST CASES - Should PASS filter (be processed by GPT-5-nano)
     # ========================================================================
 
     print("\n" + "=" * 80)
@@ -152,7 +152,7 @@ def run_tests():
         passed += 1
 
     # ========================================================================
-    # NEGATIVE TEST CASES - Should FAIL filter (skip GLM processing)
+    # NEGATIVE TEST CASES - Should FAIL filter (skip GPT-5-nano processing)
     # ========================================================================
 
     print("\n" + "=" * 80)

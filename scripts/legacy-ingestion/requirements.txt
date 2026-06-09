@@ -6,8 +6,8 @@ pydantic==2.13.0
 # Reddit API
 praw==7.8.1
 
-# Anthropic AI
-anthropic==0.94.1
+# OpenAI (GPT-5-nano)
+openai>=1.99.0
 
 # Database
 psycopg2-binary==2.9.11

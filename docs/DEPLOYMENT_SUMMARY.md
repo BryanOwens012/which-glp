@@ -11,8 +11,8 @@
 1. **API** (Node.js tRPC) - `api.whichglp.com`
 2. **Rec-Engine** (Python ML) - `whichglp-rec-engine.up.railway.app`
 3. **Post-Ingestion** (Python) - `whichglp-post-ingestion.up.railway.app`
-4. **Post-Extraction** (Python + GLM-4.5-Air) - `whichglp-post-extraction.up.railway.app`
-5. **User-Extraction** (Python + GLM-4.5-Air) - `whichglp-user-extraction.up.railway.app`
+4. **Post-Extraction** (Python + GPT-5-nano) - `whichglp-post-extraction.up.railway.app`
+5. **User-Extraction** (Python + GPT-5-nano) - `whichglp-user-extraction.up.railway.app`
 6. **Redis** (Cache) - Persistent volume
 7. **View-Refresher-Cron** - Every 2 days
 8. **Post-Ingestion-Cron** - Every 2 days
@@ -26,7 +26,7 @@
 
 ✅ **Microservices Architecture** - Each service independently scalable
 ✅ **Cron-Based Automation** - Automated data pipeline (ingestion → extraction → view refresh)
-✅ **AI Processing** - GLM-4.5-Air for cost-effective extraction
+✅ **AI Processing** - GPT-5-nano for cost-effective extraction
 ✅ **ML Recommendations** - KNN-based drug matching
 ✅ **Redis Caching** - Fast API responses
 
@@ -117,7 +117,7 @@ SUPABASE_SERVICE_KEY=...
 REDDIT_CLIENT_ID=...
 REDDIT_CLIENT_SECRET=...
 REDDIT_USER_AGENT=whichglp-ingestion/0.1
-ZAI_API_KEY=...
+OPENAI_API_KEY=...
 PORT=${{RAILWAY_PUBLIC_PORT}}
 ```
 
@@ -161,7 +161,7 @@ See `docs/ARCHITECTURE.md` for detailed architecture documentation including:
 - Data flow diagrams
 - Environment setup
 - Deployment guides
-- Architecture decisions (microservices, cron jobs, GLM-4.5-Air)
+- Architecture decisions (microservices, cron jobs, GPT-5-nano)
 
 ### Quick Reference
 

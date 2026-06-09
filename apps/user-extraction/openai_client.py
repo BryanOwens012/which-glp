@@ -1,34 +1,26 @@
 """
-OpenAI GPT-5-nano client for the (deprecated) legacy ingestion pipeline.
+OpenAI GPT-5-nano client for extracting demographic data from Reddit user history.
 
 Thin wrapper over the shared BaseOpenAIExtractor — the OpenAI call, JSON parsing,
 retry/backoff, cost tracking, and metadata all live in shared/openai_extractor.py.
-When given a bare user prompt, the default SYSTEM_PROMPT is used.
 """
 
 from typing import Any, Dict, Optional, Tuple
 
-from extraction.schema import ExtractedFeatures
-from extraction.prompts import SYSTEM_PROMPT
+from schema import UserDemographics
 from shared.openai_extractor import BaseOpenAIExtractor, OpenAIExtractionError  # noqa: F401 (re-exported)
 
 
 class OpenAIClient(BaseOpenAIExtractor):
-    """Extracts ExtractedFeatures from Reddit posts/comments via GPT-5-nano."""
+    """Extracts UserDemographics from a Reddit user's post/comment history."""
 
-    def extract_features(
+    def extract_demographics(
         self,
-        prompts: "tuple[str, str] | str",
+        user_prompt: str,
         model: Optional[str] = None,
         max_retries: int = 3,
-    ) -> Tuple[ExtractedFeatures, Dict[str, Any]]:
-        return self.extract(
-            prompts,
-            ExtractedFeatures,
-            default_system_prompt=SYSTEM_PROMPT,
-            model=model,
-            max_retries=max_retries,
-        )
+    ) -> Tuple[UserDemographics, Dict[str, Any]]:
+        return self.extract(user_prompt, UserDemographics, model=model, max_retries=max_retries)
 
 
 _client_instance: Optional[OpenAIClient] = None

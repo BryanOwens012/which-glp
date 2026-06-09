@@ -1,7 +1,7 @@
 """
 Pydantic models for AI-extracted data from Reddit posts and comments.
 
-These schemas define the structure of data extracted by Claude AI,
+These schemas define the structure of data extracted by the model,
 ensuring type safety and validation before database insertion.
 """
 
@@ -339,7 +339,7 @@ class ExtractedFeatures(BaseModel):
             return {}
         validated = {}
         for drug, score in v.items():
-            # Allow None values (GLM may not have sentiment for all drugs)
+            # Allow None values (the model may not have sentiment for all drugs)
             if score is None:
                 validated[drug.strip().title()] = None
                 continue
@@ -470,7 +470,7 @@ class ExtractionResult(BaseModel):
     features: ExtractedFeatures = Field(..., description="Extracted structured data")
 
     # Processing metadata
-    model_used: str = Field(..., description="Claude model used (e.g., claude-sonnet-4-20250514)")
+    model_used: str = Field(..., description="Model used (e.g., gpt-5-nano)")
     processing_cost_usd: Optional[float] = Field(None, description="Cost in USD for this API call", ge=0)
     tokens_input: Optional[int] = Field(None, description="Input tokens used", ge=0)
     tokens_output: Optional[int] = Field(None, description="Output tokens generated", ge=0)
@@ -478,7 +478,7 @@ class ExtractionResult(BaseModel):
     processed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="Timestamp of extraction")
 
     # Raw response for debugging
-    raw_response: Optional[dict] = Field(None, description="Full Claude API response")
+    raw_response: Optional[dict] = Field(None, description="Full model API response")
 
     @field_validator("post_id", "comment_id")
     @classmethod

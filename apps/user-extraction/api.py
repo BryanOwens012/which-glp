@@ -46,9 +46,9 @@ app.add_middleware(
 async def startup_event():
     logger.info("=" * 80)
     logger.info("🚀 USER EXTRACTION SERVICE STARTING UP")
-    logger.info(f"   Service: user-extraction")
+    logger.info("   Service: user-extraction")
     logger.info(f"   Port: {os.getenv('PORT', '8002')}")
-    logger.info(f"   Model: GLM-4.7-FlashX")
+    logger.info("   Model: GPT-5-nano")
     logger.info(f"   Time: {datetime.now().isoformat()}")
     logger.info("=" * 80)
 

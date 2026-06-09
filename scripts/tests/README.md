@@ -4,10 +4,10 @@ This directory contains ad-hoc test and debug scripts for development and troubl
 
 ## Test Files
 
-### GLM Integration Tests
+### OpenAI Integration Tests
 
-- **`test_zai_minimal.py`** - Minimal test of ZAI SDK to verify API key and basic connectivity
-- **`test_glm.py`** - Test GLM client with sample user data
+- **`test_openai_minimal.py`** - Minimal test of the OpenAI SDK to verify API key and basic connectivity
+- **`test_openai_client.py`** - Test the OpenAI (GPT-5-nano) client with sample user data
 - **`test_full_user_analysis.py`** - End-to-end test of user analysis pipeline
 - **`test_user_analyzer_debug.py`** - Debug script to troubleshoot user analyzer issues
 
@@ -25,8 +25,8 @@ cd /Users/bryan/Github/which-glp
 source venv/bin/activate
 
 # Run Python tests
-python3 scripts/tests/test_zai_minimal.py
-python3 scripts/tests/test_glm.py
+python3 scripts/tests/test_openai_minimal.py
+python3 scripts/tests/test_openai_client.py
 python3 scripts/tests/test_full_user_analysis.py
 python3 scripts/tests/test_user_analyzer_debug.py
 
@@ -37,7 +37,7 @@ node scripts/tests/test-recommendation.js
 ## Prerequisites
 
 - Virtual environment activated
-- `.env` file configured with required credentials (GLM_API_KEY, SUPABASE credentials, etc.)
+- `.env` file configured with required credentials (OPENAI_API_KEY, SUPABASE credentials, etc.)
 - Database migrations run (see `apps/shared/migrations/`)
 
 ## Notes

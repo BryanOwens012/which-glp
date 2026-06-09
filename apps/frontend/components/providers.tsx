@@ -12,7 +12,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     defaultOptions: {
       queries: {
         staleTime: 5 * 60 * 1000, // 5 minutes - drug data doesn't change frequently
-        cacheTime: 10 * 60 * 1000, // 10 minutes - keep in cache longer
+        gcTime: 10 * 60 * 1000, // 10 minutes - keep in cache longer (React Query v5: renamed from cacheTime)
         refetchOnWindowFocus: false,
         refetchOnReconnect: false,
         retry: 1, // Only retry once to avoid unnecessary requests

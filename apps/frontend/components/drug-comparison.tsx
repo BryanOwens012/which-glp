@@ -340,7 +340,7 @@ export const DrugComparison = () => {
                         Most Common Side Effects
                       </div>
                       <ul className="space-y-1">
-                        {med.commonSideEffects.slice(0, 5).map((effect) => {
+                        {med.commonSideEffects.slice(0, 5).map((effect: { name: string; percentage: number }) => {
                           // Parse JSON string to extract the actual name
                           let effectName = effect.name;
                           try {
