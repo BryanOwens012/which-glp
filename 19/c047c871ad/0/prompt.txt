@@ -1,0 +1,15 @@
+new feature (new branch and PR):  New feature: Add to both global and repo CLAUDE.md:    
+                                                                                           
+    - When considering which LLM models to use, think carefully about its specific usage:  
+                                                                                           
+    who will use it (business vs. customer), latency needs, accuracy needs, tool-use       
+  needs,                                                                                   
+    complexity, whether long-context is necessary, etc. Present options to the user, with  
+                                                                                           
+    tradeoffs, for which model to use, which reasoning level, whether reasoning level      
+  should                                                                                   
+    be adaptive, which effort level, etc. Sometimes one combo is better than the best      
+                                                                                           
+    practice/default one that people like to use.                                          
+    - You should always look for opportunities to do prompt caching, as it's a free win.   
+  And pre-warm the cache so that the prompt cache is always warm.
