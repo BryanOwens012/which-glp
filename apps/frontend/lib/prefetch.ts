@@ -3,8 +3,8 @@ import { SortField, SortDirection, type SortFieldType, type SortDirectionType } 
 /**
  * Shared helpers for the app-wide aggressive-prefetching strategy:
  * whenever the user lands anywhere, all other top-level pages (and their
- * queries) are warmed in the background, plus hover-intent and
- * next/previous-page prefetching for lists.
+ * queries) are warmed in the background, plus hover-intent prefetching and
+ * early next-page fetching for infinite lists (previous pages stay cached).
  */
 
 export const EXPERIENCES_PAGE_SIZE = 20
