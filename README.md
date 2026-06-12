@@ -38,7 +38,7 @@
 
 ### Frontend Service
 
-- **Framework:** Next.js 15 (App Router)
+- **Framework:** Next.js 16 (App Router)
 - **Language:** TypeScript (strict mode)
 - **UI:** React 19, Tailwind CSS v4, Radix UI + shadcn/ui
 - **API Client:** tRPC client, TanStack Query
@@ -46,7 +46,7 @@
 ### Backend Services
 
 **1. API Service** (`apps/api`)
-- **Runtime:** Node.js 20+
+- **Runtime:** Node.js 22+
 - **Language:** TypeScript (strict mode)
 - **Framework:** tRPC (type-safe API)
 - **Database:** Supabase client
@@ -96,6 +96,7 @@
 ### Development
 
 - **Python:** 3.13 with shared venv at repository root
-- **Node.js:** 20+ for frontend and API service
+- **Node.js:** 22+ for frontend and API service (`.nvmrc` pins 24)
 - **Monorepo:** All services in `apps/` directory
+- **Deploy config:** Python services on Railway build from the monorepo root via `apps/<service>/railway.json` (config-as-code), which references `apps/<service>/nixpacks.toml` through `nixpacksConfigPath`
 

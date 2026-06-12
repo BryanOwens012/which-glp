@@ -35,7 +35,7 @@ class StrictModel(BaseModel):
 
 
 def make_response(content, prompt_tokens=100, completion_tokens=20,
-                  finish_reason="stop", response_id="resp_1"):
+                  finish_reason="stop", response_id="resp_1", cached_tokens=None):
     message = types.SimpleNamespace(content=content)
     choice = types.SimpleNamespace(message=message, finish_reason=finish_reason)
     usage = types.SimpleNamespace(
@@ -43,6 +43,8 @@ def make_response(content, prompt_tokens=100, completion_tokens=20,
         completion_tokens=completion_tokens,
         total_tokens=prompt_tokens + completion_tokens,
     )
+    if cached_tokens is not None:
+        usage.prompt_tokens_details = types.SimpleNamespace(cached_tokens=cached_tokens)
     return types.SimpleNamespace(id=response_id, choices=[choice], usage=usage, model="gpt-5-nano")
 
 
@@ -197,6 +199,110 @@ def test_metadata_shape():
     assert metadata["raw_response"]["id"] == "resp_42"
     assert metadata["raw_response"]["finish_reason"] == "stop"
     assert metadata["raw_response"]["usage"]["total_tokens"] == 120
+
+
+# --------------------------------------------------------------------------
+# Prompt caching: cost, metadata, and prompt_cache_key routing
+# --------------------------------------------------------------------------
+
+def test_calculate_cost_discounts_cached_input():
+    ex = build_extractor([])
+    # 1M prompt tokens of which 800k cached, 1M output:
+    # 0.2M × $0.05/M + 0.8M × $0.005/M + 1M × $0.40/M = 0.414
+    cost = ex.calculate_cost("gpt-5-nano", 1_000_000, 1_000_000, tokens_input_cached=800_000)
+    assert cost == pytest.approx(0.414)
+
+
+def test_calculate_cost_clamps_cached_to_total_input():
+    ex = build_extractor([])
+    fully_cached = ex.calculate_cost("gpt-5-nano", 1_000_000, 0, tokens_input_cached=1_000_000)
+    over_reported = ex.calculate_cost("gpt-5-nano", 1_000_000, 0, tokens_input_cached=2_000_000)
+    assert over_reported == pytest.approx(fully_cached) == pytest.approx(0.005)
+
+
+def test_calculate_cost_cached_none_treated_as_zero():
+    ex = build_extractor([])
+    assert ex.calculate_cost("gpt-5-nano", 1_000_000, 0, tokens_input_cached=None) == pytest.approx(0.05)
+
+
+def test_calculate_cost_unknown_model_without_cached_rate_charges_full_input():
+    # Fallback pricing has no "input_cached" guarantee — must not crash or discount wrongly.
+    ex = build_extractor([])
+    pricing = {"input": 1.0, "output": 2.0}
+    oe.MODEL_PRICING["test-model-no-cache-rate"] = pricing
+    try:
+        cost = ex.calculate_cost("test-model-no-cache-rate", 1_000_000, 0, tokens_input_cached=500_000)
+        assert cost == pytest.approx(1.0)  # cached portion billed at full input rate
+    finally:
+        del oe.MODEL_PRICING["test-model-no-cache-rate"]
+
+
+def test_metadata_includes_cached_tokens_and_discounted_cost():
+    ex = build_extractor([make_response('{"summary": "ok"}', prompt_tokens=100,
+                                        completion_tokens=20, cached_tokens=60)])
+    _, metadata = ex.extract("x", passthrough)
+    assert metadata["tokens_input_cached"] == 60
+    assert metadata["raw_response"]["usage"]["cached_tokens"] == 60
+    assert metadata["cost_usd"] == pytest.approx(ex.calculate_cost("gpt-5-nano", 100, 20, 60))
+
+
+def test_metadata_cached_tokens_defaults_to_zero_when_details_missing():
+    # Older/partial SDK responses may omit prompt_tokens_details entirely.
+    ex = build_extractor([make_response('{"summary": "ok"}')])
+    _, metadata = ex.extract("x", passthrough)
+    assert metadata["tokens_input_cached"] == 0
+
+
+def test_metadata_clamps_over_reported_cached_tokens():
+    ex = build_extractor([make_response('{"summary": "ok"}', prompt_tokens=100, cached_tokens=150)])
+    _, metadata = ex.extract("x", passthrough)
+    assert metadata["tokens_input_cached"] == 100
+
+
+def test_prompt_cache_key_forwarded_when_subclass_sets_it():
+    class KeyedExtractor(BaseOpenAIExtractor):
+        PROMPT_CACHE_KEY = "whichglp-test"
+
+    ex = KeyedExtractor(api_key="sk-test")
+    ex.client = _FakeClient([make_response('{"x": 1}')])
+    ex.extract("hello", passthrough)
+    assert ex.client.chat.completions.calls[0]["prompt_cache_key"] == "whichglp-test"
+
+
+def test_prompt_cache_key_omitted_when_unset():
+    ex = build_extractor([make_response('{"x": 1}')])
+    ex.extract("hello", passthrough)
+    assert "prompt_cache_key" not in ex.client.chat.completions.calls[0]
+
+
+def test_prompt_cache_key_empty_string_disables_class_key():
+    class KeyedExtractor(BaseOpenAIExtractor):
+        PROMPT_CACHE_KEY = "whichglp-test"
+
+    ex = KeyedExtractor(api_key="sk-test", prompt_cache_key="")
+    ex.client = _FakeClient([make_response('{"x": 1}')])
+    ex.extract("hello", passthrough)
+    assert "prompt_cache_key" not in ex.client.chat.completions.calls[0]
+
+
+def test_prompt_cache_key_constructor_arg_overrides_class_key():
+    class KeyedExtractor(BaseOpenAIExtractor):
+        PROMPT_CACHE_KEY = "class-key"
+
+    ex = KeyedExtractor(api_key="sk-test", prompt_cache_key="ctor-key")
+    ex.client = _FakeClient([make_response('{"x": 1}')])
+    ex.extract("hello", passthrough)
+    assert ex.client.chat.completions.calls[0]["prompt_cache_key"] == "ctor-key"
+
+
+def test_prompt_cache_key_sent_on_every_retry_attempt():
+    class KeyedExtractor(BaseOpenAIExtractor):
+        PROMPT_CACHE_KEY = "whichglp-test"
+
+    ex = KeyedExtractor(api_key="sk-test")
+    ex.client = _FakeClient([Exception("boom"), make_response('{"x": 1}')])
+    ex.extract("hello", passthrough)
+    assert all(c["prompt_cache_key"] == "whichglp-test" for c in ex.client.chat.completions.calls)
 
 
 # --------------------------------------------------------------------------

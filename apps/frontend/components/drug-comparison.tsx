@@ -5,7 +5,6 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Tooltip,
@@ -18,14 +17,17 @@ import {
   TrendingDown,
   DollarSign,
   AlertCircle,
-  Users,
   Info,
   Loader2,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
+import { runWhenIdle } from "@/lib/prefetch";
+import { useHoverPrefetch } from "@/hooks/use-hover-prefetch";
+import { usePrefetchExperiences } from "@/hooks/use-prefetch-experiences";
 
 export const DrugComparison = () => {
   const router = useRouter();
+  const prefetchExperiences = usePrefetchExperiences();
 
   // Fetch real drug stats from API
   const { data: drugStats, isLoading, isError, error } = trpc.drugs.getAllStats.useQuery();
@@ -47,25 +49,22 @@ export const DrugComparison = () => {
     }
   }, [drugStats, selectedMeds.length]);
 
-  // Prefetch experiences pages for selected drugs during idle time
+  // Prefetch the experiences route AND warm its list query for the selected
+  // drugs during idle time, so clicking a card lands on a fully-loaded page
   useEffect(() => {
     if (selectedMeds.length === 0) return;
 
-    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
-      requestIdleCallback(() => {
-        selectedMeds.forEach((drug) => {
-          router.prefetch(`/experiences?drug=${encodeURIComponent(drug)}`);
-        });
-      });
-    } else {
-      // Fallback for browsers without requestIdleCallback
-      setTimeout(() => {
-        selectedMeds.forEach((drug) => {
-          router.prefetch(`/experiences?drug=${encodeURIComponent(drug)}`);
-        });
-      }, 500);
-    }
-  }, [selectedMeds, router]);
+    runWhenIdle(() => {
+      for (const drug of selectedMeds) {
+        prefetchExperiences({ drug });
+      }
+    });
+  }, [selectedMeds, prefetchExperiences]);
+
+  // Hover intent (>200ms) on a drug card prefetches its experiences page
+  const getDrugHoverPrefetchProps = useHoverPrefetch((drug: string) =>
+    prefetchExperiences({ drug })
+  );
 
   const toggleDrug = (drug: string) => {
     if (selectedMeds.includes(drug)) {
@@ -187,6 +186,7 @@ export const DrugComparison = () => {
                 key={med.drug}
                 className="border-border/40 bg-card p-6 cursor-pointer transition-all hover:shadow-lg hover:border-primary/50"
                 onClick={() => handleDrugClick(med.drug)}
+                {...getDrugHoverPrefetchProps(med.drug)}
               >
                 <div className="mb-4">
                   <h3 className="text-xl font-bold">{med.drug}</h3>
@@ -323,6 +323,7 @@ export const DrugComparison = () => {
                 key={med.drug}
                 className="border-border/40 bg-card p-6 cursor-pointer transition-all hover:shadow-lg hover:border-primary/50"
                 onClick={() => handleDrugClick(med.drug)}
+                {...getDrugHoverPrefetchProps(med.drug)}
               >
                 <h3 className="mb-4 text-xl font-bold">{med.drug}</h3>
 
@@ -433,6 +434,7 @@ export const DrugComparison = () => {
                   key={med.drug}
                   className="border-border/40 bg-card p-6 cursor-pointer transition-all hover:shadow-lg hover:border-primary/50"
                   onClick={() => handleDrugClick(med.drug)}
+                  {...getDrugHoverPrefetchProps(med.drug)}
                 >
                   <h3 className="mb-4 text-xl font-bold">{med.drug}</h3>
 

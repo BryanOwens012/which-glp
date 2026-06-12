@@ -23,14 +23,16 @@ import { trpc } from "@/lib/trpc"
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Skeleton } from "@/components/ui/skeleton"
+import { LoadingDialog } from "@/components/ui/loading-dialog"
 import { RedditLink } from "@/components/reddit-link"
 import { getRedditReference, formatDuration, formatCost, getRatingColor, getSideEffectColor, sortSideEffects } from "@/lib/types"
-import { SortField, SortDirection, SORT_FIELD_LABELS, SORT_DIRECTION_TOOLTIPS, SortFieldType, SortDirectionType } from "@/lib/sort-types"
+import { SortField, SortDirection, SORT_FIELD_LABELS, SORT_DIRECTION_TOOLTIPS, type SortFieldType, type SortDirectionType } from "@/lib/sort-types"
+import { buildExperiencesListInput, INFINITE_SCROLL_PREFETCH_ROOT_MARGIN } from "@/lib/prefetch"
+import { useHoverPrefetch } from "@/hooks/use-hover-prefetch"
 
 const ExperiencesPage = () => {
   const searchParams = useSearchParams()
@@ -80,13 +82,13 @@ const ExperiencesPage = () => {
     isLoading: experiencesLoading,
     isFetching,
   } = trpc.experiences.list.useInfiniteQuery(
-    {
+    // Built through the shared helper so prefetchers hit the same cache key
+    buildExperiencesListInput({
       drug: selectedDrug !== "all" ? selectedDrug : undefined,
       search: debouncedSearchText || undefined,
       sortBy,
       sortOrder,
-      limit: 20,
-    },
+    }),
     {
       getNextPageParam: (lastPage: any, allPages: any[]) => {
         const loadedCount = allPages.reduce((sum: number, page: any) => sum + page.experiences.length, 0)
@@ -105,6 +107,12 @@ const ExperiencesPage = () => {
 
   // Fetch drug stats for the filter dropdown
   const { data: drugs } = trpc.drugs.getAllStats.useQuery()
+
+  // Hover intent (>200ms) on a card prefetches the detail it would open
+  const utils = trpc.useUtils()
+  const getHoverPrefetchProps = useHoverPrefetch((id: string) => {
+    void utils.experiences.getById.prefetch({ id })
+  })
 
   // Fetch selected experience details
   const { data: selectedExperience, isLoading: isLoadingExperience } = trpc.experiences.getById.useQuery(
@@ -131,13 +139,15 @@ const ExperiencesPage = () => {
           fetchNextPage()
         }
       },
-      { threshold: 0.1 }
+      // Large rootMargin prefetches the next page well before the user
+      // reaches the bottom, so scrolling never waits on the network
+      { threshold: 0.1, rootMargin: INFINITE_SCROLL_PREFETCH_ROOT_MARGIN }
     )
 
     observer.observe(loadMoreRef.current)
 
     return () => observer.disconnect()
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage])
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage, data])
 
   // Determine if we should show skeleton (initial load only, not filter changes)
   const showSkeleton = experiencesLoading && !data
@@ -284,15 +294,11 @@ const ExperiencesPage = () => {
           </Card>
         ) : (
           <div className="relative">
-            {/* Show loading overlay when filtering */}
-            {isFetching && !isFetchingNextPage && (
-              <div className="absolute inset-0 bg-background/50 backdrop-blur-sm z-10 flex items-center justify-center">
-                <div className="flex items-center gap-2 bg-card border border-border px-4 py-2 rounded-lg shadow-lg">
-                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                  <span className="text-sm">Updating results...</span>
-                </div>
-              </div>
-            )}
+            {/* Loading dialog (no scrim) when filtering takes >200ms */}
+            <LoadingDialog
+              isOpen={isFetching && !isFetchingNextPage}
+              message="Updating results…"
+            />
 
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               {experiencesData.experiences.map((experience: any, index: number) => (
@@ -303,6 +309,7 @@ const ExperiencesPage = () => {
                     posthog.capture('experience_card_clicked', { experience_id: experience.id, drug: experience.primary_drug })
                     setSelectedExperienceId(experience.id)
                   }}
+                  {...getHoverPrefetchProps(experience.id)}
                 />
               ))}
             </div>

@@ -14,6 +14,9 @@ from shared.openai_extractor import BaseOpenAIExtractor
 class OpenAIClient(BaseOpenAIExtractor):
     """Extracts ExtractedFeatures from Reddit posts via GPT-5-nano."""
 
+    # Routes same-prefix requests to the same OpenAI cache shard
+    PROMPT_CACHE_KEY = "whichglp-post-extraction"
+
     def extract_features(
         self,
         prompts: "tuple[str, str] | str",

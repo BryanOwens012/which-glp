@@ -409,9 +409,13 @@ Return ONLY valid JSON matching this EXACT schema (no markdown, no explanations)
 THIS IS EXPENSIVE. EXTRACT EVERY AVAILABLE DEMOGRAPHIC. GET IT RIGHT."""
 
 
-def build_user_prompt(username: str, posts: list, comments: list) -> str:
+def build_user_prompt(username: str, posts: list, comments: list) -> tuple[str, str]:
     """
-    Build prompt for demographic extraction from user's post/comment history.
+    Build prompts for demographic extraction from user's post/comment history.
+
+    The static SYSTEM_PROMPT is returned separately from the volatile user
+    history so it forms a byte-stable prefix for OpenAI prompt caching (the
+    system prompt alone exceeds the 1024-token caching minimum).
 
     Args:
         username: Reddit username (without u/ prefix)
@@ -419,7 +423,7 @@ def build_user_prompt(username: str, posts: list, comments: list) -> str:
         comments: List of comment dictionaries with 'body' key
 
     Returns:
-        Formatted prompt string
+        Tuple of (system_prompt, user_prompt)
     """
     # Format posts (tolerate None lists and None/empty title/body; skip empties)
     posts_text = ""
@@ -438,10 +442,8 @@ def build_user_prompt(username: str, posts: list, comments: list) -> str:
             continue
         comments_text += f"\n## Comment {i}:\n{body}\n"
 
-    # Build full prompt
-    prompt = f"""{SYSTEM_PROMPT}
-
-===== USER HISTORY FOR u/{username} =====
+    # Volatile content only — the static instructions live in SYSTEM_PROMPT
+    user_prompt = f"""===== USER HISTORY FOR u/{username} =====
 
 ### Recent Posts:
 {posts_text if posts_text else "(No posts)"}
@@ -453,4 +455,4 @@ def build_user_prompt(username: str, posts: list, comments: list) -> str:
 
 Analyze the above posts and comments to extract demographic information. Return ONLY the JSON object."""
 
-    return prompt
+    return SYSTEM_PROMPT, user_prompt

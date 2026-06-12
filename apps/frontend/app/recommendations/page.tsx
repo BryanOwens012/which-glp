@@ -28,11 +28,15 @@ import {
   Users,
   Target,
 } from "lucide-react";
-import { PredictionInput, PredictionResult, Sex } from "@/lib/types";
+import type { PredictionInput, PredictionResult, Sex } from "@/lib/types";
 import { trpc } from "@/lib/trpc";
+import { LoadingDialog } from "@/components/ui/loading-dialog";
+import { useHoverPrefetch } from "@/hooks/use-hover-prefetch";
+import { usePrefetchExperiences } from "@/hooks/use-prefetch-experiences";
 
 const RecommendationsPage = () => {
   const router = useRouter();
+  const prefetchExperiences = usePrefetchExperiences();
   const [formData, setFormData] = useState<Partial<PredictionInput>>({
     weightUnit: "lbs",
     country: "USA",
@@ -169,9 +173,21 @@ const RecommendationsPage = () => {
     router.push(`/experiences?${params.toString()}`);
   };
 
+  // Hover intent (>200ms) on a result card prefetches the experiences page
+  // (route + query) it would navigate to
+  const getRecommendationHoverPrefetchProps = useHoverPrefetch((drug: string) =>
+    prefetchExperiences({ drug, search: formData.comorbidities?.[0] })
+  );
+
   return (
     <div className="min-h-screen relative">
       <Navigation />
+
+      {/* Loading dialog (no scrim) while recommendations are computed */}
+      <LoadingDialog
+        isOpen={getRecommendationsMutation.isPending}
+        message="Analyzing your profile…"
+      />
 
       <div className="container mx-auto px-4 pt-24 pb-12">
         <div className="mb-8">
@@ -479,6 +495,7 @@ const RecommendationsPage = () => {
                     index === 0 ? "ring-2 ring-primary" : ""
                   }`}
                   onClick={() => handleRecommendationClick(recommendation.drug, recommendation.matchScore, index + 1)}
+                  {...getRecommendationHoverPrefetchProps(recommendation.drug)}
                 >
                   {index === 0 && (
                     <Badge className="absolute -top-3 left-1/2 -translate-x-1/2">

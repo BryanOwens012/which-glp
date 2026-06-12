@@ -1,11 +1,8 @@
 "use client";
 
 import posthog from 'posthog-js';
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Navigation } from "@/components/navigation";
 import { Footer } from "@/components/footer";
 import { DrugComparison } from "@/components/drug-comparison";
@@ -25,28 +22,10 @@ import {
 } from "@/components/ui/popover";
 
 const HomePage = () => {
-  const router = useRouter();
-
-  // Prefetch related pages during idle time to avoid impacting page performance
-  useEffect(() => {
-    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
-      requestIdleCallback(() => {
-        router.prefetch("/experiences");
-        router.prefetch("/recommendations");
-        router.prefetch("/about");
-      });
-    } else {
-      // Fallback for browsers without requestIdleCallback
-      setTimeout(() => {
-        router.prefetch("/experiences");
-        router.prefetch("/recommendations");
-        router.prefetch("/about");
-      }, 1000);
-    }
-  }, [router]);
+  // Page and query prefetching is handled globally by AppPrefetcher in the root layout
 
   // Fetch real platform stats from backend
-  const { data: stats, isLoading } = trpc.platform.getStats.useQuery();
+  const { data: stats } = trpc.platform.getStats.useQuery();
   return (
     <div className="min-h-screen">
       <Navigation />

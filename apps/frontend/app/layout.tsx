@@ -6,6 +6,7 @@ import { Analytics as VercelAnalytics } from "@vercel/analytics/next";
 import { Suspense } from "react";
 import { Providers } from "@/components/providers";
 import { Analytics } from "@/components/analytics";
+import { AppPrefetcher } from "@/components/app-prefetcher";
 import "./globals.css";
 
 // Configure fonts with display: swap for better performance
@@ -170,6 +171,7 @@ const RootLayout = ({
             {/* <Scrim>{children}</Scrim> */}
             {children}
             <Analytics />
+            <AppPrefetcher />
           </Suspense>
           <VercelAnalytics />
         </Providers>
