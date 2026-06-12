@@ -58,14 +58,14 @@ for comment in redditor.comments.new(limit=5):
 
 print(f"✓ Fetched {len(posts)} posts, {len(comments)} comments")
 
-# Build prompt
-prompt = build_user_prompt(username, posts, comments)
-print(f"✓ Built prompt ({len(prompt)} chars)")
+# Build prompts (system_prompt, user_prompt) — system stays static for prompt caching
+prompts = build_user_prompt(username, posts, comments)
+print(f"✓ Built prompts ({sum(len(p) for p in prompts)} chars)")
 
 # Extract with GPT-5-nano
 ai_client = get_client()
 print("✓ Calling OpenAI API...")
-demographics, metadata = ai_client.extract_demographics(prompt)
+demographics, metadata = ai_client.extract_demographics(prompts)
 
 print("\n✓ EXTRACTION SUCCESSFUL")
 print(f"  Cost: ${metadata['cost_usd']:.6f}")

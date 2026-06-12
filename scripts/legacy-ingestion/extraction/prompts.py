@@ -751,9 +751,9 @@ THIS IS EXPENSIVE. GET IT RIGHT THE FIRST TIME. EXTRACT EVERYTHING AVAILABLE.
 
 def build_post_prompt(
     subreddit: str, title: str, body: str, author_flair: str = ""
-) -> str:
+) -> tuple[str, str]:
     """
-    Build extraction prompt for a Reddit post (no comment chain).
+    Build extraction prompts for a Reddit post (no comment chain).
 
     Args:
         title: Post title
@@ -761,7 +761,7 @@ def build_post_prompt(
         author_flair: Author flair text (may contain structured data)
 
     Returns:
-        Formatted user prompt for the model
+        Tuple of (system_prompt, user_prompt)
     """
     # Tolerate None/empty inputs so the prompt never contains the literal "None".
     subreddit = (subreddit or "").strip()

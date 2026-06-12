@@ -14,13 +14,16 @@ from shared.openai_extractor import BaseOpenAIExtractor, OpenAIExtractionError  
 class OpenAIClient(BaseOpenAIExtractor):
     """Extracts UserDemographics from a Reddit user's post/comment history."""
 
+    # Routes same-prefix requests to the same OpenAI cache shard
+    PROMPT_CACHE_KEY = "whichglp-user-extraction"
+
     def extract_demographics(
         self,
-        user_prompt: str,
+        prompts: "tuple[str, str] | str",
         model: Optional[str] = None,
         max_retries: int = 3,
     ) -> Tuple[UserDemographics, Dict[str, Any]]:
-        return self.extract(user_prompt, UserDemographics, model=model, max_retries=max_retries)
+        return self.extract(prompts, UserDemographics, model=model, max_retries=max_retries)
 
 
 _client_instance: Optional[OpenAIClient] = None

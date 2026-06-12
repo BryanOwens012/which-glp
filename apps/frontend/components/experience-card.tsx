@@ -2,10 +2,9 @@ import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { RedditLink } from "@/components/reddit-link"
 import {
-  ExperienceCard as ExperienceCardType,
+  type ExperienceCard as ExperienceCardType,
   getRedditReference,
   formatDuration,
-  formatCost,
   getRatingColor,
   getSideEffectColor,
   sortSideEffects,
@@ -15,13 +14,16 @@ import { TrendingDown, Clock, AlertCircle, Star } from "lucide-react"
 type ExperienceCardProps = {
   experience: ExperienceCardType
   onClick?: () => void
+  // Hover handlers let the parent prefetch the detail view on hover intent
+  onMouseEnter?: () => void
+  onMouseLeave?: () => void
 }
 
 /**
  * Card displaying a single user experience
  * Used on /experiences page and in search results
  */
-export function ExperienceCard({ experience, onClick }: ExperienceCardProps) {
+export function ExperienceCard({ experience, onClick, onMouseEnter, onMouseLeave }: ExperienceCardProps) {
   const redditRef = getRedditReference(experience)
 
   // Calculate weight loss display with percentage
@@ -54,6 +56,8 @@ export function ExperienceCard({ experience, onClick }: ExperienceCardProps) {
     <Card
       className="border-border/40 bg-card p-6 hover:border-primary/50 transition-colors cursor-pointer relative"
       onClick={onClick}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
     >
       <div className="space-y-4">
         {/* Header */}

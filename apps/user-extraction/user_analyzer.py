@@ -177,12 +177,12 @@ class RedditUserAnalyzer:
 
             return None
 
-        # Build prompt
-        prompt = build_user_prompt(username, posts, comments)
+        # Build (system_prompt, user_prompt) — system stays static for prompt caching
+        prompts = build_user_prompt(username, posts, comments)
 
         # Extract demographics with GPT-5-nano
         try:
-            demographics, metadata = self.ai_client.extract_demographics(prompt)
+            demographics, metadata = self.ai_client.extract_demographics(prompts)
 
             # Build database row
             user_data = {

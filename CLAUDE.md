@@ -13,6 +13,27 @@ WhichGLP is a GLP-1 weight-loss drug comparison platform that aggregates real-wo
 - **Least privilege (tightest scope)**: always keep security to the tightest (minimal scope) possible that still accomplishes all our goals. Grant exactly the access needed and nothing more. This applies to Supabase RLS/policies, GRANTs, and roles, as well as to code (API surface, permissions, env access, etc.).
 - **Fail-closed, not fail-open**: when an error or uncertainty occurs, the default must be to **block** access rather than grant it. Never let a failure path fall through to allowing an action; on any error, deny.
 
+## Tools, CLIs & MCP Servers (Be Liberal)
+
+Be liberal with calling tools, CLI commands, and MCP servers to make changes and to diagnose and solve problems — particularly when diagnosing build or deploy failures.
+
+- **Reach for the platform's MCP server / CLI.** This repo uses **Railway** (backend services + Redis), **Vercel** (frontend), and **Supabase** (PostgreSQL) — install and use their MCP servers/CLIs (and analogously for Figma, Framer, AWS, GCP, Azure, Datadog, etc. if they come into play).
+- **Destructive actions still require approval.** Be liberal with read-only, diagnostic, and safely reversible actions — but always ask for the user's approval before executing destructive actions (deletes, rollbacks, production config/env changes, force operations, etc.).
+- **Suggest `/goal` for goal-driven runs.** When a task should run until done (e.g., fully fixing a deploy failure), suggest that the user can give the `/goal` slash-command to command you to keep working until the goal is reached.
+
+## LLM Calls (Prompt Caching & Observability)
+
+### Aggressive Prompt Caching
+
+For **all LLM calls, regardless of provider**, as long as the provider offers prompt caching, always be looking for opportunities to implement aggressive prompt caching — it dramatically cuts cost and latency. In this repo that especially means the **GPT-5-nano extraction services** (`apps/post-extraction`, `apps/user-extraction`): structure prompts so the static parts (system prompt, extraction instructions, schemas, few-shot examples) form a byte-stable prefix and the volatile parts (the Reddit post/comment being extracted) come last. OpenAI caches automatically for prompts ≥1024 tokens, but only if the prefix is byte-identical across requests — never interpolate timestamps/IDs into the static prefix, and verify hits via `usage.prompt_tokens_details.cached_tokens`. Provider caching APIs and best practices evolve — search the internet for the provider's current prompt-caching docs when implementing or reviewing.
+
+### Langfuse (Tracing Yes, Prompts No)
+
+If this repo adopts Langfuse, then:
+
+- **All LLM calls must be recorded through Langfuse tracing and sessions**, so cost, latency, and behavior are observable per conversation/run.
+- **Do not store LLM prompts in Langfuse** (no prompt management / `getPrompt()`). Prompts live **in the codebase** (e.g. `apps/post-extraction/prompts.py`, `apps/user-extraction/prompts.py`) as the single source of truth — version-controlled with the code that uses them, and easily readable as context by terminal agents like Claude Code.
+
 ## Documentation Structure
 
 This project uses multiple documentation files located in the `docs/` directory:
@@ -273,7 +294,7 @@ pytest scripts/legacy-ingestion/tests/test_parser.py  # Single test file
 
 ## Frontend (Next.js)
 
-The frontend is a Next.js 15 app with React 19, Tailwind CSS, and Radix UI components. It's not yet actively developed.
+The frontend is a Next.js 16 app with React 19, Tailwind CSS, and Radix UI components.
 
 ```bash
 cd apps/frontend
@@ -283,11 +304,24 @@ npm run lint     # Run ESLint
 ```
 
 **Tech Stack**:
-- Next.js 15 (App Router)
+- Next.js 16 (App Router)
 - TypeScript (strict mode)
 - Tailwind CSS v4
 - Radix UI + shadcn/ui components
 - React Hook Form + Zod for forms
+
+### Aggressive Prefetching (Pages & Queries)
+
+Prefetch aggressively so navigation feels instant — regardless of the size of the app (e.g. the number of pages). "Prefetch" always means **both** the frontend (route/components/bundle) **and** warming the underlying data queries — prefetching the UI shell without its data is only half the job. All prefetching must be background, deferred, and non-blocking: it must never delay or compete with rendering the page the user is actually on.
+
+- **Top-level pages**: when the user lands on any top-level page, prefetch all the other top-level pages.
+- **Tabs**: when the user lands on a top-level page that has tabs, prefetch all the other tabs of that page.
+- **Table rows (hover intent)**: on a page/tab with a table, if the user hovers over a row for more than 200ms, prefetch the result of clicking that row.
+- **Paginated tables**: when the user is on one page of a paginated table, prefetch the contents and queries of the next and previous pages.
+
+### Loading Indicators (When Loading Is Unavoidable)
+
+When a user action (clicking a button, etc.) triggers loading, show a small loading dialog only if the loading takes more than 200ms — never instantly. Do **not** accompany the loading dialog with a scrim/backdrop: the scrim causes a flash, and that flash is bad UI.
 
 ## Coding Conventions
 

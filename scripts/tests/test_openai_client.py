@@ -30,15 +30,15 @@ test_comments = [
 print("Testing OpenAI client...")
 print("=" * 60)
 
-# Build prompt
-prompt = build_user_prompt("test_user", test_posts, test_comments)
+# Build prompts (system_prompt, user_prompt) — system stays static for prompt caching
+prompts = build_user_prompt("test_user", test_posts, test_comments)
 
-print(f"\nPrompt length: {len(prompt)} chars")
+print(f"\nPrompt length: {sum(len(p) for p in prompts)} chars")
 print("\nCalling OpenAI API...")
 
 # Get client and extract
 client = get_client()
-demographics, metadata = client.extract_demographics(prompt)
+demographics, metadata = client.extract_demographics(prompts)
 
 print("\n" + "=" * 60)
 print("EXTRACTION SUCCESSFUL!")
