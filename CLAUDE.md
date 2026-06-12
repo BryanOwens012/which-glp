@@ -21,11 +21,37 @@ Be liberal with calling tools, CLI commands, and MCP servers to make changes and
 - **Destructive actions still require approval.** Be liberal with read-only, diagnostic, and safely reversible actions — but always ask for the user's approval before executing destructive actions (deletes, rollbacks, production config/env changes, force operations, etc.).
 - **Suggest `/goal` for goal-driven runs.** When a task should run until done (e.g., fully fixing a deploy failure), suggest that the user can give the `/goal` slash-command to command you to keep working until the goal is reached.
 
+## LLM Model Selection
+
+When writing or reviewing code that calls an LLM — or when the user asks which model to use — never default to a single "best practice" model without thinking through the specific usage. The right model/reasoning combo depends on several factors, and the optimal choice is often not the obvious default. Always **present the user with options and tradeoffs** rather than silently picking one.
+
+**Factors to reason through:**
+
+- **Who uses this call?** A background batch job (no human waiting) tolerates higher latency and can use a larger model for accuracy. A customer-facing feature needs fast time-to-first-token and should prefer a lighter model or adaptive reasoning.
+- **Latency requirements.** Streaming to a live user? Minimize TTFT — prefer smaller models, `effort: 'low'` or `'medium'`, and skip thinking on simple paths (`thinking: { type: 'adaptive' }`). Asynchronous enrichment pipeline? Latency doesn't matter; accuracy does.
+- **Accuracy and reasoning needs.** Simple classification, extraction, or slot-filling → smaller/faster model (e.g. Haiku, GPT-5-nano). Multi-step reasoning, SQL generation, complex analysis → a reasoning-capable model at the appropriate effort level. Don't pay for reasoning on calls that don't need it; don't skimp on it for calls that do.
+- **Tool use.** Heavy agentic tool loops (multiple round-trips, SQL generation, web search) benefit from reasoning. Single-tool structured-extraction calls usually don't.
+- **Context length.** Does the call need long-context (large documents, long conversation history)? Some models handle this better or more cheaply than others.
+- **Cost.** A call made once per user action has a different cost profile than one made per row in a 100k-row enrichment job (e.g. the extraction pipeline). Match the model tier to the volume and business value.
+
+**Reasoning / thinking / effort knobs (Anthropic):**
+
+| Setting | When to use |
+|---|---|
+| No thinking (default) | Fast, simple calls — classification, slot-fill, short generation |
+| `thinking: { type: 'adaptive' }` | Mixed workloads — simple queries skip thinking, hard ones use it; minimal TTFT penalty |
+| `thinking: { type: 'enabled' }` | Always reason — analytics, complex SQL, multi-hop questions |
+| `effort: 'low'` | Latency-critical, low-complexity |
+| `effort: 'medium'` | Balanced; good default for interactive tool-use calls |
+| `effort: 'high'` (default) | High-stakes, slow-path, or batch accuracy work |
+
+Present these options explicitly when a model choice is ambiguous. The best combo is sometimes counterintuitive — e.g., a smaller model with full thinking can outperform a larger model without it on reasoning tasks, at lower cost and similar latency.
+
 ## LLM Calls (Prompt Caching & Observability)
 
-### Aggressive Prompt Caching
+### Aggressive Prompt Caching + Cache Pre-Warming
 
-For **all LLM calls, regardless of provider**, as long as the provider offers prompt caching, always be looking for opportunities to implement aggressive prompt caching — it dramatically cuts cost and latency. In this repo that especially means the **GPT-5-nano extraction services** (`apps/post-extraction`, `apps/user-extraction`): structure prompts so the static parts (system prompt, extraction instructions, schemas, few-shot examples) form a byte-stable prefix and the volatile parts (the Reddit post/comment being extracted) come last. OpenAI caches automatically for prompts ≥1024 tokens, but only if the prefix is byte-identical across requests — never interpolate timestamps/IDs into the static prefix, and verify hits via `usage.prompt_tokens_details.cached_tokens`. Provider caching APIs and best practices evolve — search the internet for the provider's current prompt-caching docs when implementing or reviewing.
+For **all LLM calls, regardless of provider**, always look for opportunities to implement aggressive prompt caching and to pre-warm the cache so it is always hot when real requests arrive. Prompt caching is a near-free win: cached input tokens are ~50–90% cheaper depending on provider, and time-to-first-token drops by up to ~80%. Pre-warming ensures bursty or low-traffic workloads don't pay cold-cache prices — the warmer keeps the cache alive between real requests. In this repo that especially means the **GPT-5-nano extraction services** (`apps/post-extraction`, `apps/user-extraction`): structure prompts so the static parts (system prompt, extraction instructions, schemas, few-shot examples) form a byte-stable prefix and the volatile parts (the Reddit post/comment being extracted) come last. OpenAI caches automatically for prompts ≥1024 tokens, but only if the prefix is byte-identical across requests — never interpolate timestamps/IDs into the static prefix, and verify hits via `usage.prompt_tokens_details.cached_tokens`. Provider caching APIs and best practices evolve — search the internet for the provider's current prompt-caching docs when implementing or reviewing.
 
 ### Langfuse (Tracing Yes, Prompts No)
 
