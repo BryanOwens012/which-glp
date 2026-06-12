@@ -1,0 +1,128 @@
+Add to both the global and repo CLAUDE.md that we should be aggressively
+  prefetching pages and queries. Basically, reword what I said:                        
+                                                               
+  Would it make sense that, to prefetch all                                
+    pages and page tabs whenever the user lands on any of      
+  them? Of course the prefetching would                        
+    be done in the background and deferred/non-blocking        
+                                                               
+  Whenever the user lands on a top-level page, we fetch all    
+  the other top-level pages.                                   
+                                                               
+  Whenever the user lands on a top-level page that has tabs,   
+  we fetch all the other tabs of that page.                    
+                                                               
+  Whenever the user is on a page/tab where there's a table,    
+  and the user mouses over any table row for more than 200ms,  
+  we prefetch the result of clicking that row  
+
+And when the user is on one page of a paginated table, could we       
+    prefetch the contents and queries of the next page?
+
+When I say prefetching, I mean not just the frontend components but also prefetching/warming the queries of them.
+
+When loading is occurring as a result of clicking a button etc., show a little loading dialog if the loading is taking >200ms. Don’t accompany the loading dialog with a scrim; the scrim causes a flash, and that flash is bad UI.
+
+---
+
+Add to both the global and repo CLAUDE.md that, regardless of the size of the web app (such as the number of pages), we should be aggressively
+  prefetching pages and queries:               
+                                                               
+prefetch all                                
+    pages and page tabs whenever the user lands on any of      
+  them. Of course the prefetching would                        
+    be done in the background and deferred/non-blocking        
+                                                               
+  Whenever the user lands on a top-level page, we fetch all    
+  the other top-level pages.                                   
+                                                               
+  Whenever the user lands on a top-level page that has tabs,   
+  we fetch all the other tabs of that page.                    
+                                                               
+  Whenever the user is on a page/tab where there's a table,    
+  and the user mouses over any table row for more than 200ms,  
+  we prefetch the result of clicking that row  
+
+And when the user is on one page of a paginated table, we       
+    prefetch the contents and queries of the next and previous pages.
+
+When I say prefetching, I mean not just the frontend components but also prefetching/warming the queries of them.
+
+When loading is occurring as a result of clicking a button etc., always show a little loading dialog if the loading is taking >200ms. Don’t accompany the loading dialog with a scrim; the scrim causes a flash, and that flash is bad UI.
+
+and make any necessary code changes resulting from this guidance
+
+---
+
+Add to both the global and repo CLAUDE.md:
+
+  For all LLM calls, regardless of LLM provider, as long as prompt
+  caching is available, we need to always be looking for 
+  opportunities to implement aggressive prompt caching. Prompt
+  caching dramatically cuts cost and increases speed. Search internet
+  for more info on it that could inform best practices around prompt
+  caching
+
+ And also, add to both global and repo CLAUDE.md, as appropriate:     
+  If we use Langfuse in the repo, then:                                
+  - All LLM calls must be recorded through Langfuse tracing and        
+  sessions.                                                            
+  - However, we do not store LLM prompts in Langfuse. We store the     
+  prompts in the codebase as a single source of truth and so that      
+  terminal agents like Claude Code can more easily access the prompts  
+  as valuable context.    And also, add to both global and repo CLAUDE.md, as appropriate: 
+- Be liberal with calling tools, CLI commands, and MCP servers to make changes and diagnose and solve problems. This is particularly true when diagnosing build or deploy failures. E.g., if the user or repo uses Vercel, then install the Vercel MCP (if it’s not already installed) and use it. Analogously for Figma, Framer, Railway, AWS, GCP, Azure, Supabase, Datadog, etc. Just make sure to ask for the user’s approval before executing destructive actions. And suggest to the user that they can give the /goal slash-command to command you to keep working until you reach a goal (such as completing the fix to a deploy failure).
+
+Explore to check if we're referencing the nixpacks correctly. If not, fix it. 
+And make sure the README.md is up to date in general.
+
+---
+
+and htne make any necessary code changes to comply with this repo CLAUDE.md
+
+---
+
+Now execute the following, in parallel if possible:
+
+Go through all the changed files in this PR, one at a time, line by line, to confirm that you implemented it according to the spec and that it’s correct. Go through all the data paths, code/execution paths, and logical branching for all user journeys, including happy paths and sad paths.
+
+Ensure that all UI/UX components are built correctly and to spec. It can help with intuition to decompose the components within the codebase, and decompose the components you’re told about or images that are attached to this prompt (if any), to ensure line by line and component by component, that the components, layout, styling, and functionality match what we need. Ensure that, regardless if light mode or dark mode, all text is visible on its bg color; ensure all contrast matches WCAG requirements. Make sure to follow the DESIGN.md doc if one exists in this repo.
+
+Prefer Shadcn (or at least Shadcn-inspired) components, to make the ui components more readable, composable, and extensible.
+
+Consider places we can use useEffect, useMemo, useCallback, and memos to reduce unnecessary re-rendering on the frontend. Be judicious; we shouldn’t use them everywhere. We should only use them in places where they add value.
+
+Look at all hooks, especially useEffect, useMemo, useCallback, and memo, to ensure that their dependency arrays are correct and include no fewer dependencies than necessary, and no more dependencies than necessary, to accomplish the objectives. Remember that in some cases it does make sense to include more or fewer dependencies than those referenced within the hook, so you’ll need to use your judgment/intuition and be careful.
+
+Look carefully through all files changed by this PR and determine if there are good opportunities to DRY and YAGNI: to extract components/functions/variables and magic numbers/strings, and object/array destructuring, and loading/empty/error states/messages/alerts/dialogs/modals/toasts, and error codes (or typed errors), to reduce redundancy and improve separation of concerns, readability, and maintainability. Ensure that the names of directories, files, components, hooks, functions, variables, and consts make sense given these changes; make renames as necessary. You can search the internet if it helps to ensure our code organization follows conventions.
+
+For TypeScript string union types, convert to the following pattern:
+- Bad: type Val = ‘a’ | ‘b’ | ‘c’
+- Good: const vals = [‘a’, ‘b’, ‘c’] as const; type Val = (typeof vals)[number];
+
+Prefer async/await over .then()
+
+Make sure that all empty strings, empty lists, empty objects, nulls, and undefineds are handled correctly. Make sure the || and ?? and things like that have exactly the right scope: not too tight, not too lax.
+
+Make sure all functions (that are not function components) have names that start with a verb. This conforms to function naming conventions. 
+
+Prop names that return or handle booleans should have names that start with “is”, “has”, “was”, “had”, “can”, “did”, “could”, or “should”
+
+Carefully review the sql migration files again line by line, to ensure that everything is correct, and indexes and constraints and functions and triggers are all correct, and that all files and statements are in the right order, and the transactions and idempotency and guards are correct as well, and the migration sql files themselves have reasonable names.
+
+Use the Supabase generated types and Zod types (with safeParse) as much as possible
+
+Write tests for any major features (either backend or frontend) that cover both common cases and all possible edge cases.
+
+There should be few files with >700 lines of code. Whenever there’s a file with >700 lines of code, consider if it would make sense to break up that file for better organization and separation of concerns. To accomplish this goal, feel free to create new files, folders, and subfolders, with names that make sense.
+
+Ensure that the libraries in the monorepo’s package.json files are all up to date and don’t break. Search internet if that helps.
+
+Run type checker, and Biome linter, and check for correct imports and unused imports/vars, 
+  on all files changed in this PR
+
+And then build, git add all, commit, push
+
+And then go through every file changed in this PR and ensure that all code comments are up to date and have just the right balance between conciseness and thoroughness
+
+And read the PR description (read it entirely, without missing a line) and make any necessary changes to the description and PR title to ensure they’re up to date.

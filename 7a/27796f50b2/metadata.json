@@ -1,0 +1,60 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "7a27796f50b2",
+  "strategy": "manual-commit",
+  "branch": "bryan/aggressive-prefetch-prompt-caching",
+  "checkpoints_count": 5,
+  "files_touched": [
+    "CLAUDE.md",
+    "README.md",
+    "apps/frontend/app/experiences/page.tsx",
+    "apps/frontend/app/layout.tsx",
+    "apps/frontend/app/page.tsx",
+    "apps/frontend/app/recommendations/page.tsx",
+    "apps/frontend/biome.json",
+    "apps/frontend/components/app-prefetcher.tsx",
+    "apps/frontend/components/drug-comparison.tsx",
+    "apps/frontend/components/experience-card.tsx",
+    "apps/frontend/components/ui/loading-dialog.tsx",
+    "apps/frontend/hooks/use-delayed-visible.test.ts",
+    "apps/frontend/hooks/use-delayed-visible.ts",
+    "apps/frontend/hooks/use-hover-prefetch.test.ts",
+    "apps/frontend/hooks/use-hover-prefetch.ts",
+    "apps/frontend/hooks/use-prefetch-experiences.ts",
+    "apps/frontend/lib/prefetch.test.ts",
+    "apps/frontend/lib/prefetch.ts",
+    "apps/frontend/package.json",
+    "apps/frontend/vitest.config.ts",
+    "apps/post-extraction/openai_client.py",
+    "apps/post-extraction/railway.json",
+    "apps/post-extraction/shared/openai_extractor.py",
+    "apps/post-ingestion/railway.json",
+    "apps/rec-engine/railway.json",
+    "apps/user-extraction/README.md",
+    "apps/user-extraction/openai_client.py",
+    "apps/user-extraction/prompts.py",
+    "apps/user-extraction/railway.json",
+    "apps/user-extraction/user_analyzer.py",
+    "scripts/legacy-ingestion/extraction/prompts.py",
+    "scripts/tests/test_full_user_analysis.py",
+    "scripts/tests/test_openai_client.py",
+    "scripts/tests/test_openai_client_unit.py",
+    "scripts/tests/test_user_extraction_prompts.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/7a/27796f50b2/0/metadata.json",
+      "transcript": "/7a/27796f50b2/0/full.jsonl",
+      "context": "/7a/27796f50b2/0/context.md",
+      "content_hash": "/7a/27796f50b2/0/content_hash.txt",
+      "prompt": "/7a/27796f50b2/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 21345,
+    "cache_creation_tokens": 434508,
+    "cache_read_tokens": 27352418,
+    "output_tokens": 128919,
+    "api_call_count": 132
+  }
+}
