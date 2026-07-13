@@ -10,7 +10,7 @@
 
 - **Addresses $100B+ market problem:** 72% of GLP-1 patients discontinue within 2 years, with lack of information or misaligned expectations playing a role
 
-- **AI-powered platform:** Extracts structured data from 10k+ unstructured Reddit posts (cost, side effects, outcomes) and delivers personalized predictions based on user profile (age, location, insurance, health history)
+- **AI-powered platform:** Extracts structured data from 30k+ unstructured Reddit posts (cost, side effects, outcomes) and delivers personalized predictions based on user profile (age, location, insurance, health history)
 
 - **User-validated:** Friend on Zepbound cited side effect preparedness as a major pain point his doctor didn't address; gathering broader user feedback for iteration
 
