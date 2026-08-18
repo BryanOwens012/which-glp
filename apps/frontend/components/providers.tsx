@@ -34,8 +34,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
         // batched beside it. This returns each procedure's result as it
         // resolves, for identical server load.
         //
-        // Requires the API to allow the `trpc-accept` header in CORS, which it
-        // must already be deployed doing — see the note in the PR.
+        // Two things on the API side make that work, and it degrades differently
+        // if either is missing: CORS must allow the `trpc-accept` header, or the
+        // browser fails every call at preflight; and the server must pipe its
+        // response body rather than buffering it, or the stream is reassembled
+        // and every result lands at once, gated on the slowest — no failure,
+        // just no benefit. Both live in apps/api/src/index.ts.
         httpBatchStreamLink({
           url: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/trpc',
           transformer: superjson,
