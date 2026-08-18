@@ -72,6 +72,33 @@ which-glp/
 - `experiences.getStats` - Get aggregated stats
 - `recommendations.getForUser` - Get personalized recommendations
 
+**Non-tRPC routes:** `GET /health` returns `{"status":"ok","service":"api"}`. It is
+the only non-`/trpc` path the service answers; everything else returns 404.
+
+**HTTP edge behavior** (`apps/api/src/index.ts` plus `src/lib/{config,cors,client-ip,rate-limit}.ts`):
+- **CORS is an allowlist, not a reflection.** Allowed: the production origins, this
+  project's Vercel preview deployments, and localhost outside production. An unlisted
+  origin gets no `Access-Control-Allow-Origin` at all. Add extra origins via
+  `ALLOWED_ORIGINS` (comma-separated bare origins — no path, no trailing slash; the
+  service refuses to boot otherwise). No `Access-Control-Allow-Credentials` is sent:
+  nothing here is authenticated, so nothing needs it. Reintroduce it only alongside auth.
+- **Request bodies are capped** at `MAX_REQUEST_BODY_BYTES` (default 1 MB), enforced on
+  raw bytes both via `Content-Length` and while streaming, and refused at the
+  `Expect: 100-continue` handshake so an oversized upload is never transmitted.
+- **Rate limiting is per client IP, in Redis**, because the service runs multiple
+  replicas — a per-process counter would grant one budget per replica. Two budgets:
+  `/trpc` and `/health` draw on a generous one (default 300/60s, sized for CGNAT and the
+  frontend's prefetching); every other path draws on a tight one (default 5/600s), and
+  exhausting it blocks the address from *unknown paths* for an hour. The block is
+  deliberately not extended to `/trpc`, so one bad host cannot lock out everyone sharing
+  its NAT address.
+- **The client IP comes from the rightmost `X-Forwarded-For` entry**, which Railway's
+  edge appended. The leftmost is client-supplied and would let any caller choose its own
+  bucket. A request whose address cannot be resolved is refused.
+- **Unknown paths are not logged per request.** Scanner sprays are the bulk of that
+  traffic; only the resulting block is logged. Logged paths are truncated and stripped
+  of control characters.
+
 **Deployment:**
 - Platform: Railway
 - Service: `whichglp-api`
@@ -83,6 +110,10 @@ which-glp/
   - `SUPABASE_ANON_KEY`
   - `REDIS_URL`
   - `REC_ENGINE_URL`
+  - `ALLOWED_ORIGINS` (optional) - extra CORS origins beyond the built-in allowlist
+  - `MAX_REQUEST_BODY_BYTES` (optional, default `1000000`)
+  - `RATE_LIMIT_ENABLED` (optional, set `false` to disable) and the
+    `RATE_LIMIT_API_*` / `RATE_LIMIT_PROBE_*` overrides in `src/lib/config.ts`
 
 ---
 

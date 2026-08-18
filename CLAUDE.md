@@ -318,6 +318,52 @@ pytest scripts/legacy-ingestion/tests/test_parser.py  # Single test file
 - `test_migrations.py` - Test database migrations
 - `test_mocks.py` - Test API client mocking
 
+### TypeScript Tests Are Vitest, Named `*.test.ts`
+
+Python is pytest; TypeScript is **Vitest**, in `*.test.ts(x)` files beside the code they
+cover. Both `apps/api` and `apps/frontend` run `npm test` (`vitest run`) and
+`npm run typecheck`. Never add a second TS runner beside Vitest.
+
+Tests live under `src/`, so `apps/api/tsconfig.json` excludes `**/*.test.ts` to keep them
+out of `dist/`; `tsconfig.typecheck.json` adds them back so they are still typechecked.
+Anything added to one must stay consistent with the other.
+
+Mock Redis in tests rather than connecting to it — a real connection makes tests
+order-dependent and leaks a client per file.
+
+## API HTTP Edge (`apps/api/src/index.ts`)
+
+The tRPC router is wrapped in a hand-rolled Node HTTP handler. Rules for changing it:
+
+- **CORS is an allowlist** in `src/lib/cors.ts`, never a reflection of the `Origin`
+  header. An unrecognized origin gets no CORS header. Origin patterns must be anchored at
+  both ends, or `https://<allowed-host>.attacker.com` matches.
+- **No `Access-Control-Allow-Credentials`.** Nothing here is authenticated. If auth is
+  added, add the header and the allowlist becomes load-bearing — revisit both together.
+- **Every request body is capped** before buffering (`config.maxRequestBodyBytes`).
+  Never accumulate a request stream without a running byte total; `Content-Length` alone
+  is absent under chunked encoding and is client-supplied anyway. Do not `req.destroy()`
+  to reject: it resets the socket before the 413 reaches the client.
+- **Rate limiting lives in Redis, not in process**, because the service runs multiple
+  replicas. It fails *open* to a smaller in-process budget when Redis is down — a
+  deliberate exception to fail-closed, because this limiter guards availability, not
+  access, and failing closed would turn a Redis blip into a site outage. Do not "fix"
+  this to fail closed without adding auth first.
+- **A block covers unknown paths only**, never `/trpc`. Many unrelated users share one
+  CGNAT address; blocking the API would lock them all out for an hour.
+- **Client IP is the rightmost `X-Forwarded-For` entry** (the one Railway's edge
+  appended). The leftmost is attacker-controlled — using it lets any caller pick its own
+  rate-limit bucket.
+- **Do not log unknown paths per request.** Scanner sprays are most of that traffic; log
+  the resulting block instead. Sanitize any attacker-controlled string before logging it.
+- **Every new env var is read and validated in `src/lib/config.ts`**, which fails fast at
+  boot. Do not scatter `process.env` reads through the codebase.
+- **The async handler must keep its top-level `.catch()`.** A rejection escaping into
+  `createServer`'s synchronous frame becomes an unhandled rejection and hangs the request.
+
+`GET /health` is the only non-`/trpc` route. It exists so uptime monitors have a cheap
+endpoint that does not consume the unknown-path budget and block themselves.
+
 ## Frontend (Next.js)
 
 The frontend is a Next.js 16 app with React 19, Tailwind CSS, and Radix UI components.

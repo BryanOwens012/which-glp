@@ -1,0 +1,16 @@
+{
+  "$comment": "Typechecks everything, tests included. The base config excludes tests so they never land in dist/, which would otherwise leave them unchecked.",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": "."
+  },
+  "include": [
+    "src/**/*",
+    "vitest.config.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
+}
