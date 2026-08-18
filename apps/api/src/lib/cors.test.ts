@@ -62,7 +62,10 @@ describe('allowed request headers', () => {
     expect(ALLOWED_REQUEST_HEADERS).toContain('Authorization')
   })
 
-  it('renders as a comma-separated header value', () => {
-    expect(ALLOWED_REQUEST_HEADERS_VALUE).toBe('Content-Type, Authorization, trpc-accept')
+  it('renders every allowed header into the comma-separated header value', () => {
+    // Asserted on the rendering contract rather than a pinned literal: this
+    // still catches a wrong separator (which browsers would fail to parse)
+    // without breaking the day someone adds a header to the list.
+    expect(ALLOWED_REQUEST_HEADERS_VALUE.split(', ')).toEqual([...ALLOWED_REQUEST_HEADERS])
   })
 })
