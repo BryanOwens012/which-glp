@@ -3,7 +3,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'http'
 import { fetchRequestHandler } from '@trpc/server/adapters/fetch'
 import { resolveClientIp } from './lib/client-ip.js'
 import { config } from './lib/config.js'
-import { resolveAllowedOrigin } from './lib/cors.js'
+import { ALLOWED_REQUEST_HEADERS_VALUE, resolveAllowedOrigin } from './lib/cors.js'
 import { isHealthRequest, isTrpcRequest } from './lib/routing.js'
 import { initPostHog, shutdownPostHog } from './lib/posthog.js'
 import {
@@ -39,7 +39,7 @@ const applyCorsHeaders = (req: IncomingMessage, res: ServerResponse): void => {
 
   res.setHeader('Access-Control-Allow-Origin', allowedOrigin)
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+  res.setHeader('Access-Control-Allow-Headers', ALLOWED_REQUEST_HEADERS_VALUE)
   // Cache the preflight so browsers stop re-asking on every batch.
   res.setHeader('Access-Control-Max-Age', '86400')
 }

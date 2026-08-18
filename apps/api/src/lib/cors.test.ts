@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { resolveAllowedOrigin } from './cors.js'
+import {
+  ALLOWED_REQUEST_HEADERS,
+  ALLOWED_REQUEST_HEADERS_VALUE,
+  resolveAllowedOrigin,
+} from './cors.js'
 
 describe('resolveAllowedOrigin', () => {
   it('allows the production origins', () => {
@@ -43,5 +47,22 @@ describe('resolveAllowedOrigin', () => {
     expect(resolveAllowedOrigin('*')).toBeNull()
     // Sandboxed iframes and some redirects send Origin: null.
     expect(resolveAllowedOrigin('null')).toBeNull()
+  })
+})
+
+describe('allowed request headers', () => {
+  it('permits trpc-accept, which httpBatchStreamLink sends', () => {
+    // Without this the browser refuses every tRPC call at preflight, because
+    // trpc-accept is not CORS-safelisted.
+    expect(ALLOWED_REQUEST_HEADERS).toContain('trpc-accept')
+  })
+
+  it('still permits the headers ordinary requests rely on', () => {
+    expect(ALLOWED_REQUEST_HEADERS).toContain('Content-Type')
+    expect(ALLOWED_REQUEST_HEADERS).toContain('Authorization')
+  })
+
+  it('renders as a comma-separated header value', () => {
+    expect(ALLOWED_REQUEST_HEADERS_VALUE).toBe('Content-Type, Authorization, trpc-accept')
   })
 })
