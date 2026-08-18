@@ -6,6 +6,7 @@ import { config } from './lib/config.js'
 import { resolveAllowedOrigin } from './lib/cors.js'
 import { isHealthRequest, isTrpcRequest } from './lib/routing.js'
 import { initPostHog, shutdownPostHog } from './lib/posthog.js'
+import { closeRedis } from './lib/redis.js'
 import {
   blockAddress,
   consumeRateLimit,
@@ -281,14 +282,80 @@ console.log(
     `unknown-path ${config.rateLimit.unknownPath.maxRequests}/${config.rateLimit.unknownPath.windowSeconds}s`,
 )
 
-// Graceful shutdown
-const shutdown = async () => {
-  console.log('\n🔄 Shutting down...')
-  server.close(async () => {
-    await shutdownPostHog()
+/**
+ * How long to wait for in-flight requests to drain before exiting anyway.
+ *
+ * `server.close()` only invokes its callback once every open connection has
+ * ended, so a single hung keep-alive connection would otherwise leave the
+ * process waiting until the platform SIGKILLs it — which runs no cleanup at all.
+ */
+const SHUTDOWN_TIMEOUT_MS = 10_000
+
+let isShuttingDown = false
+
+/**
+ * Release everything this process holds, on every exit path.
+ *
+ * Ordering is the reverse of acquisition: stop accepting connections, then
+ * close Redis (which in-flight requests were using), then flush analytics last.
+ * Each step is guarded on its own so a failure in one still runs the rest — a
+ * single `try` around all of them would abandon everything after the throw.
+ */
+const shutdown = async (signal: string): Promise<void> => {
+  // Railway sends SIGTERM and a Ctrl-C can follow; running this twice would
+  // close a half-closed client and throw during cleanup.
+  if (isShuttingDown) {
+    return
+  }
+
+  isShuttingDown = true
+  console.log(`\n🔄 Shutting down (${signal})...`)
+
+  // Never let shutdown itself hang the process. unref() so this timer alone
+  // cannot keep the event loop alive if everything closes cleanly first.
+  const forceExit = setTimeout(() => {
+    // Exit 0, not 1: this shutdown was requested, so a drain that ran out of
+    // time is not a crash. railway.json restarts ON_FAILURE, and a non-zero
+    // exit here would risk a restart loop on an intentional stop.
+    console.warn(
+      `⚠️  Shutdown timed out after ${SHUTDOWN_TIMEOUT_MS}ms with requests still ` +
+        'in flight; exiting without a clean drain',
+    )
     process.exit(0)
+  }, SHUTDOWN_TIMEOUT_MS)
+  forceExit.unref()
+
+  await new Promise<void>((resolve) => {
+    server.close((error) => {
+      if (error) {
+        console.error('❌ Error closing HTTP server:', error.message)
+      }
+      resolve()
+    })
   })
+
+  try {
+    await closeRedis()
+  } catch (error) {
+    console.error(
+      '❌ Error closing Redis:',
+      error instanceof Error ? error.message : String(error),
+    )
+  }
+
+  try {
+    await shutdownPostHog()
+  } catch (error) {
+    console.error(
+      '❌ Error shutting down PostHog:',
+      error instanceof Error ? error.message : String(error),
+    )
+  }
+
+  clearTimeout(forceExit)
+  console.log('✅ Shutdown complete')
+  process.exit(0)
 }
 
-process.on('SIGTERM', shutdown)
-process.on('SIGINT', shutdown)
+process.on('SIGTERM', () => void shutdown('SIGTERM'))
+process.on('SIGINT', () => void shutdown('SIGINT'))
