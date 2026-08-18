@@ -1,5 +1,8 @@
 import 'dotenv/config'
 import { createServer, type IncomingMessage, type ServerResponse } from 'http'
+import { Readable } from 'node:stream'
+import { pipeline } from 'node:stream/promises'
+import type { ReadableStream as NodeReadableStream } from 'node:stream/web'
 import { fetchRequestHandler } from '@trpc/server/adapters/fetch'
 import { resolveClientIp } from './lib/client-ip.js'
 import { config } from './lib/config.js'
@@ -230,7 +233,23 @@ const handleRequest = async (req: IncomingMessage, res: ServerResponse): Promise
   // tRPC sets its own content type; CORS headers set above are preserved because
   // writeHead merges with headers already set on the response.
   res.writeHead(response.status, Object.fromEntries(response.headers.entries()))
-  res.end(Buffer.from(await response.arrayBuffer()))
+
+  if (!response.body) {
+    res.end()
+    return
+  }
+
+  // Pipe the body through rather than buffering it. Awaiting `arrayBuffer()`
+  // here would drain the whole stream before writing a byte, which silently
+  // undoes streaming: every procedure in a batch would land at once, gated on
+  // the slowest, exactly as if the client had never asked to stream.
+  //
+  // `pipeline` (not `.pipe()`) so a client that disconnects mid-response
+  // destroys both ends instead of leaving the source stream dangling.
+  // The cast bridges two declarations of the same runtime object: fetch's body
+  // is typed with the DOM lib's ReadableStream, while Readable.fromWeb expects
+  // the node:stream/web one. They are the same stream at runtime.
+  await pipeline(Readable.fromWeb(response.body as NodeReadableStream<Uint8Array>), res)
 }
 
 const handleRequestSafely = (req: IncomingMessage, res: ServerResponse): void => {
