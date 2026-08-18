@@ -109,6 +109,20 @@ export const config = {
     1_000_000,
   ),
 
+  /**
+   * How long a shutdown waits for in-flight requests to drain before exiting
+   * anyway. `server.close()` does not resolve while a request is still being
+   * served, so without a backstop one slow client keeps the process alive until
+   * the platform SIGKILLs it — and a SIGKILL runs no cleanup at all.
+   *
+   * Keep this comfortably inside the platform's SIGTERM grace period.
+   */
+  shutdownTimeoutMs: parsePositiveInt(
+    'SHUTDOWN_TIMEOUT_MS',
+    process.env.SHUTDOWN_TIMEOUT_MS,
+    10_000,
+  ),
+
   rateLimit: {
     /** Set to 'false' to disable rate limiting entirely (local debugging). */
     isEnabled: process.env.RATE_LIMIT_ENABLED !== 'false',
