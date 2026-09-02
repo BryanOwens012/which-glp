@@ -15,7 +15,7 @@
 - **Branch is explicit.** Production tracks `develop`; the SDK's `github()` helper defaults to `main`.
 - **Dashboard edits drift.** After changing anything in the Railway UI, run `railway config pull` on a scratch branch (it overwrites `railway.ts`), read the diff, fold the change back into the real file by hand, and discard the pull.
 - **One file per project.** Do not add a `partial` export or a second language file.
-- **Networking is live state.** Each service's private-network hostname (`privateNetworkEndpoint`) and Railway-generated domain are diffed by the plan; omit them and the plan clears them. Declare both through `buildNetworking`.
+- **Networking is live state.** Each service's private-network hostname (`privateNetworkEndpoint`) and Railway-generated domain are part of the graph the plan diffs; the first plan reported a networking update on every service until both were declared. Declare them through `buildNetworking`.
 - **Redis is a `database` node, not a `service`.** Railway addresses it as `database.Redis`; declaring it with `service()` plans a delete-and-recreate. Its variables, TCP proxy, and mount are owned by the database product and stay out of the file.
 
 ## Linking a clone
