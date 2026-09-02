@@ -291,6 +291,11 @@ let isShuttingDown = false
 /**
  * Release everything this process holds, on every exit path.
  *
+ * Railway gives a deployment 0 seconds between SIGTERM and SIGKILL unless the
+ * service's draining period is set (`deploy.drainingSeconds` in
+ * `.railway/railway.ts`). Keep that period longer than `SHUTDOWN_TIMEOUT_MS`,
+ * or none of this runs.
+ *
  * Ordering is the reverse of acquisition: stop accepting connections, then
  * close Redis (which in-flight requests were using), then flush analytics last.
  * Each step is guarded on its own so a failure in one still runs the rest — a
