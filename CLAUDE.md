@@ -348,7 +348,9 @@ The tRPC router is wrapped in a hand-rolled Node HTTP handler. Rules for changin
   replicas. It fails *open* to a smaller in-process budget when Redis is down — a
   deliberate exception to fail-closed, because this limiter guards availability, not
   access, and failing closed would turn a Redis blip into a site outage. Do not "fix"
-  this to fail closed without adding auth first.
+  this to fail closed without adding auth first. The Redis client gives up reconnecting
+  after three failed attempts, so a replica that loses Redis stays on the in-process
+  budget until it restarts.
 - **A block covers unknown paths only**, never `/trpc`. Many unrelated users share one
   CGNAT address; blocking the API would lock them all out for an hour.
 - **Client IP is the rightmost `X-Forwarded-For` entry** (the one Railway's edge
