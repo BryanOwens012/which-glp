@@ -69,9 +69,11 @@ for (const resource of resources) {
   const summary =
     resource.type === "service"
       ? `${resource.kind.padEnd(12)} ${(resource.deploy?.cronSchedule ?? "").padEnd(12)} ${(resource.deploy?.startCommand ?? "").slice(0, 60)}`
-      : resource.type === "volume"
-        ? `${resource.config?.sizeMB ?? "?"} MB in ${resource.config?.region ?? "?"}`
-        : "";
+      : resource.type === "database"
+        ? `${resource.kind.padEnd(12)} ${resource.engine.padEnd(12)} ${(resource.deploy?.startCommand ?? "").slice(0, 60)}`
+        : resource.type === "volume"
+          ? `${resource.config?.sizeMB ?? "?"} MB in ${resource.config?.region ?? "?"}`
+          : "";
   console.log(`${resource.address.padEnd(32)} ${summary}`);
 }
 

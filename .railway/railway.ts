@@ -26,6 +26,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
+  database,
   defineRailway,
   fn,
   github,
@@ -34,6 +35,8 @@ import {
   project,
   service,
   volume,
+  type DatabaseNode,
+  type ServiceNetworking,
   type VariableValue,
 } from "railway/iac";
 
@@ -44,6 +47,11 @@ const US_EAST = "us-east4-eqdc4a";
 const US_WEST = "us-west2";
 
 const FUNCTION_IMAGE = "ghcr.io/railwayapp/function-bun:1.3.0";
+/** Railway patches the function image daily between 02:00 and 06:00 UTC. */
+const FUNCTION_AUTO_UPDATES = {
+  type: "patch",
+  schedule: [0, 1, 2, 3, 4, 5, 6].map((day) => ({ day, startHour: 2, endHour: 6 })),
+} as const;
 const REDIS_IMAGE = "redis:8.2.2";
 
 const ON_FAILURE_RESTART = {
@@ -87,6 +95,16 @@ const encodeFunction = (file: string): string => {
 const buildUvicornStart = (dir: string): string =>
   `cd apps/${dir} && uvicorn api:app --host 0.0.0.0 --port $PORT`;
 
+/**
+ * Railway keeps a private-network hostname (<endpoint>.railway.internal) and a
+ * generated public domain per service. Both are live state the plan diffs, so they
+ * are declared here rather than left to be cleared.
+ */
+const buildNetworking = (privateEndpoint: string, serviceDomain?: string): ServiceNetworking => ({
+  privateNetworkEndpoint: privateEndpoint,
+  ...(serviceDomain ? { serviceDomains: { [serviceDomain]: { port: 8080 } } } : {}),
+});
+
 type PythonServiceOptions = {
   /** Directory under apps/; also scopes the watch pattern so unrelated commits skip the deploy. */
   dir: string;
@@ -94,13 +112,17 @@ type PythonServiceOptions = {
   /** Seconds Railway waits for /health before failing the deploy. */
   healthcheckTimeout: number;
   cpu: number;
+  /** Hostname on the private network, without the .railway.internal suffix. */
+  privateEndpoint: string;
+  /** Railway-generated public domain. */
+  serviceDomain: string;
   env: readonly string[];
 };
 
 /** The Python services build from the monorepo root (no root directory) with Railpack. */
 const definePythonService = (
   name: string,
-  { dir, start, healthcheckTimeout, cpu, env }: PythonServiceOptions,
+  { dir, start, healthcheckTimeout, cpu, privateEndpoint, serviceDomain, env }: PythonServiceOptions,
 ) =>
   service(name, {
     source: github(REPO, { branch: BRANCH }),
@@ -110,6 +132,7 @@ const definePythonService = (
     healthcheckTimeout,
     deploy: { ...ON_FAILURE_RESTART, ...buildLimits(cpu, 8) },
     replicas: { [US_EAST]: 1 },
+    networking: buildNetworking(privateEndpoint, serviceDomain),
     env: preserveAll(env),
   });
 
@@ -118,17 +141,47 @@ type CronFunctionOptions = {
   file: string;
   /** Standard 5-field cron expression, evaluated in UTC. */
   schedule: string;
+  privateEndpoint: string;
   env: readonly string[];
 };
 
-const defineCronFunction = (name: string, { file, schedule, env }: CronFunctionOptions) =>
+const defineCronFunction = (
+  name: string,
+  { file, schedule, privateEndpoint, env }: CronFunctionOptions,
+) =>
   fn(name, {
-    source: image(FUNCTION_IMAGE),
+    source: image(FUNCTION_IMAGE, { autoUpdates: FUNCTION_AUTO_UPDATES }),
     start: encodeFunction(file),
     deploy: { cronSchedule: schedule, restartPolicyType: "NEVER", ...buildLimits(4, 4) },
     replicas: { [US_EAST]: 1 },
+    networking: buildNetworking(privateEndpoint),
     env: preserveAll(env),
   });
+
+/**
+ * Railway tracks Redis as a database resource: its image, start command, and
+ * limits live on the node, while its variables, TCP proxy, and volume mount are
+ * managed by the database product and are absent from the graph. The redis()
+ * helper assumes railwayapp/redis on /bitnami, so the engine-level helper is used
+ * with this instance's real image and mount path.
+ */
+const defineRedisDatabase = (name: string): DatabaseNode => {
+  const node = database(name, "redis", {
+    image: REDIS_IMAGE,
+    output: "REDIS_URL",
+    defaultMountPath: "/data",
+    region: US_EAST,
+  });
+  return {
+    ...node,
+    deploy: {
+      ...node.deploy,
+      startCommand:
+        '/bin/sh -c "rm -rf $RAILWAY_VOLUME_MOUNT_PATH/lost+found/ && exec docker-entrypoint.sh redis-server --requirepass $REDIS_PASSWORD --save 60 1 --dir $RAILWAY_VOLUME_MOUNT_PATH"',
+      ...buildLimits(4, 8),
+    },
+  };
+};
 
 export default defineRailway(() => {
   // Node.js tRPC API. Serves api.whichglp.com from two regions.
@@ -139,6 +192,7 @@ export default defineRailway(() => {
     deploy: { ...ON_FAILURE_RESTART, ...buildLimits(8, 8) },
     replicas: { [US_EAST]: 1, [US_WEST]: 1 },
     domains: [{ domain: "api.whichglp.com", port: 8080 }],
+    networking: buildNetworking("which-glp", "backend-production-71c7.up.railway.app"),
     env: preserveAll([...sharedSecrets, "REC_ENGINE_URL"]),
   });
 
@@ -147,6 +201,8 @@ export default defineRailway(() => {
     start: buildUvicornStart("post-ingestion"),
     healthcheckTimeout: 100,
     cpu: 4,
+    privateEndpoint: "post-ingestion",
+    serviceDomain: "whichglp-post-ingestion.up.railway.app",
     env: [...sharedSecrets, ...extractionSecrets, "PYTHONUNBUFFERED"],
   });
 
@@ -155,6 +211,8 @@ export default defineRailway(() => {
     start: buildUvicornStart("post-extraction"),
     healthcheckTimeout: 100,
     cpu: 8,
+    privateEndpoint: "post-extraction",
+    serviceDomain: "whichglp-post-extraction.up.railway.app",
     env: [...sharedSecrets, ...extractionSecrets],
   });
 
@@ -163,6 +221,8 @@ export default defineRailway(() => {
     start: buildUvicornStart("user-extraction"),
     healthcheckTimeout: 100,
     cpu: 8,
+    privateEndpoint: "which-glp-4741320e",
+    serviceDomain: "whichglp-user-extraction.up.railway.app",
     env: [...sharedSecrets, ...extractionSecrets],
   });
 
@@ -172,50 +232,41 @@ export default defineRailway(() => {
     start: "cd apps/rec-engine && python3 api.py",
     healthcheckTimeout: 300,
     cpu: 8,
+    privateEndpoint: "ml",
+    serviceDomain: "whichglp-rec-engine.up.railway.app",
     env: sharedSecrets,
   });
 
-  // Redis cache used by the API. Declared as a plain image service rather than the
-  // redis() helper because the helper assumes railwayapp/redis on /bitnami, while
-  // this instance runs the official image with its data on /data.
-  const redisVolume = volume("redis-volume", { region: US_EAST, sizeMB: 5000 });
-  const redisCache = service("Redis", {
-    source: image(REDIS_IMAGE),
-    start:
-      '/bin/sh -c "rm -rf $RAILWAY_VOLUME_MOUNT_PATH/lost+found/ && exec docker-entrypoint.sh redis-server --requirepass $REDIS_PASSWORD --save 60 1 --dir $RAILWAY_VOLUME_MOUNT_PATH"',
-    deploy: { ...ON_FAILURE_RESTART, ...buildLimits(4, 8) },
-    replicas: { [US_EAST]: 1 },
-    tcp: [6379],
-    volumeMounts: { "/data": redisVolume },
-    env: preserveAll([
-      "INTERNAL_API_KEY",
-      "REDIS_PASSWORD",
-      "REDIS_PUBLIC_URL",
-      "REDIS_URL",
-      "REDISHOST",
-      "REDISPASSWORD",
-      "REDISPORT",
-      "REDISUSER",
-    ]),
+  // Redis cache used by the API. The volume is declared alongside so Railway keeps
+  // the existing resource; the database product owns the mount.
+  const redisVolume = volume("redis-volume", {
+    region: US_EAST,
+    sizeMB: 5000,
+    allowOnlineResize: true,
+    alerts: { usage: { "80": {}, "95": {}, "100": {} } },
   });
+  const redisCache = defineRedisDatabase("Redis");
 
   // Daily pipeline triggers, implemented as Railway Functions (Bun). Each one POSTs
   // to its service's internal endpoint; see ./functions for the code.
   const postIngestionCron = defineCronFunction("Post-Ingestion-Cron", {
     file: "post-ingestion-cron.ts",
     schedule: "0 0 * * *",
+    privateEndpoint: "post-ingestion-cron",
     env: [...sharedSecrets, ...extractionSecrets, "POST_INGESTION_URL"],
   });
 
   const postExtractionCron = defineCronFunction("Post-Extraction-Cron", {
     file: "post-extraction-cron.ts",
     schedule: "0 6 * * *",
+    privateEndpoint: "post-extraction-cron",
     env: [...sharedSecrets, ...extractionSecrets, "POST_EXTRACTION_URL"],
   });
 
   const userExtractionCron = defineCronFunction("User-Extraction-Cron", {
     file: "user-extraction-cron.ts",
     schedule: "0 17 * * *",
+    privateEndpoint: "user-extraction-cron",
     env: [...sharedSecrets, ...extractionSecrets, "USER_EXTRACTION_URL"],
   });
 
@@ -223,6 +274,7 @@ export default defineRailway(() => {
   const viewRefresherCron = defineCronFunction("View-Refresher-Cron", {
     file: "view-refresher-cron.ts",
     schedule: "0 18 * * *",
+    privateEndpoint: "function-bun",
     env: [...sharedSecrets, ...extractionSecrets],
   });
 
