@@ -64,6 +64,14 @@ const buildLimits = (cpu: number, memoryGb: number) => ({
   limitOverride: { containers: { cpu, memoryBytes: memoryGb * 1_000_000_000 } },
 });
 
+/**
+ * Seconds Railway waits between SIGTERM and SIGKILL on redeploy. Railway's default
+ * is 0, which kills in-flight requests and skips every shutdown handler. Longer
+ * than the API's SHUTDOWN_TIMEOUT_MS (10 s) so its graceful shutdown can finish;
+ * uvicorn drains in-flight requests on SIGTERM by default.
+ */
+const DRAINING_SECONDS = 15;
+
 /** Variables every service carries. Values are managed on Railway and preserved as-is. */
 const sharedSecrets = [
   "ANTHROPIC_API_KEY",
@@ -130,7 +138,7 @@ const definePythonService = (
     start,
     healthcheck: "/health",
     healthcheckTimeout,
-    deploy: buildLimits(cpu, 8),
+    deploy: { ...buildLimits(cpu, 8), drainingSeconds: DRAINING_SECONDS },
     replicas: { [US_EAST]: 1 },
     networking: buildNetworking(privateEndpoint, serviceDomain),
     env: preserveAll(env),
@@ -189,7 +197,7 @@ export default defineRailway(() => {
     source: github(REPO, { branch: BRANCH, rootDirectory: "apps/api" }),
     build: { builder: "NIXPACKS", watchPatterns: ["/apps/api/**"] },
     start: "npm start",
-    deploy: buildLimits(8, 8),
+    deploy: { ...buildLimits(8, 8), drainingSeconds: DRAINING_SECONDS },
     replicas: { [US_EAST]: 1, [US_WEST]: 1 },
     domains: [{ domain: "api.whichglp.com", port: 8080 }],
     networking: buildNetworking("which-glp", "backend-production-71c7.up.railway.app"),
