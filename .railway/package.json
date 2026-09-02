@@ -1,0 +1,19 @@
+{
+  "name": "whichglp-railway-iac",
+  "private": true,
+  "description": "Railway Infrastructure as Code for WhichGLP. The Railway CLI evaluates railway.ts with the railway SDK installed here.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.6"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "check": "node --experimental-strip-types check.ts",
+    "plan": "railway config plan"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.0",
+    "railway": "3.11.0",
+    "typescript": "^5.9.3"
+  }
+}

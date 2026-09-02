@@ -147,24 +147,14 @@ Optional:
 
 ## Railway Deployment
 
-### Step 1: Create ML API Service
+### Step 1: Service definition
 
-1. Go to Railway dashboard → New → Empty Service
-2. Name: `whichglp-rec-engine`
-3. Connect to GitHub repo
-4. Settings:
-   - **Root Directory**: `/` (monorepo root)
-   - **Start Command**: `cd apps/rec-engine && python3 api.py`
-   - **Health Check Path**: `/health`
+The `Rec-Engine` service is declared in [`.railway/railway.ts`](../../.railway/railway.ts) (Railway Infrastructure as Code): root directory `/` (monorepo root), start command `cd apps/rec-engine && python3 api.py`, healthcheck `/health` with a 300-second window for model loading, and watch path `apps/rec-engine/**`. Change settings there and run `railway config plan`. The file lists variable names only; set values in the Railway dashboard:
 
-5. Environment Variables:
-   ```
-   SUPABASE_URL=https://your-project.supabase.co
-   SUPABASE_SERVICE_KEY=your-service-key
-   REC_ENGINE_PORT=8001
-   ```
-
-6. Generate domain → Copy URL (e.g., `https://whichglp-rec-engine.railway.app`)
+```
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_KEY=your-service-key
+```
 
 ### Step 2: Update Backend Service
 

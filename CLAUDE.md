@@ -21,6 +21,17 @@ Be liberal with calling tools, CLI commands, and MCP servers to make changes and
 - **Destructive actions still require approval.** Be liberal with read-only, diagnostic, and safely reversible actions — but always ask for the user's approval before executing destructive actions (deletes, rollbacks, production config/env changes, force operations, etc.).
 - **Suggest `/goal` for goal-driven runs.** When a task should run until done (e.g., fully fixing a deploy failure), suggest that the user can give the `/goal` slash-command to command you to keep working until the goal is reached.
 
+## Railway Infrastructure as Code
+
+`.railway/railway.ts` is the single source of truth for the Railway `production` environment: every service, its build and deploy settings, the custom domain, the Redis TCP proxy and volume, and the names of every variable. Railway's per-service `railway.json` (Config as Code) is deprecated and stops being read on 2026-12-01; never add a new one.
+
+- **Edit the file, not the dashboard.** A dashboard change is drift: run `railway config pull` into a scratch path, diff it against `railway.ts`, and fold the change back in.
+- **Omit means delete.** Every service and every variable name stays listed. Values live on Railway via `preserve()` and are never committed.
+- **Validate before planning.** From `.railway/`: `npm ci && npm run typecheck && npm run check`. `check` evaluates the file the way the CLI does and asserts the branch pin, the function-source mapping, and that no secret is a literal.
+- **`railway config plan` is the review; `apply` is Bryan's.** Agents are held read-only on Railway by `guard-railway-readonly.sh`, so an agent's deliverable is the file plus the plan output. Plan needs a linked directory, and link state is per machine: `railway link -p df649372-5b20-4e68-8ccd-31935edceade -e production`.
+- **Cron functions live in `.railway/functions/*.ts`.** `railway.ts` base64-encodes each file into its Railway Function's start command. Edit the source file, never the dashboard editor. Schedules are UTC.
+- **Production tracks `develop`.** The SDK's `github()` helper defaults to `main`; keep the branch explicit.
+
 ## LLM Model Selection
 
 When writing or reviewing code that calls an LLM — or when the user asks which model to use — never default to a single "best practice" model without thinking through the specific usage. The right model/reasoning combo depends on several factors, and the optimal choice is often not the obvious default. Always **present the user with options and tradeoffs** rather than silently picking one.
