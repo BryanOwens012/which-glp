@@ -25,7 +25,7 @@ Be liberal with calling tools, CLI commands, and MCP servers to make changes and
 
 `.railway/railway.ts` is the single source of truth for the Railway `production` environment: every service, its build and deploy settings, the custom domain, the Redis TCP proxy and volume, and the names of every variable. Railway's per-service `railway.json` (Config as Code) is deprecated and stops being read on 2026-12-01; never add a new one.
 
-- **Edit the file, not the dashboard.** A dashboard change is drift: run `railway config pull` into a scratch path, diff it against `railway.ts`, and fold the change back in.
+- **Edit the file, not the dashboard.** A dashboard change is drift: run `railway config pull` on a scratch branch (it overwrites `railway.ts`), read the diff, fold the change back in by hand, and discard the pull.
 - **Omit means delete.** Every service and every variable name stays listed. Values live on Railway via `preserve()` and are never committed.
 - **Validate before planning.** From `.railway/`: `npm ci && npm run typecheck && npm run check`. `check` evaluates the file the way the CLI does and asserts the branch pin, the function-source mapping, and that no secret is a literal.
 - **`railway config plan` is the review; `apply` is Bryan's.** Agents are held read-only on Railway by `guard-railway-readonly.sh`, so an agent's deliverable is the file plus the plan output. Plan needs a linked directory, and link state is per machine: `railway link -p df649372-5b20-4e68-8ccd-31935edceade -e production`.

@@ -13,7 +13,7 @@
 
 - **Omit means delete.** Every resource and every variable name must be listed. Values stay on Railway via `preserve()`; never paste a value into this file.
 - **Branch is explicit.** Production tracks `develop`; the SDK's `github()` helper defaults to `main`.
-- **Dashboard edits drift.** After changing anything in the Railway UI, run `railway config pull` into a scratch file, diff it against `railway.ts`, and fold the change back in.
+- **Dashboard edits drift.** After changing anything in the Railway UI, run `railway config pull` on a scratch branch (it overwrites `railway.ts`), read the diff, fold the change back into the real file by hand, and discard the pull.
 - **One file per project.** Do not add a `partial` export or a second language file.
 
 ## Linking a clone

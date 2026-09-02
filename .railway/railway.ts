@@ -17,8 +17,8 @@
  *     remove one here unless you mean to destroy it.
  *   - Railway Function (cron) source lives in ./functions/*.ts and is encoded into
  *     each function's start command below. Edit the .ts file, then plan and apply.
- *   - `railway config pull` rewrites this file from live state. Use it to inspect
- *     drift, then fold the differences back into this file by hand.
+ *   - `railway config pull` overwrites this file from live state. Run it on a scratch
+ *     branch to see drift, fold the differences back in by hand, then discard the pull.
  *   - Cron schedules are UTC.
  *
  * Reference: https://docs.railway.com/infrastructure-as-code/reference
@@ -52,7 +52,7 @@ const ON_FAILURE_RESTART = {
 } as const;
 
 /** Per-container CPU and memory caps as Railway currently holds them (memory in decimal bytes). */
-const limits = (cpu: number, memoryGb: number) => ({
+const buildLimits = (cpu: number, memoryGb: number) => ({
   limitOverride: { containers: { cpu, memoryBytes: memoryGb * 1_000_000_000 } },
 });
 
@@ -84,7 +84,7 @@ const encodeFunction = (file: string): string => {
   return `./run.sh ${source.toString("base64")}`;
 };
 
-const uvicornStart = (dir: string): string =>
+const buildUvicornStart = (dir: string): string =>
   `cd apps/${dir} && uvicorn api:app --host 0.0.0.0 --port $PORT`;
 
 type PythonServiceOptions = {
@@ -98,7 +98,7 @@ type PythonServiceOptions = {
 };
 
 /** The Python services build from the monorepo root (no root directory) with Railpack. */
-const pythonService = (
+const definePythonService = (
   name: string,
   { dir, start, healthcheckTimeout, cpu, env }: PythonServiceOptions,
 ) =>
@@ -108,7 +108,7 @@ const pythonService = (
     start,
     healthcheck: "/health",
     healthcheckTimeout,
-    deploy: { ...ON_FAILURE_RESTART, ...limits(cpu, 8) },
+    deploy: { ...ON_FAILURE_RESTART, ...buildLimits(cpu, 8) },
     replicas: { [US_EAST]: 1 },
     env: preserveAll(env),
   });
@@ -121,11 +121,11 @@ type CronFunctionOptions = {
   env: readonly string[];
 };
 
-const cronFunction = (name: string, { file, schedule, env }: CronFunctionOptions) =>
+const defineCronFunction = (name: string, { file, schedule, env }: CronFunctionOptions) =>
   fn(name, {
     source: image(FUNCTION_IMAGE),
     start: encodeFunction(file),
-    deploy: { cronSchedule: schedule, restartPolicyType: "NEVER", ...limits(4, 4) },
+    deploy: { cronSchedule: schedule, restartPolicyType: "NEVER", ...buildLimits(4, 4) },
     replicas: { [US_EAST]: 1 },
     env: preserveAll(env),
   });
@@ -136,38 +136,38 @@ export default defineRailway(() => {
     source: github(REPO, { branch: BRANCH, rootDirectory: "apps/api" }),
     build: { builder: "NIXPACKS", watchPatterns: ["/apps/api/**"] },
     start: "npm start",
-    deploy: { ...ON_FAILURE_RESTART, ...limits(8, 8) },
+    deploy: { ...ON_FAILURE_RESTART, ...buildLimits(8, 8) },
     replicas: { [US_EAST]: 1, [US_WEST]: 1 },
     domains: [{ domain: "api.whichglp.com", port: 8080 }],
     env: preserveAll([...sharedSecrets, "REC_ENGINE_URL"]),
   });
 
-  const postIngestion = pythonService("Post-Ingestion", {
+  const postIngestion = definePythonService("Post-Ingestion", {
     dir: "post-ingestion",
-    start: uvicornStart("post-ingestion"),
+    start: buildUvicornStart("post-ingestion"),
     healthcheckTimeout: 100,
     cpu: 4,
     env: [...sharedSecrets, ...extractionSecrets, "PYTHONUNBUFFERED"],
   });
 
-  const postExtraction = pythonService("Post-Extraction", {
+  const postExtraction = definePythonService("Post-Extraction", {
     dir: "post-extraction",
-    start: uvicornStart("post-extraction"),
+    start: buildUvicornStart("post-extraction"),
     healthcheckTimeout: 100,
     cpu: 8,
     env: [...sharedSecrets, ...extractionSecrets],
   });
 
-  const userExtraction = pythonService("User-Extraction", {
+  const userExtraction = definePythonService("User-Extraction", {
     dir: "user-extraction",
-    start: uvicornStart("user-extraction"),
+    start: buildUvicornStart("user-extraction"),
     healthcheckTimeout: 100,
     cpu: 8,
     env: [...sharedSecrets, ...extractionSecrets],
   });
 
-  // FastAPI recommendation engine; loads models at startup, hence the longer healthcheck window.
-  const recEngine = pythonService("Rec-Engine", {
+  // FastAPI recommendation engine. The 300-second healthcheck window carries over from its railway.json.
+  const recEngine = definePythonService("Rec-Engine", {
     dir: "rec-engine",
     start: "cd apps/rec-engine && python3 api.py",
     healthcheckTimeout: 300,
@@ -183,7 +183,7 @@ export default defineRailway(() => {
     source: image(REDIS_IMAGE),
     start:
       '/bin/sh -c "rm -rf $RAILWAY_VOLUME_MOUNT_PATH/lost+found/ && exec docker-entrypoint.sh redis-server --requirepass $REDIS_PASSWORD --save 60 1 --dir $RAILWAY_VOLUME_MOUNT_PATH"',
-    deploy: { ...ON_FAILURE_RESTART, ...limits(4, 8) },
+    deploy: { ...ON_FAILURE_RESTART, ...buildLimits(4, 8) },
     replicas: { [US_EAST]: 1 },
     tcp: [6379],
     volumeMounts: { "/data": redisVolume },
@@ -201,26 +201,26 @@ export default defineRailway(() => {
 
   // Daily pipeline triggers, implemented as Railway Functions (Bun). Each one POSTs
   // to its service's internal endpoint; see ./functions for the code.
-  const postIngestionCron = cronFunction("Post-Ingestion-Cron", {
+  const postIngestionCron = defineCronFunction("Post-Ingestion-Cron", {
     file: "post-ingestion-cron.ts",
     schedule: "0 0 * * *",
     env: [...sharedSecrets, ...extractionSecrets, "POST_INGESTION_URL"],
   });
 
-  const postExtractionCron = cronFunction("Post-Extraction-Cron", {
+  const postExtractionCron = defineCronFunction("Post-Extraction-Cron", {
     file: "post-extraction-cron.ts",
     schedule: "0 6 * * *",
     env: [...sharedSecrets, ...extractionSecrets, "POST_EXTRACTION_URL"],
   });
 
-  const userExtractionCron = cronFunction("User-Extraction-Cron", {
+  const userExtractionCron = defineCronFunction("User-Extraction-Cron", {
     file: "user-extraction-cron.ts",
     schedule: "0 17 * * *",
     env: [...sharedSecrets, ...extractionSecrets, "USER_EXTRACTION_URL"],
   });
 
   // Refreshes the denormalized materialized view straight against Postgres.
-  const viewRefresherCron = cronFunction("View-Refresher-Cron", {
+  const viewRefresherCron = defineCronFunction("View-Refresher-Cron", {
     file: "view-refresher-cron.ts",
     schedule: "0 18 * * *",
     env: [...sharedSecrets, ...extractionSecrets],
