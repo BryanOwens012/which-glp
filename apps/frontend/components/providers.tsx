@@ -41,7 +41,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
         // and every result lands at once, gated on the slowest — no failure,
         // just no benefit. Both live in apps/api/src/index.ts.
         httpBatchStreamLink({
-          url: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/trpc',
+          // Fallback matches apps/api's default port (3002) so a fresh clone works without env.
+          url: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002/trpc',
           transformer: superjson,
         }),
       ],
