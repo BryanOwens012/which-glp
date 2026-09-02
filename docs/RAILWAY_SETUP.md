@@ -1,5 +1,7 @@
 # Railway Deployment Setup
 
+> **Source of truth:** the Railway project is managed as Infrastructure as Code in [`.railway/railway.ts`](../.railway/railway.ts), with the workflow in [`.railway/README.md`](../.railway/README.md). The dashboard walkthrough below predates that file and names only three services; read it for context, and make any settings change in `railway.ts` followed by `railway config plan` and `apply`.
+
 ## Services Overview
 
 WhichGLP requires 3 separate Railway services:

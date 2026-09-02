@@ -133,9 +133,8 @@ REDDIT_API_APP_SECRET=your-app-secret
 
 1. Create new Railway service: `whichglp-user-extraction`
 2. Link to GitHub repo
-3. Set root directory: `/` (monorepo root — the build commands in `nixpacks.toml` `cd` into `apps/user-extraction`)
-4. Set the config-as-code path to `apps/user-extraction/railway.json` (Settings → Config-as-code), which in turn points at `apps/user-extraction/nixpacks.toml` via `nixpacksConfigPath`
-5. The start command comes from `nixpacks.toml` (`cd apps/user-extraction && uvicorn api:app ...`)
+3. Root directory: `/` (monorepo root); the start command `cd`s into `apps/user-extraction`
+4. Builder, start command, healthcheck, watch path, and variable names are declared in [`.railway/railway.ts`](../../.railway/railway.ts) (Railway Infrastructure as Code). Change them there and run `railway config plan`, not in the dashboard
 
 ### Environment Variables
 

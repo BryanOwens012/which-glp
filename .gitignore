@@ -381,8 +381,8 @@ cache/
 # ============================================
 # DEPLOYMENT & INFRASTRUCTURE
 # ============================================
-# Railway
-.railway/
+# Railway: the IaC file .railway/railway.ts is committed; only its installed deps are ignored
+.railway/node_modules/
 
 # Vercel
 .vercel
