@@ -19,8 +19,12 @@ let redisAvailable = true;
 /**
  * Get or create the Redis client instance
  * Lazy initialization - only connects when first used
+ *
+ * Exported so other modules (e.g. rate limiting) can issue commands beyond the
+ * cache helpers below. Returns null when Redis is unavailable — callers must
+ * handle that rather than assuming a client.
  */
-function getRedisClient(): Redis | null {
+export function getRedisClient(): Redis | null {
   if (!redisAvailable) {
     return null;
   }
