@@ -6,6 +6,7 @@ import { config } from './lib/config.js'
 import { resolveAllowedOrigin } from './lib/cors.js'
 import { isHealthRequest, isTrpcRequest } from './lib/routing.js'
 import { initPostHog, shutdownPostHog } from './lib/posthog.js'
+import { closeRedis } from './lib/redis.js'
 import {
   blockAddress,
   consumeRateLimit,
@@ -281,14 +282,93 @@ console.log(
     `unknown-path ${config.rateLimit.unknownPath.maxRequests}/${config.rateLimit.unknownPath.windowSeconds}s`,
 )
 
-// Graceful shutdown
-const shutdown = async () => {
-  console.log('\n🔄 Shutting down...')
-  server.close(async () => {
-    await shutdownPostHog()
+/** Signals that trigger a graceful shutdown. */
+const SHUTDOWN_SIGNALS = ['SIGTERM', 'SIGINT'] as const
+type ShutdownSignal = (typeof SHUTDOWN_SIGNALS)[number]
+
+let isShuttingDown = false
+
+/**
+ * Release everything this process holds, on every exit path.
+ *
+ * Railway gives a deployment 0 seconds between SIGTERM and SIGKILL unless the
+ * service's draining period is set (`deploy.drainingSeconds` in
+ * `.railway/railway.ts`). Keep that period longer than `SHUTDOWN_TIMEOUT_MS`,
+ * or none of this runs.
+ *
+ * Ordering is the reverse of acquisition: stop accepting connections, then
+ * close Redis (which in-flight requests were using), then flush analytics last.
+ * Each step is guarded on its own so a failure in one still runs the rest — a
+ * single `try` around all of them would abandon everything after the throw.
+ */
+const shutdown = async (signal: ShutdownSignal): Promise<void> => {
+  // Railway sends SIGTERM and a Ctrl-C can follow; running this twice would
+  // close a half-closed client and throw during cleanup.
+  if (isShuttingDown) {
+    return
+  }
+
+  isShuttingDown = true
+  console.log(`\n🔄 Shutting down (${signal})...`)
+
+  // Backstop against a drain that never finishes. Note it is an *in-flight
+  // request* that holds `server.close()` open, not an idle keep-alive
+  // connection — Node closes those itself. unref() so this timer alone cannot
+  // keep the event loop alive once everything else has closed.
+  let hasDrained = false
+  const forceExit = setTimeout(() => {
+    // Exit 0, not 1: this shutdown was requested, so a drain that ran out of
+    // time is not a crash. Railway's restart policy is ON_FAILURE, and a
+    // non-zero exit here would risk a restart loop on an intentional stop.
+    console.warn(
+      `⚠️  Shutdown timed out after ${config.shutdownTimeoutMs}ms ` +
+        (hasDrained
+          ? 'after the drain completed; some handle is still holding the event loop open'
+          : 'with requests still in flight; exiting without a clean drain'),
+    )
     process.exit(0)
+  }, config.shutdownTimeoutMs)
+  forceExit.unref()
+
+  await new Promise<void>((resolve) => {
+    server.close((error) => {
+      if (error) {
+        console.error('❌ Error closing HTTP server:', error.message)
+      }
+      hasDrained = true
+      resolve()
+    })
   })
+
+  try {
+    await closeRedis()
+  } catch (error) {
+    console.error(
+      '❌ Error closing Redis:',
+      error instanceof Error ? error.message : String(error),
+    )
+  }
+
+  try {
+    await shutdownPostHog()
+  } catch (error) {
+    console.error(
+      '❌ Error shutting down PostHog:',
+      error instanceof Error ? error.message : String(error),
+    )
+  }
+
+  console.log('✅ Shutdown complete')
+
+  // Deliberately no process.exit() here. Everything this process holds is now
+  // released, so the event loop empties and Node exits on its own with this
+  // code — and stdout gets flushed first. process.exit() truncates pending
+  // writes on a pipe, which is exactly how the platform captures these logs,
+  // so forcing the exit would routinely drop the line above. The unref'd timer
+  // stays armed as the backstop if some handle unexpectedly lingers.
+  process.exitCode = 0
 }
 
-process.on('SIGTERM', shutdown)
-process.on('SIGINT', shutdown)
+for (const signal of SHUTDOWN_SIGNALS) {
+  process.on(signal, () => void shutdown(signal))
+}
