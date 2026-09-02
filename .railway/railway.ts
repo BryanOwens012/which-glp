@@ -54,10 +54,10 @@ const FUNCTION_AUTO_UPDATES = {
 } as const;
 const REDIS_IMAGE = "redis:8.2.2";
 
-const ON_FAILURE_RESTART = {
-  restartPolicyType: "ON_FAILURE",
-  restartPolicyMaxRetries: 10,
-} as const;
+// Restart policy is deliberately not declared on long-running services: Railway's
+// default is ON_FAILURE with 10 retries, and it reads that default back as null, so
+// declaring it keeps every plan dirty without changing behavior. Functions declare
+// NEVER because that is not the default.
 
 /** Per-container CPU and memory caps as Railway currently holds them (memory in decimal bytes). */
 const buildLimits = (cpu: number, memoryGb: number) => ({
@@ -130,7 +130,7 @@ const definePythonService = (
     start,
     healthcheck: "/health",
     healthcheckTimeout,
-    deploy: { ...ON_FAILURE_RESTART, ...buildLimits(cpu, 8) },
+    deploy: buildLimits(cpu, 8),
     replicas: { [US_EAST]: 1 },
     networking: buildNetworking(privateEndpoint, serviceDomain),
     env: preserveAll(env),
@@ -189,7 +189,7 @@ export default defineRailway(() => {
     source: github(REPO, { branch: BRANCH, rootDirectory: "apps/api" }),
     build: { builder: "NIXPACKS", watchPatterns: ["/apps/api/**"] },
     start: "npm start",
-    deploy: { ...ON_FAILURE_RESTART, ...buildLimits(8, 8) },
+    deploy: buildLimits(8, 8),
     replicas: { [US_EAST]: 1, [US_WEST]: 1 },
     domains: [{ domain: "api.whichglp.com", port: 8080 }],
     networking: buildNetworking("which-glp", "backend-production-71c7.up.railway.app"),
