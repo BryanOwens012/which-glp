@@ -118,7 +118,7 @@ This is a monorepo with the following structure:
 │   ├── post-extraction/   # GPT-5-nano-based feature extraction service
 │   └── shared/            # Shared database migrations and utilities
 ├── scripts/               # One-off scripts, tests, analysis, legacy code
-│   ├── legacy-ingestion/  # Old Claude-based ingestion (deprecated)
+│   ├── legacy-ingestion/  # Superseded ingestion pipeline (deprecated)
 │   ├── tests/             # Ad-hoc test and debug scripts
 │   └── analysis/          # Data analysis notebooks and scripts
 │       ├── notebooks/     # Jupyter notebooks
@@ -158,8 +158,8 @@ REDDIT_CLIENT_ID=your-client-id
 REDDIT_CLIENT_SECRET=your-client-secret
 REDDIT_USER_AGENT=whichglp-ingestion/0.1
 
-# Anthropic (for AI extraction)
-ANTHROPIC_API_KEY=your-api-key
+# OpenAI (for AI extraction)
+OPENAI_API_KEY=your-api-key
 ```
 
 **Database Connection**: The code extracts the project reference from `SUPABASE_URL` and constructs the PostgreSQL connection string automatically. See `scripts/legacy-ingestion/shared/database.py` for implementation.
@@ -186,10 +186,10 @@ scripts/legacy-ingestion/
 │   ├── historical_ingest.py  # Batch ingestion script
 │   └── upload_from_backup.py  # Upload backup files to Supabase
 ├── extraction/             # AI-powered feature extraction
-│   ├── ai_client.py       # Anthropic Claude API client
+│   ├── ai_client.py       # OpenAI GPT-5-nano client
 │   ├── ai_extraction.py   # Main extraction pipeline
 │   ├── context.py         # Build context from posts/comments
-│   ├── prompts.py         # Claude prompts for extraction
+│   ├── prompts.py         # Extraction prompts
 │   ├── schema.py          # Pydantic models for extracted features
 │   └── filters.py         # Determine what to process
 ├── shared/                 # Shared utilities
@@ -243,7 +243,7 @@ python3 -m reddit_ingestion.upload_from_backup /path/to/backup/dir
 **Hybrid Approach** (minimize database queries, maximize in-memory processing):
 1. **Bulk Export**: Query all unprocessed posts/comments from Supabase into memory
 2. **In-Memory Lookup**: Build dictionaries for O(1) context lookup (post → comments, comment → parent comment)
-3. **AI Processing**: For each item, build context and send to Claude API
+3. **AI Processing**: For each item, build context and send to the OpenAI API
 4. **Batch Insert**: Insert extracted features back to Supabase in batches
 
 ### Running Extraction
@@ -271,7 +271,7 @@ The extraction pipeline builds rich context for each post/comment to improve AI 
 **For posts**: Include top comments (up to 5)
 **For comments**: Include parent post + parent comment chain
 
-This context is passed to Claude via `extraction/prompts.py` to extract structured features like:
+This context is passed to the model via `extraction/prompts.py` to extract structured features like:
 - Drug name (Ozempic, Wegovy, Mounjaro, etc.)
 - Weight loss amount and timeframe
 - Cost (monthly, out-of-pocket, insurance coverage)
@@ -409,15 +409,19 @@ The Database class creates a new connection per operation (no pooling yet). For 
 
 ### AI Extraction Costs
 
-Claude Sonnet 4 pricing (as of 2025):
-- Input: $3 per million tokens
-- Output: $15 per million tokens
+Extraction runs on GPT-5-nano. Pricing per million tokens, and the pricing table
+the code bills against, live in `scripts/legacy-ingestion/shared/openai_extractor.py`
+(`MODEL_PRICING`) — read it there rather than trusting a number copied into this doc:
+
+- Input: $0.05 ($0.005 for prompt-cache hits)
+- Output: $0.40
 
 Typical extraction:
 - Post with 5 comments: ~2,000 input tokens, ~300 output tokens
-- Cost: ~$0.01 per post
+- Cost: ~$0.0002 per post, before cache hits
 
-Budget accordingly for large-scale extraction (e.g., 10,000 posts = ~$100).
+So 10,000 posts costs roughly $2. Prompt caching cuts the input side by 90% again
+where the static prefix stays byte-stable — see the prompt-caching section above.
 
 ### Backup File Sizes
 
@@ -460,7 +464,7 @@ python3 -m reddit_ingestion.upload_from_backup scripts/legacy-ingestion/ingestio
 1. Create migration file: `apps/shared/migrations/006_add_new_field.up.sql`
 2. Run migration: `python3 apps/shared/migrations/run_migration.py apps/shared/migrations/006_add_new_field.up.sql`
 3. Update `extraction/schema.py` to include new field
-4. Update `extraction/prompts.py` to instruct Claude to extract new field
+4. Update `extraction/prompts.py` to instruct the model to extract new field
 5. Re-run extraction for updated posts
 
 ## Troubleshooting
@@ -490,7 +494,7 @@ DELAY_BETWEEN_POSTS = 1.0     # Increase from 0.5
 
 ### AI extraction timeout errors
 
-Claude API can timeout on large posts. The code already has retry logic with exponential backoff. If it persists, reduce context size in `extraction/context.py`.
+The OpenAI API can time out on large posts. The code already has retry logic with exponential backoff. If it persists, reduce context size in `extraction/context.py`.
 
 ## Additional Resources
 
@@ -498,4 +502,4 @@ Claude API can timeout on large posts. The code already has retry logic with exp
 - **Supabase Dashboard**: https://app.supabase.com (view tables, run SQL queries)
 - **Reddit API Docs**: https://www.reddit.com/dev/api/
 - **PRAW Docs**: https://praw.readthedocs.io/
-- **Anthropic API Docs**: https://docs.anthropic.com/
+- **OpenAI API Docs**: https://platform.openai.com/docs/
