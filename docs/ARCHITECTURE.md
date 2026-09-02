@@ -115,6 +115,7 @@ the only non-`/trpc` path the service answers; everything else returns 404.
   - `ALLOWED_ORIGINS` (optional) - extra CORS origins beyond the built-in allowlist
   - `ALLOW_VERCEL_PREVIEW_ORIGINS` (optional, set `false` to refuse this project's Vercel preview origins)
   - `MAX_REQUEST_BODY_BYTES` (optional, default `1000000`)
+  - `SHUTDOWN_TIMEOUT_MS` (optional, default `10000`) - how long a shutdown waits for in-flight requests before exiting anyway
   - `RATE_LIMIT_ENABLED` (optional, set `false` to disable) and the
     `RATE_LIMIT_API_*` / `RATE_LIMIT_PROBE_*` overrides in `src/lib/config.ts`
 

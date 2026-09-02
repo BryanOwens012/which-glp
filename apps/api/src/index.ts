@@ -310,13 +310,16 @@ const shutdown = async (signal: ShutdownSignal): Promise<void> => {
   // request* that holds `server.close()` open, not an idle keep-alive
   // connection — Node closes those itself. unref() so this timer alone cannot
   // keep the event loop alive once everything else has closed.
+  let hasDrained = false
   const forceExit = setTimeout(() => {
     // Exit 0, not 1: this shutdown was requested, so a drain that ran out of
-    // time is not a crash. railway.json restarts ON_FAILURE, and a non-zero
-    // exit here would risk a restart loop on an intentional stop.
+    // time is not a crash. Railway's restart policy is ON_FAILURE, and a
+    // non-zero exit here would risk a restart loop on an intentional stop.
     console.warn(
-      `⚠️  Shutdown timed out after ${config.shutdownTimeoutMs}ms with requests ` +
-        'still in flight; exiting without a clean drain',
+      `⚠️  Shutdown timed out after ${config.shutdownTimeoutMs}ms ` +
+        (hasDrained
+          ? 'after the drain completed; some handle is still holding the event loop open'
+          : 'with requests still in flight; exiting without a clean drain'),
     )
     process.exit(0)
   }, config.shutdownTimeoutMs)
@@ -327,6 +330,7 @@ const shutdown = async (signal: ShutdownSignal): Promise<void> => {
       if (error) {
         console.error('❌ Error closing HTTP server:', error.message)
       }
+      hasDrained = true
       resolve()
     })
   })
