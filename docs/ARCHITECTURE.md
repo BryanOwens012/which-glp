@@ -82,6 +82,11 @@ the only non-`/trpc` path the service answers; everything else returns 404.
   `ALLOWED_ORIGINS` (comma-separated bare origins — no path, no trailing slash; the
   service refuses to boot otherwise). No `Access-Control-Allow-Credentials` is sent:
   nothing here is authenticated, so nothing needs it. Reintroduce it only alongside auth.
+  Allowed request headers are `Content-Type`, `Authorization`, and `trpc-accept` (the
+  streaming negotiation header `httpBatchStreamLink` sends).
+- **tRPC responses are streamed**, piped from the fetch adapter to the socket, so a batch's
+  procedures reach the client as each one resolves. A client that disconnects mid-response
+  is not logged as an error.
 - **Request bodies are capped** at `MAX_REQUEST_BODY_BYTES` (default 1 MB), enforced on
   raw bytes both via `Content-Length` and while streaming, and refused at the
   `Expect: 100-continue` handshake so an oversized upload is never transmitted.

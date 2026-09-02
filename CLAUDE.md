@@ -373,6 +373,12 @@ The tRPC router is wrapped in a hand-rolled Node HTTP handler. Rules for changin
   boot. Do not scatter `process.env` reads through the codebase.
 - **The async handler must keep its top-level `.catch()`.** A rejection escaping into
   `createServer`'s synchronous frame becomes an unhandled rejection and hangs the request.
+- **Pipe the tRPC response, never buffer it.** `writeFetchResponse` in
+  `src/lib/http-response.ts` streams the body; awaiting `arrayBuffer()` would silently undo
+  `httpBatchStreamLink` (every procedure lands at once, gated on the slowest) while every
+  test stays green. `trpc-accept` must stay in `ALLOWED_REQUEST_HEADERS`, or browsers fail
+  preflight. Under streaming tRPC calls `responseMeta` before any procedure resolves, so
+  never derive a header from procedure results there; this handler does not use it.
 
 `GET /health` is the only non-`/trpc` route. It exists so uptime monitors have a cheap
 endpoint that does not consume the unknown-path budget and block themselves.

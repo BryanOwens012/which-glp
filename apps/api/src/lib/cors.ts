@@ -12,6 +12,23 @@
 import { config } from './config.js'
 
 /**
+ * Request headers a browser may send cross-origin.
+ *
+ * `trpc-accept` is how `httpBatchStreamLink` negotiates a streamed response.
+ * It is not CORS-safelisted, so a browser refuses the request at preflight
+ * unless it is listed here — and it has to be allowed *before* any client
+ * starts sending it. Allowing it is inert for clients that never do.
+ */
+export const ALLOWED_REQUEST_HEADERS = [
+  'Content-Type',
+  'Authorization',
+  'trpc-accept',
+] as const
+
+/** The `Access-Control-Allow-Headers` value, derived so the list has one definition. */
+export const ALLOWED_REQUEST_HEADERS_VALUE = ALLOWED_REQUEST_HEADERS.join(', ')
+
+/**
  * Resolve the value for `Access-Control-Allow-Origin`.
  *
  * @param origin - the request's `Origin` header, if any

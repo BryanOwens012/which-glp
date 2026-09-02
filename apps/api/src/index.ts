@@ -3,7 +3,8 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'http'
 import { fetchRequestHandler } from '@trpc/server/adapters/fetch'
 import { resolveClientIp } from './lib/client-ip.js'
 import { config } from './lib/config.js'
-import { resolveAllowedOrigin } from './lib/cors.js'
+import { ALLOWED_REQUEST_HEADERS_VALUE, resolveAllowedOrigin } from './lib/cors.js'
+import { isClientDisconnect, writeFetchResponse } from './lib/http-response.js'
 import { isHealthRequest, isTrpcRequest } from './lib/routing.js'
 import { initPostHog, shutdownPostHog } from './lib/posthog.js'
 import { closeRedis } from './lib/redis.js'
@@ -40,7 +41,7 @@ const applyCorsHeaders = (req: IncomingMessage, res: ServerResponse): void => {
 
   res.setHeader('Access-Control-Allow-Origin', allowedOrigin)
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+  res.setHeader('Access-Control-Allow-Headers', ALLOWED_REQUEST_HEADERS_VALUE)
   // Cache the preflight so browsers stop re-asking on every batch.
   res.setHeader('Access-Control-Max-Age', '86400')
 }
@@ -228,10 +229,9 @@ const handleRequest = async (req: IncomingMessage, res: ServerResponse): Promise
     createContext: () => ({}),
   })
 
-  // tRPC sets its own content type; CORS headers set above are preserved because
-  // writeHead merges with headers already set on the response.
-  res.writeHead(response.status, Object.fromEntries(response.headers.entries()))
-  res.end(Buffer.from(await response.arrayBuffer()))
+  // Streamed, not buffered, so a batch's procedures reach the client as each
+  // one resolves (see writeFetchResponse for why buffering would undo that).
+  await writeFetchResponse(res, response)
 }
 
 const handleRequestSafely = (req: IncomingMessage, res: ServerResponse): void => {
@@ -239,6 +239,12 @@ const handleRequestSafely = (req: IncomingMessage, res: ServerResponse): void =>
   // synchronous frame. Without this catch an unexpected throw becomes an
   // unhandled rejection and the request hangs until the client times out.
   handleRequest(req, res).catch((error) => {
+    if (isClientDisconnect(error)) {
+      // The client went away mid-response. Nothing can be sent, and it is not
+      // a server fault, so it does not belong in the error log.
+      return
+    }
+
     console.error('❌ Unhandled request error:', error)
 
     if (!res.headersSent) {

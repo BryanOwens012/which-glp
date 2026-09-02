@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { resolveAllowedOrigin } from './cors.js'
+import {
+  ALLOWED_REQUEST_HEADERS,
+  ALLOWED_REQUEST_HEADERS_VALUE,
+  resolveAllowedOrigin,
+} from './cors.js'
 
 describe('resolveAllowedOrigin', () => {
   it('allows the production origins', () => {
@@ -43,5 +47,25 @@ describe('resolveAllowedOrigin', () => {
     expect(resolveAllowedOrigin('*')).toBeNull()
     // Sandboxed iframes and some redirects send Origin: null.
     expect(resolveAllowedOrigin('null')).toBeNull()
+  })
+})
+
+describe('allowed request headers', () => {
+  it('permits trpc-accept, which httpBatchStreamLink sends', () => {
+    // Without this the browser refuses every tRPC call at preflight, because
+    // trpc-accept is not CORS-safelisted.
+    expect(ALLOWED_REQUEST_HEADERS).toContain('trpc-accept')
+  })
+
+  it('still permits the headers ordinary requests rely on', () => {
+    expect(ALLOWED_REQUEST_HEADERS).toContain('Content-Type')
+    expect(ALLOWED_REQUEST_HEADERS).toContain('Authorization')
+  })
+
+  it('renders every allowed header into the comma-separated header value', () => {
+    // Asserted on the rendering contract rather than a pinned literal: this
+    // still catches a wrong separator (which browsers would fail to parse)
+    // without breaking the day someone adds a header to the list.
+    expect(ALLOWED_REQUEST_HEADERS_VALUE.split(', ')).toEqual([...ALLOWED_REQUEST_HEADERS])
   })
 })
