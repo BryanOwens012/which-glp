@@ -98,5 +98,5 @@
 - **Python:** 3.13 with shared venv at repository root
 - **Node.js:** 22+ for frontend and API service (`.nvmrc` pins 24)
 - **Monorepo:** All services in `apps/` directory
-- **Deploy config:** Railway is managed as Infrastructure as Code in `.railway/railway.ts` (workflow in `.railway/README.md`); Python services build from the monorepo root with Railpack and start via `cd apps/<service> && …`. The per-service `railway.json` files are Railway's deprecated Config as Code and are removed once the IaC file has been applied
+- **Deploy config:** Railway is managed as Infrastructure as Code in `.railway/railway.ts` (workflow in `.railway/README.md`); Python services build from the monorepo root with Railpack and start via `cd apps/<service> && …`. There are no per-service `railway.json` files; that Config as Code format is deprecated
 

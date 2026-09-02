@@ -132,7 +132,6 @@ apps/rec-engine/
 ├── test_recommender.py     # Unit tests
 ├── start_api.sh           # Local dev start script
 ├── Procfile               # Railway deployment config
-├── railway.json           # Railway service config
 └── README.md              # This file
 ```
 
