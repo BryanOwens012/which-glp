@@ -91,7 +91,9 @@ the only non-`/trpc` path the service answers; everything else returns 404.
   frontend's prefetching); every other path draws on a tight one (default 5/600s), and
   exhausting it blocks the address from *unknown paths* for an hour. The block is
   deliberately not extended to `/trpc`, so one bad host cannot lock out everyone sharing
-  its NAT address.
+  its NAT address. If Redis is unreachable the limiter falls back to a per-process
+  budget; the client stops reconnecting after three failed attempts, so that fallback
+  lasts until the replica restarts.
 - **The client IP comes from the rightmost `X-Forwarded-For` entry**, which Railway's
   edge appended. The leftmost is client-supplied and would let any caller choose its own
   bucket. A request whose address cannot be resolved is refused.
@@ -111,6 +113,7 @@ the only non-`/trpc` path the service answers; everything else returns 404.
   - `REDIS_URL`
   - `REC_ENGINE_URL`
   - `ALLOWED_ORIGINS` (optional) - extra CORS origins beyond the built-in allowlist
+  - `ALLOW_VERCEL_PREVIEW_ORIGINS` (optional, set `false` to refuse this project's Vercel preview origins)
   - `MAX_REQUEST_BODY_BYTES` (optional, default `1000000`)
   - `RATE_LIMIT_ENABLED` (optional, set `false` to disable) and the
     `RATE_LIMIT_API_*` / `RATE_LIMIT_PROBE_*` overrides in `src/lib/config.ts`

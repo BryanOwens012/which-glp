@@ -25,6 +25,10 @@
  * turn a Redis blip into a total outage of the site — a worse outcome than the
  * abuse it is meant to prevent. The in-process fallback keeps a real ceiling in
  * place per replica, and every degradation is logged.
+ *
+ * Note that `redis.ts` stops reconnecting after three failed attempts and marks
+ * Redis unavailable for the rest of the process, so a replica that loses Redis
+ * for a couple of seconds stays on the in-process budget until it restarts.
  */
 
 import { config } from './config.js'
