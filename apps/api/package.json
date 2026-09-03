@@ -14,20 +14,20 @@
     "typecheck": "tsc --noEmit -p tsconfig.typecheck.json"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.108.0",
-    "@trpc/server": "^11.17.0",
+    "@supabase/supabase-js": "^2.114.0",
+    "@trpc/server": "^11.18.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "ioredis": "^5.11.1",
-    "posthog-node": "^5.36.6",
+    "posthog-node": "^5.51.6",
     "superjson": "^2.2.6",
-    "zod": "^4.4.3"
+    "zod": "^4.5.4"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
     "@types/node": "^25",
-    "tsx": "^4.22.4",
+    "tsx": "^4.23.13",
     "typescript": "^6",
-    "vitest": "^4.1.8"
+    "vitest": "^4.1.11"
   }
 }
