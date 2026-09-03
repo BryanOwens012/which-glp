@@ -21,7 +21,7 @@ All tests should be run from the repository root with the virtual environment ac
 
 ```bash
 # From repository root
-cd /Users/bryan/Github/which-glp
+cd "$(git rev-parse --show-toplevel)"
 source venv/bin/activate
 
 # Run Python tests
@@ -42,8 +42,4 @@ node scripts/tests/test-recommendation.js
 
 ## Notes
 
-These are development/debug scripts, not production tests. For proper unit tests, see:
-- `apps/user-extraction/tests/`
-- `apps/post-ingestion/tests/`
-- `apps/post-extraction/tests/`
-- `scripts/legacy-ingestion/tests/`
+These are development/debug scripts, not production tests. The pytest suite lives in `scripts/legacy-ingestion/tests/`; the `apps/*` Python services have no unit tests. TypeScript tests are Vitest `*.test.ts` files beside the code in `apps/api` and `apps/frontend`.

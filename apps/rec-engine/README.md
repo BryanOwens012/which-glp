@@ -131,7 +131,7 @@ apps/rec-engine/
 ├── recommender_api.py      # Legacy CLI wrapper (deprecated)
 ├── test_recommender.py     # Unit tests
 ├── start_api.sh           # Local dev start script
-├── Procfile               # Railway deployment config
+├── Procfile               # Unused on Railway (start command lives in .railway/railway.ts); local reference only
 └── README.md              # This file
 ```
 
@@ -157,11 +157,7 @@ SUPABASE_SERVICE_KEY=your-service-key
 
 ### Step 2: Update Backend Service
 
-In your `whichglp-api` Railway service, add:
-
-```
-REC_ENGINE_URL=https://whichglp-rec-engine.railway.app
-```
+`REC_ENGINE_URL` is declared on the `API` service in `.railway/railway.ts`; its value (Rec-Engine's domain `whichglp-rec-engine.up.railway.app`, or the private `ml.railway.internal`) is set on Railway, never committed.
 
 ### Step 3: Deploy
 
@@ -207,12 +203,12 @@ curl -X POST http://localhost:8001/api/recommendations \
 
 Check logs in Railway:
 ```bash
-railway logs --service whichglp-rec-engine
+railway logs -s Rec-Engine -p df649372-5b20-4e68-8ccd-31935edceade -e production
 ```
 
 Health check should return 200:
 ```bash
-curl https://your-ml.railway.app/health
+curl https://whichglp-rec-engine.up.railway.app/health
 ```
 
 ## Future Improvements

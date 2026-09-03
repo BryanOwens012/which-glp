@@ -6,7 +6,7 @@ The data pipeline runs on four daily cron triggers. Each is a Railway Function (
 
 | Service | Source | Schedule | What it does |
 |---|---|---|---|
-| Post-Ingestion-Cron | `post-ingestion-cron.ts` | `0 0 * * *` | `POST /api/ingest` on Post-Ingestion (Tier 1 subreddits) |
+| Post-Ingestion-Cron | `post-ingestion-cron.ts` | `0 0 * * *` | `POST /api/ingest` on Post-Ingestion (tier 1 and 2 subreddits, 100 posts each) |
 | Post-Extraction-Cron | `post-extraction-cron.ts` | `0 6 * * *` | `POST /api/extract?limit=1000` on Post-Extraction |
 | User-Extraction-Cron | `user-extraction-cron.ts` | `0 17 * * *` | `POST /api/analyze` on User-Extraction |
 | View-Refresher-Cron | `view-refresher-cron.ts` | `0 18 * * *` | `REFRESH MATERIALIZED VIEW mv_experiences_denormalized` against Postgres, then deletes the `drugs:all-stats` Redis key |
@@ -17,7 +17,7 @@ The stagger gives each stage time to finish before the next one reads its output
 
 - The three service triggers read their target from `POST_INGESTION_URL`, `POST_EXTRACTION_URL`, or `USER_EXTRACTION_URL` (a bare hostname, prefixed with `https://`), falling back to the service's `.railway.internal` private domain.
 - Requests carry `x-internal-api-key: $INTERNAL_API_KEY`; the services reject calls without it.
-- A `409 Conflict` means the service is already running that job. The trigger logs it and exits; the next scheduled run tries again.
+- A `409 Conflict` means the service is already running that job. The trigger does not retry: it logs the response and exits, and the next scheduled run tries again.
 - Functions use `restartPolicyType: NEVER`, so a failed run is not retried until the next schedule.
 
 ## Changing a schedule or a function

@@ -13,7 +13,7 @@ This directory contains data analysis scripts and notebooks for exploring GLP-1 
 Analysis scripts use the same Python virtual environment as the data-ingestion app:
 
 ```bash
-cd /Users/bryan/Github/which-glp
+cd "$(git rev-parse --show-toplevel)"
 source venv/bin/activate
 ```
 
@@ -33,14 +33,14 @@ Required packages (already in requirements.txt):
 ### Phase 1: Data Quality Assessment
 
 ```bash
-cd /Users/bryan/Github/which-glp
+cd "$(git rev-parse --show-toplevel)"
 python3 scripts/analysis/scripts/data_quality_report.py
 ```
 
 ### Phase 2-5: Interactive Analysis
 
 ```bash
-cd /Users/bryan/Github/which-glp
+cd "$(git rev-parse --show-toplevel)"
 jupyter notebook analysis/notebooks/glp1_trial_analysis.ipynb
 ```
 

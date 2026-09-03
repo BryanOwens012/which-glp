@@ -23,7 +23,7 @@ Be liberal with calling tools, CLI commands, and MCP servers to make changes and
 
 ## Railway Infrastructure as Code
 
-`.railway/railway.ts` is the single source of truth for the Railway `production` environment: every service, its build and deploy settings, the custom domain, the Redis TCP proxy and volume, and the names of every variable. Railway's per-service `railway.json` (Config as Code) is deprecated and stops being read on 2026-12-01; never add a new one.
+`.railway/railway.ts` is the single source of truth for the Railway `production` environment: every service, its build and deploy settings, the custom domain, the Redis database and its volume, each service's private hostname and generated domain, and the names of every variable. There are no per-service `railway.json` files (Railway's deprecated Config as Code); never add one.
 
 - **Edit the file, not the dashboard.** A dashboard change is drift: run `railway config pull` on a scratch branch (it overwrites `railway.ts`), read the diff, fold the change back in by hand, and discard the pull.
 - **Omit means delete.** Every service and every variable name stays listed. Values live on Railway via `preserve()` and are never committed.
@@ -31,6 +31,7 @@ Be liberal with calling tools, CLI commands, and MCP servers to make changes and
 - **`railway config plan` is the review; `apply` is Bryan's.** Agents are held read-only on Railway by `guard-railway-readonly.sh`, so an agent's deliverable is the file plus the plan output. Plan needs a linked directory, and link state is per machine: `railway link -p df649372-5b20-4e68-8ccd-31935edceade -e production`.
 - **Cron functions live in `.railway/functions/*.ts`.** `railway.ts` base64-encodes each file into its Railway Function's start command. Edit the source file, never the dashboard editor. Schedules are UTC.
 - **Production tracks `develop`.** The SDK's `github()` helper defaults to `main`; keep the branch explicit.
+- **Declare only non-defaults.** Railway reads a stored default back as `null`, so declaring one (the `ON_FAILURE` restart policy) keeps the plan dirty forever. The five repo-built services declare `drainingSeconds: 15` (`DRAINING_SECONDS`) because Railway's default of 0 s SIGKILLs in-flight requests; keep it above the API's `SHUTDOWN_TIMEOUT_MS`.
 
 ## LLM Model Selection
 
@@ -77,18 +78,15 @@ This project uses multiple documentation files located in the `docs/` directory:
 
 - **CLAUDE.md** (this file) - Technical development guide for Claude Code
 - **docs/AGENTS.md** - **IMPORTANT**: Primary instructions, business context, development process, and coding standards
-- **docs/AGENTS_APPENDLOG.md** - **IMPORTANT**: Historical changelog of all development work (append-only log)
+- **docs/AGENTS_APPENDLOG.md** (private, not committed) - Historical changelog of development work (append-only log)
 - **docs/TECH_SPEC.md** - Drugs, data sources, tech stack, pipelines
 - **docs/MONETIZATION.md** (private, not committed) - Business strategy and revenue models
 - **docs/ARCHITECTURE.md** - System architecture and service design
-- **docs/DEPLOYMENT_SUMMARY.md** - Deployment summary and migration notes
-- **docs/RAILWAY_SETUP.md** - Railway deployment instructions
-- **docs/BACKEND_AND_TRPC_SETUP.md** - Backend and tRPC setup guide
-- **docs/BACKEND_IMPLEMENTATION_PLAN.md** - Backend implementation plan
+- **docs/RAILWAY_CRON_SETUP.md** - Cron functions: schedules, targets, how to change them
+- **.railway/README.md** - Railway Infrastructure as Code workflow (`railway.ts`, `functions/`)
 
 **Key Files for Claude Code:**
 - Read **docs/AGENTS.md** for development workflow, coding standards, and project guidelines
-- Read **docs/AGENTS_APPENDLOG.md** to understand the history of development changes
 - Consult **docs/TECH_SPEC.md** for technical specifications and drug catalog
 - Reference **docs/ARCHITECTURE.md** for system design and service architecture
 
@@ -103,14 +101,14 @@ This is a monorepo with the following structure:
 ├── .env                    # Environment variables (git-ignored)
 ├── requirements.txt        # Python dependencies (monorepo-wide)
 ├── venv/                   # Python virtual environment
+├── .railway/               # Railway Infrastructure as Code (railway.ts, functions/)
 ├── docs/                   # Documentation
 │   ├── AGENTS.md          # Primary instructions and business context
 │   ├── TECH_SPEC.md       # Technical specifications
 │   ├── ARCHITECTURE.md    # System architecture
-│   ├── DEPLOYMENT_SUMMARY.md
-│   └── RAILWAY_SETUP.md
-├── apps/                   # Railway-deployed services
-│   ├── frontend/          # Next.js 15 frontend
+│   └── RAILWAY_CRON_SETUP.md
+├── apps/                   # Deployable services (frontend on Vercel, the rest on Railway)
+│   ├── frontend/          # Next.js 16 frontend
 │   ├── api/               # Node.js tRPC API
 │   ├── rec-engine/        # FastAPI recommendation engine
 │   ├── user-extraction/   # User demographics extraction service
@@ -119,6 +117,9 @@ This is a monorepo with the following structure:
 │   └── shared/            # Shared database migrations and utilities
 ├── scripts/               # One-off scripts, tests, analysis, legacy code
 │   ├── legacy-ingestion/  # Superseded ingestion pipeline (deprecated)
+│   ├── benchmarking/      # Query benchmarks (with/without materialized views) and results
+│   ├── cron/              # Cron trigger scripts (not what Railway runs; the deployed source is .railway/functions/)
+│   ├── one-time/          # Completed one-off backfill/cleanup scripts
 │   ├── tests/             # Ad-hoc test and debug scripts
 │   └── analysis/          # Data analysis notebooks and scripts
 │       ├── notebooks/     # Jupyter notebooks
@@ -151,12 +152,17 @@ Create `.env` in the repository root:
 ```bash
 # Supabase Database
 SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_KEY=your-service-key
 SUPABASE_DB_PASSWORD=your-db-password
 
+# Redis (API cache and rate limiting)
+REDIS_URL=redis://localhost:6379
+
 # Reddit API (OAuth 2.0)
-REDDIT_CLIENT_ID=your-client-id
-REDDIT_CLIENT_SECRET=your-client-secret
-REDDIT_USER_AGENT=whichglp-ingestion/0.1
+REDDIT_API_APP_NAME=whichglp-ingestion/0.1
+REDDIT_API_APP_ID=your-client-id
+REDDIT_API_APP_SECRET=your-client-secret
 
 # OpenAI (for AI extraction)
 OPENAI_API_KEY=your-api-key
@@ -195,9 +201,6 @@ scripts/legacy-ingestion/
 ├── shared/                 # Shared utilities
 │   ├── database.py        # Supabase connection and operations
 │   └── config.py          # Logging and monorepo path resolution
-├── migrations/             # Database schema migrations
-│   ├── run_migration.py   # Migration runner
-│   └── *.up.sql / *.down.sql  # Migration files
 └── tests/                  # pytest tests
 ```
 
@@ -206,7 +209,7 @@ scripts/legacy-ingestion/
 **Historical Batch Ingestion** (run once per subreddit):
 ```bash
 # From repository root with venv activated
-cd /Users/bryan/Github/which-glp
+cd "$(git rev-parse --show-toplevel)"
 python3 -m reddit_ingestion.historical_ingest --subreddit Ozempic --posts 100 --comments 20
 ```
 
@@ -215,7 +218,7 @@ This script:
 2. Fetches top 20 comments per post
 3. Parses data using `ingestion/parser.py`
 4. Batch inserts to Supabase (100 records per batch with ON CONFLICT for deduplication)
-5. Backs up to `scripts/legacy-ingestion/ingestion/backup/historical_run_YYYYMMDD_HHMMSS_{subreddit}/`
+5. Backs up to `backups/ingestion/historical_run_YYYYMMDD_HHMMSS_{subreddit}/` (resolved by `get_backup_dir("ingestion")` in `shared/config.py`)
 6. Creates `summary.json` with statistics
 
 **Backup Upload** (if database insert failed but backup exists):
@@ -225,7 +228,7 @@ python3 -m reddit_ingestion.upload_from_backup /path/to/backup/dir
 
 ### Database Schema
 
-**Tables** (see `migrations/001_create_reddit_tables.up.sql`):
+**Tables** (see `apps/shared/migrations/001_create_reddit_tables.up.sql`):
 - `reddit_posts`: Reddit posts with title, selftext, author, created_utc, score, subreddit
 - `reddit_comments`: Comments with body, author, created_utc, score, post_id (foreign key)
 - `extracted_features`: AI-extracted structured data (drug, weight_loss, cost, side_effects, etc.)
@@ -250,7 +253,7 @@ python3 -m reddit_ingestion.upload_from_backup /path/to/backup/dir
 
 **Posts-only extraction** (faster, for initial dataset build):
 ```bash
-cd /Users/bryan/Github/which-glp
+cd "$(git rev-parse --show-toplevel)"
 python3 -m extraction.ai_extraction --subreddit Ozempic --posts-only
 ```
 
@@ -289,7 +292,7 @@ Not all posts/comments are processed. See `extraction/filters.py` for logic:
 ### Backup Strategy
 
 All AI extractions are backed up to JSON files before database insertion:
-- Location: `scripts/legacy-ingestion/extraction_backups/`
+- Location: `backups/extraction/` at the repository root (`get_backup_dir("extraction")` in `shared/config.py`)
 - Filename pattern: `extraction_backup_{subreddit}_{timestamp}.json`
 - Contains full extraction results + metadata
 
@@ -298,7 +301,7 @@ All AI extractions are backed up to JSON files before database insertion:
 The project uses simple SQL migrations with up/down files:
 
 ```bash
-cd /Users/bryan/Github/which-glp
+cd "$(git rev-parse --show-toplevel)"
 python3 apps/shared/migrations/run_migration.py apps/shared/migrations/001_create_reddit_tables.up.sql
 ```
 
@@ -306,19 +309,14 @@ python3 apps/shared/migrations/run_migration.py apps/shared/migrations/001_creat
 - `001_description.up.sql` - Apply migration
 - `001_description.down.sql` - Rollback migration
 
-**Migration Files** (run in order):
-1. `001_create_reddit_tables` - Create posts and comments tables
-2. `002_create_extracted_features` - Create extraction results table
-3. `003_add_comprehensive_features` - Add weight, timeframe, side effect columns
-4. `004_update_sex_and_resolution` - Update sex enum, add resolution field
-5. `005_add_out_of_pocket_drug_source` - Add out_of_pocket_cost and drug_source columns
+**Migration Files**: `ls apps/shared/migrations` is the list. The numeric prefix is the intended order, and several prefixes are reused (`006`, `010`, `011`), so read the full filename rather than the number alone.
 
 ## Testing
 
 Run tests from the repository root:
 
 ```bash
-cd /Users/bryan/Github/which-glp
+cd "$(git rev-parse --show-toplevel)"
 pytest scripts/legacy-ingestion/tests/
 pytest scripts/legacy-ingestion/tests/test_parser.py  # Single test file
 ```
@@ -391,7 +389,8 @@ The frontend is a Next.js 16 app with React 19, Tailwind CSS, and Radix UI compo
 cd apps/frontend
 npm run dev      # Start dev server
 npm run build    # Build for production
-npm run lint     # Run ESLint
+npm run lint     # Run Biome
+npm test         # Vitest
 ```
 
 **Tech Stack**:
@@ -490,7 +489,7 @@ Ensure sufficient disk space before running batch operations.
 ### Full Pipeline for a New Subreddit
 
 ```bash
-cd /Users/bryan/Github/which-glp
+cd "$(git rev-parse --show-toplevel)"
 source venv/bin/activate
 
 # 1. Ingest historical data
@@ -509,14 +508,14 @@ psql -h <supabase-url> -U postgres -d postgres -c "SELECT COUNT(*) FROM extracte
 If ingestion fails mid-process, backups are still created. Upload from backup:
 
 ```bash
-cd /Users/bryan/Github/which-glp
-python3 -m reddit_ingestion.upload_from_backup scripts/legacy-ingestion/ingestion/backup/historical_run_20251003_123456_Ozempic
+cd "$(git rev-parse --show-toplevel)"
+python3 -m reddit_ingestion.upload_from_backup backups/ingestion/historical_run_20251003_123456_Ozempic
 ```
 
 ### Adding New Extracted Features
 
-1. Create migration file: `apps/shared/migrations/006_add_new_field.up.sql`
-2. Run migration: `python3 apps/shared/migrations/run_migration.py apps/shared/migrations/006_add_new_field.up.sql`
+1. Create migration file: `apps/shared/migrations/NNN_add_new_field.up.sql` (`NNN` = the next unused prefix) and its `.down.sql`
+2. Run migration: `python3 apps/shared/migrations/run_migration.py apps/shared/migrations/NNN_add_new_field.up.sql`
 3. Update `extraction/schema.py` to include new field
 4. Update `extraction/prompts.py` to instruct the model to extract new field
 5. Re-run extraction for updated posts
@@ -527,7 +526,7 @@ python3 -m reddit_ingestion.upload_from_backup scripts/legacy-ingestion/ingestio
 
 Ensure you've installed the package as editable:
 ```bash
-cd /Users/bryan/Github/which-glp
+cd "$(git rev-parse --show-toplevel)"
 pip3 install -e scripts/legacy-ingestion
 ```
 

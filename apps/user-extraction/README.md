@@ -19,7 +19,7 @@ user-extraction/
 ├── prompts.py          # Demographic extraction prompts
 ├── schema.py           # Pydantic models (UserDemographics)
 ├── api.py              # FastAPI service
-├── start.sh            # Railway startup script
+├── start.sh            # Local dev start script (Railway uses the start command in .railway/railway.ts)
 └── shared/             # Symlink to ../data-ingestion/shared
 ```
 
@@ -131,14 +131,13 @@ REDDIT_API_APP_SECRET=your-app-secret
 
 ### Setup
 
-1. Create new Railway service: `whichglp-user-extraction`
-2. Link to GitHub repo
-3. Root directory: `/` (monorepo root); the start command `cd`s into `apps/user-extraction`
-4. Builder, start command, healthcheck, watch path, and variable names are declared in [`.railway/railway.ts`](../../.railway/railway.ts) (Railway Infrastructure as Code). Change them there and run `railway config plan`, not in the dashboard
+1. The service is `User-Extraction`, declared in `.railway/railway.ts`; new services are declared there, never created in the dashboard
+2. Root directory: `/` (monorepo root); the start command `cd`s into `apps/user-extraction`
+3. Builder, start command, healthcheck, watch path, and variable names are declared in [`.railway/railway.ts`](../../.railway/railway.ts) (Railway Infrastructure as Code). Change them there and run `railway config plan`, not in the dashboard
 
 ### Environment Variables
 
-Add to Railway service:
+Variable names are declared on the `User-Extraction` service in `.railway/railway.ts`; values are set on Railway (`preserve()`). The ones this service reads:
 - `OPENAI_API_KEY`
 - `SUPABASE_URL`
 - `SUPABASE_DB_PASSWORD`
@@ -149,8 +148,8 @@ Add to Railway service:
 
 ### Health Check
 
-Configure Railway health check:
-- Path: `/health`
+Declared in `.railway/railway.ts`:
+- Path: `/health` (100 s timeout)
 - Expected response: `200 OK`
 
 ## Monitoring

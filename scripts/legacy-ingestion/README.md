@@ -27,7 +27,7 @@ ingestion/            # Reddit data ingestion
 
 extraction/           # AI-powered feature extraction
 ├── ai_extraction.py  # Main extraction pipeline
-├── ai_client.py      # Claude AI client wrapper
+├── ai_client.py      # OpenAI GPT-5-nano client wrapper
 ├── prompts.py        # Prompt templates for extraction
 ├── context.py        # Context builder for nested comments
 └── schema.py         # Pydantic models for extracted data
@@ -296,7 +296,7 @@ scripts/legacy-ingestion/
 ├── extraction/                   # AI-powered feature extraction
 │   ├── __init__.py
 │   ├── ai_extraction.py          # Main extraction pipeline
-│   ├── ai_client.py              # Claude AI client wrapper
+│   ├── ai_client.py              # OpenAI GPT-5-nano client wrapper
 │   ├── prompts.py                # Prompt templates for extraction
 │   ├── context.py                # Context builder for nested comments
 │   └── schema.py                 # Pydantic models for extracted data
@@ -331,7 +331,7 @@ Handles fetching raw data from Reddit API:
 
 ### 2. Extraction (`extraction/`)
 AI-powered feature extraction from ingested data:
-- Claude AI integration for structured data extraction
+- OpenAI GPT-5-nano integration for structured data extraction
 - Prompt engineering for accurate feature detection
 - Context building for nested comment threads
 - Pydantic schemas for type-safe extraction

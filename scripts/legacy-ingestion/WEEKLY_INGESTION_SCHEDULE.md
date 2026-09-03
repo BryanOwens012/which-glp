@@ -27,40 +27,40 @@ Total: ~100 unique posts per run per subreddit (after deduplication)
 
 ```bash
 # Wednesday 2 AM - Mid-week run
-0 2 * * 3 cd /Users/bryan/Github/which-glp && venv/bin/python3 -m ingestion.weekly_ingest
+0 2 * * 3 cd ~/GitHub/which-glp && venv/bin/python3 -m ingestion.weekly_ingest
 
 # Sunday 2 AM - Weekend run
-0 2 * * 0 cd /Users/bryan/Github/which-glp && venv/bin/python3 -m ingestion.weekly_ingest
+0 2 * * 0 cd ~/GitHub/which-glp && venv/bin/python3 -m ingestion.weekly_ingest
 ```
 
 ### Option 2: Tier 1 Only (Drug-Specific Subreddits)
 
 ```bash
 # Wednesday 2 AM
-0 2 * * 3 cd /Users/bryan/Github/which-glp && venv/bin/python3 -m ingestion.weekly_ingest --tier tier1
+0 2 * * 3 cd ~/GitHub/which-glp && venv/bin/python3 -m ingestion.weekly_ingest --tier tier1
 
 # Sunday 2 AM
-0 2 * * 0 cd /Users/bryan/Github/which-glp && venv/bin/python3 -m ingestion.weekly_ingest --tier tier1
+0 2 * * 0 cd ~/GitHub/which-glp && venv/bin/python3 -m ingestion.weekly_ingest --tier tier1
 ```
 
 ### Option 3: Staggered Schedule (Different Tiers on Different Days)
 
 ```bash
 # Wednesday 2 AM - Tier 1 (most important)
-0 2 * * 3 cd /Users/bryan/Github/which-glp && venv/bin/python3 -m ingestion.weekly_ingest --tier tier1
+0 2 * * 3 cd ~/GitHub/which-glp && venv/bin/python3 -m ingestion.weekly_ingest --tier tier1
 
 # Friday 2 AM - Tier 2 (general GLP-1)
-0 2 * * 5 cd /Users/bryan/Github/which-glp && venv/bin/python3 -m ingestion.weekly_ingest --tier tier2
+0 2 * * 5 cd ~/GitHub/which-glp && venv/bin/python3 -m ingestion.weekly_ingest --tier tier2
 
 # Sunday 2 AM - Tier 3 (broader weight loss)
-0 2 * * 0 cd /Users/bryan/Github/which-glp && venv/bin/python3 -m ingestion.weekly_ingest --tier tier3
+0 2 * * 0 cd ~/GitHub/which-glp && venv/bin/python3 -m ingestion.weekly_ingest --tier tier3
 ```
 
 ## Manual Run Examples
 
 ### All subreddits with defaults
 ```bash
-cd /Users/bryan/Github/which-glp
+cd "$(git rev-parse --show-toplevel)"
 venv/bin/python3 -m ingestion.weekly_ingest
 ```
 
@@ -102,7 +102,7 @@ venv/bin/python3 -m ingestion.weekly_ingest --tier tier1
 
 All runs create backups at:
 ```
-/Users/bryan/Github/which-glp/backups/ingestion/weekly_run_YYYYMMDD_HHMMSS/
+~/GitHub/which-glp/backups/ingestion/weekly_run_YYYYMMDD_HHMMSS/
 ```
 
 Each backup includes:
@@ -114,12 +114,12 @@ Each backup includes:
 
 Check run status:
 ```bash
-ls -lht /Users/bryan/Github/which-glp/backups/ingestion/ | head -5
+ls -lht ~/GitHub/which-glp/backups/ingestion/ | head -5
 ```
 
 View summary of last run:
 ```bash
-cat /Users/bryan/Github/which-glp/backups/ingestion/weekly_run_*/summary.json | jq
+cat ~/GitHub/which-glp/backups/ingestion/weekly_run_*/summary.json | jq
 ```
 
 ## Estimated Runtime

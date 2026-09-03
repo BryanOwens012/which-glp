@@ -414,7 +414,7 @@ For 10,000+ experiences, expect ~7-10 seconds refresh time.
 To reproduce these benchmarks:
 
 ```bash
-cd /Users/bryan/Github/which-glp
+cd "$(git rev-parse --show-toplevel)"
 source venv/bin/activate
 
 # Run all benchmarks

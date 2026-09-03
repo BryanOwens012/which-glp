@@ -311,7 +311,7 @@
 
 ### Frontend Service
 
-- **Framework:** Next.js 15 (App Router)
+- **Framework:** Next.js 16 (App Router)
 - **Language:** TypeScript (strict mode)
 - **UI:** React 19, Tailwind CSS v4, Radix UI + shadcn/ui
 - **API Client:** tRPC client, TanStack Query
@@ -320,7 +320,7 @@
 ### Backend Services
 
 **1. API Service** (`apps/api`)
-- **Runtime:** Node.js 20+
+- **Runtime:** Node.js 22+
 - **Language:** TypeScript (strict mode)
 - **Framework:** tRPC (type-safe API)
 - **Database:** Supabase client
@@ -359,7 +359,7 @@
 **Vercel**
 - **Frontend:** Next.js app
 
-**Railway** (9 services total)
+**Railway** (10 services total)
 - **Core Services:**
   - Redis (caching with persistent volume)
   - API (tRPC gateway)
@@ -369,10 +369,10 @@
   - Post-Extraction (AI drug experience extraction)
   - User-Extraction (AI user demographics extraction)
 - **Cron Jobs (Automated Scheduling):**
-  - View-Refresher-Cron (refreshes materialized views every 45 minutes)
-  - Post-Ingestion-Cron (triggers Reddit ingestion every 16 hours)
-  - Post-Extraction-Cron (triggers AI extraction every 22 hours)
-  - User-Extraction-Cron (triggers user analysis daily)
+  - View-Refresher-Cron (refreshes materialized views daily at 18:00 UTC)
+  - Post-Ingestion-Cron (triggers Reddit ingestion daily at 00:00 UTC)
+  - Post-Extraction-Cron (triggers AI extraction daily at 06:00 UTC)
+  - User-Extraction-Cron (triggers user analysis daily at 17:00 UTC; schedules live in `.railway/railway.ts`)
 
 **Supabase**
 - **Database:** PostgreSQL
