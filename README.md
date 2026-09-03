@@ -51,7 +51,7 @@
 - **Framework:** tRPC (type-safe API)
 - **Database:** Supabase client
 - **Caching:** Redis (ioredis)
-- **Port:** 8000
+- **Port:** 3002
 
 **2. Post Ingestion** (`apps/post-ingestion`)
 - **Framework:** FastAPI + uvicorn

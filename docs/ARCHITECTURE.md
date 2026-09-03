@@ -7,7 +7,7 @@ This is a monorepo containing 5 backend services, 1 frontend, and automated cron
 ```
 which-glp/
 ├── apps/
-│   ├── frontend/          # Next.js 15 app (Vercel)
+│   ├── frontend/          # Next.js 16 app (Vercel)
 │   ├── api/               # Node.js tRPC API (Railway)
 │   ├── rec-engine/        # Python ML recommendations (Railway)
 │   ├── post-ingestion/    # Python Reddit ingestion (Railway)
@@ -16,10 +16,9 @@ which-glp/
 │   └── shared/            # Shared database migrations
 ├── scripts/
 │   ├── legacy-ingestion/  # Legacy Python Reddit scraper
-│   └── cron/              # Cron trigger scripts (Railway)
+│   └── cron/              # Cron trigger scripts (not deployed; Railway runs .railway/functions/)
 ├── venv/                  # Python virtual environment (shared)
-├── requirements.txt       # Python dependencies (shared)
-└── package.json           # Root workspace config
+└── requirements.txt       # Python dependencies (shared)
 ```
 
 ## Service Architecture
@@ -27,7 +26,7 @@ which-glp/
 ### 1. Frontend (`apps/frontend`)
 
 **Tech Stack:**
-- Next.js 15 (App Router)
+- Next.js 16 (App Router)
 - React 19
 - TypeScript (strict mode)
 - Tailwind CSS v4
@@ -41,17 +40,18 @@ which-glp/
 
 **Deployment:**
 - Platform: Vercel
-- Auto-deploys from `main` branch
+- Deploys on push (branches enabled in `vercel.json`)
 - Environment variables:
   - `NEXT_PUBLIC_API_URL` - API service URL
   - `NEXT_PUBLIC_GA_TAG` - Google Analytics tag
+  - `NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN`, `NEXT_PUBLIC_POSTHOG_HOST` - PostHog (optional)
 
 ---
 
 ### 2. API Service (`apps/api`)
 
 **Tech Stack:**
-- Node.js 20+
+- Node.js 22+
 - TypeScript (strict mode)
 - tRPC (type-safe API)
 - Supabase client
@@ -64,12 +64,12 @@ which-glp/
 - Call Rec-Engine for recommendations
 - Handle caching with Redis
 
-**Port:** 8000 (local development)
+**Port:** 3002 (local development; `PORT` overrides)
 
 **Key Endpoints (tRPC procedures):**
 - `experiences.list` - Get filtered experiences
 - `experiences.getById` - Get single experience
-- `experiences.getStats` - Get aggregated stats
+- `experiences.list` / `experiences.getById`, `drugs.getAllStats`, `platform.getStats` / `platform.getTrends`, `locations.getData`, `demographics.getData`, `recommendations.getForUser` (routers in `apps/api/src/routers/`)
 - `recommendations.getForUser` - Get personalized recommendations
 
 **Non-tRPC routes:** `GET /health` returns `{"status":"ok","service":"api"}`. It is
@@ -108,13 +108,13 @@ the only non-`/trpc` path the service answers; everything else returns 404.
 
 **Deployment:**
 - Platform: Railway
-- Service: `whichglp-api`
+- Service: `API`
 - Domain: `api.whichglp.com`
 - Build command: `npm run build`
 - Start command: `npm start`
 - Environment variables:
   - `SUPABASE_URL`
-  - `SUPABASE_ANON_KEY`
+  - `SUPABASE_SERVICE_KEY`
   - `REDIS_URL`
   - `REC_ENGINE_URL`
   - `ALLOWED_ORIGINS` (optional) - extra CORS origins beyond the built-in allowlist
@@ -149,7 +149,7 @@ the only non-`/trpc` path the service answers; everything else returns 404.
 
 **Deployment:**
 - Platform: Railway
-- Service: `whichglp-rec-engine`
+- Service: `Rec-Engine`
 - Domain: `whichglp-rec-engine.up.railway.app`
 - Start command: `cd apps/rec-engine && python3 api.py`
 - Environment variables:
@@ -170,7 +170,7 @@ the only non-`/trpc` path the service answers; everything else returns 404.
 **Responsibilities:**
 - Fetch recent Reddit posts from GLP-1 subreddits
 - Store raw posts in `reddit_posts` table
-- Triggered by cron job every 2 days
+- Triggered daily by its cron function (schedule in `.railway/railway.ts`)
 
 **Key Endpoints (REST):**
 - `POST /api/ingest` - Trigger ingestion
@@ -179,10 +179,10 @@ the only non-`/trpc` path the service answers; everything else returns 404.
 
 **Deployment:**
 - Platform: Railway
-- Service: `whichglp-post-ingestion`
+- Service: `Post-Ingestion`
 - Domain: `whichglp-post-ingestion.up.railway.app`
 - Start command: `uvicorn api:app --host 0.0.0.0 --port $PORT`
-- Triggered by: `Post-Ingestion-Cron` (every 2 days)
+- Triggered by: `Post-Ingestion-Cron` (daily)
 
 ---
 
@@ -198,7 +198,7 @@ the only non-`/trpc` path the service answers; everything else returns 404.
 - Extract structured drug experience data from posts
 - AI-powered feature extraction (drug, weight loss, cost, side effects)
 - Store in `extracted_features` table
-- Triggered by cron job every 2 days
+- Triggered daily by its cron function (schedule in `.railway/railway.ts`)
 
 **Key Endpoints (REST):**
 - `POST /api/extract` - Trigger extraction
@@ -207,10 +207,10 @@ the only non-`/trpc` path the service answers; everything else returns 404.
 
 **Deployment:**
 - Platform: Railway
-- Service: `whichglp-post-extraction`
+- Service: `Post-Extraction`
 - Domain: `whichglp-post-extraction.up.railway.app`
 - Start command: `uvicorn api:app --host 0.0.0.0 --port $PORT`
-- Triggered by: `Post-Extraction-Cron` (every 2 days)
+- Triggered by: `Post-Extraction-Cron` (daily)
 
 ---
 
@@ -226,7 +226,7 @@ the only non-`/trpc` path the service answers; everything else returns 404.
 - Extract user demographics from Reddit user history
 - AI-powered demographic extraction (age, sex, location)
 - Store in `user_demographics` table
-- Triggered by cron job every 2 days
+- Triggered daily by its cron function (schedule in `.railway/railway.ts`)
 
 **Key Endpoints (REST):**
 - `POST /api/analyze` - Trigger user analysis
@@ -236,10 +236,10 @@ the only non-`/trpc` path the service answers; everything else returns 404.
 
 **Deployment:**
 - Platform: Railway
-- Service: `whichglp-user-extraction`
+- Service: `User-Extraction`
 - Domain: `whichglp-user-extraction.up.railway.app`
 - Start command: `uvicorn api:app --host 0.0.0.0 --port $PORT`
-- Triggered by: `User-Extraction-Cron` (every 2 days)
+- Triggered by: `User-Extraction-Cron` (daily)
 
 ---
 
@@ -247,28 +247,28 @@ the only non-`/trpc` path the service answers; everything else returns 404.
 
 ### 1. View-Refresher-Cron
 
-**Schedule:** Every 2 days
+**Schedule:** Daily (UTC time in `.railway/railway.ts`)
 **Function:** Refreshes materialized views in Supabase
 **Implementation:** Railway Cron Schedule
-**Script:** `scripts/cron/view-refresher-cron.ts`
+**Script:** `.railway/functions/view-refresher-cron.ts`
 
 ### 2. Post-Ingestion-Cron
 
-**Schedule:** Every 2 days
+**Schedule:** Daily (UTC time in `.railway/railway.ts`)
 **Function:** Triggers `POST /api/ingest` on Post-Ingestion service
 **Implementation:** Railway Cron Schedule
 **Target:** `whichglp-post-ingestion.up.railway.app/api/ingest`
 
 ### 3. Post-Extraction-Cron
 
-**Schedule:** Every 2 days
+**Schedule:** Daily (UTC time in `.railway/railway.ts`)
 **Function:** Triggers `POST /api/extract` on Post-Extraction service
 **Implementation:** Railway Cron Schedule
 **Target:** `whichglp-post-extraction.up.railway.app/api/extract`
 
 ### 4. User-Extraction-Cron
 
-**Schedule:** Every 2 days
+**Schedule:** Daily (UTC time in `.railway/railway.ts`)
 **Function:** Triggers `POST /api/analyze` on User-Extraction service
 **Implementation:** Railway Cron Schedule
 **Target:** `whichglp-user-extraction.up.railway.app/api/analyze`
@@ -282,7 +282,7 @@ the only non-`/trpc` path the service answers; everything else returns 404.
 **Platform:** Railway
 **Type:** Redis Database with persistent volume
 **Volume:** `redis-volume`
-**Function:** Caching layer for API service
+**Function:** Response cache and per-IP rate-limit counters for the API service
 **Connected to:** API service
 
 ### Supabase
@@ -305,7 +305,7 @@ the only non-`/trpc` path the service answers; everything else returns 404.
 
 ```
 ┌──────────────────┐
-│ Post-Ingestion   │ ◄─── Cron (every 2 days)
+│ Post-Ingestion   │ ◄─── Cron (daily)
 │ (Reddit API)     │
 └────────┬─────────┘
          │
@@ -318,7 +318,7 @@ the only non-`/trpc` path the service answers; everything else returns 404.
         │
         ▼
 ┌──────────────────┐
-│ Post-Extraction  │ ◄─── Cron (every 2 days)
+│ Post-Extraction  │ ◄─── Cron (daily)
 │ (GPT-5-nano)     │
 └────────┬─────────┘
          │
@@ -331,7 +331,7 @@ the only non-`/trpc` path the service answers; everything else returns 404.
         │
         ▼
 ┌──────────────────┐
-│ User-Extraction  │ ◄─── Cron (every 2 days)
+│ User-Extraction  │ ◄─── Cron (daily)
 │ (GPT-5-nano)     │
 └────────┬─────────┘
          │
@@ -344,7 +344,7 @@ the only non-`/trpc` path the service answers; everything else returns 404.
         │
         ▼
 ┌──────────────────┐
-│ View-Refresher   │ ◄─── Cron (every 2 days)
+│ View-Refresher   │ ◄─── Cron (daily)
 └────────┬─────────┘
          │
          ▼
@@ -422,7 +422,7 @@ the only non-`/trpc` path the service answers; everything else returns 404.
 
 ## Railway Deployment Summary
 
-**Total Services: 9**
+**Total Services: 10**
 
 | Service | Type | Schedule |
 |---------|------|----------|
@@ -432,16 +432,27 @@ the only non-`/trpc` path the service answers; everything else returns 404.
 | Post-Extraction | Python | Always-on (HTTP triggered) |
 | User-Extraction | Python | Always-on (HTTP triggered) |
 | Redis | Database | Always-on |
-| View-Refresher-Cron | Cron | Every 2 days |
-| Post-Ingestion-Cron | Cron | Every 2 days |
-| Post-Extraction-Cron | Cron | Every 2 days |
-| User-Extraction-Cron | Cron | Every 2 days |
+| View-Refresher-Cron | Cron | Daily |
+| Post-Ingestion-Cron | Cron | Daily |
+| Post-Extraction-Cron | Cron | Daily |
+| User-Extraction-Cron | Cron | Daily |
 
 **Note:** Frontend is deployed on Vercel separately.
 
 ---
 
+### Dual-stack networking
+
+Railway services can be IPv6-only or dual-stack, so every cross-service address must tolerate both:
+
+- `apps/api/src/lib/redis.ts` connects with `family: 0` (dual-stack), `keepAlive: 30000`, `connectTimeout: 10000`.
+- `apps/api/src/routers/recommendations.ts` reads `REC_ENGINE_URL`, falling back to `http://127.0.0.1:8001` locally (never `localhost`, which may resolve to `::1` alone).
+- Python services bind `0.0.0.0` so they answer on both stacks.
+- Prefer the `.railway.internal` private hostnames declared in `.railway/railway.ts` for service-to-service calls.
+
 ## Local Development
+
+Local default ports: API `3002`, Rec-Engine `8001`, User-Extraction `8002`, Post-Ingestion `8003`, Post-Extraction `8004` (each reads `PORT`). Health checks: `curl http://localhost:<port>/health`.
 
 ### Start all services
 
@@ -452,7 +463,7 @@ npm run dev  # http://localhost:3000
 
 # Terminal 2: API
 cd apps/api
-npm run dev  # http://localhost:8000
+npm run dev  # http://localhost:3002
 
 # Terminal 3: Rec-Engine
 cd apps/rec-engine
@@ -480,7 +491,7 @@ redis-server  # Port 6379
 ```bash
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_DB_PASSWORD=your-db-password
-SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_KEY=your-service-key
 SUPABASE_SERVICE_KEY=your-service-key
 REDDIT_CLIENT_ID=your-client-id
 REDDIT_CLIENT_SECRET=your-client-secret
@@ -490,14 +501,14 @@ OPENAI_API_KEY=your-openai-api-key
 
 2. **`apps/frontend/.env.local`**:
 ```bash
-NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_API_URL=http://localhost:3002/trpc
 NEXT_PUBLIC_GA_TAG=your-ga-tag
 ```
 
 3. **`apps/api/.env`**:
 ```bash
 SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_KEY=your-service-key
 REDIS_URL=redis://localhost:6379
 REC_ENGINE_URL=http://localhost:8001
 ```
@@ -528,11 +539,12 @@ curl https://whichglp-user-extraction.up.railway.app/health
 ### Railway Logs
 
 ```bash
-railway logs --service whichglp-api
-railway logs --service whichglp-rec-engine
-railway logs --service whichglp-post-ingestion
-railway logs --service whichglp-post-extraction
-railway logs --service whichglp-user-extraction
+# Service names are Railway display names; -p/-e are needed in an unlinked clone
+railway logs -s API -p df649372-5b20-4e68-8ccd-31935edceade -e production
+railway logs -s Rec-Engine -p df649372-5b20-4e68-8ccd-31935edceade -e production
+railway logs -s Post-Ingestion -p df649372-5b20-4e68-8ccd-31935edceade -e production
+railway logs -s Post-Extraction -p df649372-5b20-4e68-8ccd-31935edceade -e production
+railway logs -s User-Extraction -p df649372-5b20-4e68-8ccd-31935edceade -e production
 ```
 
 ---
@@ -551,7 +563,7 @@ railway logs --service whichglp-user-extraction
 
 **Cons:**
 ❌ **Network Latency**: HTTP calls between services add ~20-50ms
-❌ **More Complex Deployment**: 9 services vs 1 monolith
+❌ **More Complex Deployment**: 10 services vs 1 monolith
 ❌ **Higher Cost**: Multiple Railway services (mitigated by efficient scheduling)
 
 ### Why Cron Jobs Instead of Always-Running?
@@ -581,13 +593,12 @@ railway logs --service whichglp-user-extraction
 ## Future Architecture
 
 ### Phase 1 (Current)
-✅ Monorepo with 9 Railway services
+✅ Monorepo with 10 Railway services
 ✅ Cron-based automation
 ✅ Redis caching
 
 ### Phase 2 (Q2 2025)
 - Add request logging/tracing (OpenTelemetry)
-- Add rate limiting (Redis-based)
 - Add monitoring dashboard (Prometheus + Grafana)
 - Database read replicas
 

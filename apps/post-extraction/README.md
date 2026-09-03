@@ -24,6 +24,6 @@ curl -X POST http://localhost:8004/api/extract -d '{"subreddit":"Ozempic","limit
 
 ## Railway Deployment
 
-Service: `whichglp-post-extraction`
+Service: `Post-Extraction`, declared in `.railway/railway.ts` (Railpack from the monorepo root, start `cd apps/post-extraction && uvicorn api:app --host 0.0.0.0 --port $PORT`, healthcheck `/health`); triggered daily at 06:00 UTC by `Post-Extraction-Cron`
 Model: `gpt-5-nano`
-Env: `OPENAI_API_KEY`, `SUPABASE_URL`, `SUPABASE_DB_PASSWORD`
+Env: variable names are declared in `.railway/railway.ts`; values live on Railway

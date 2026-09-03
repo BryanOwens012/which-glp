@@ -38,6 +38,4 @@ curl http://localhost:8003/api/status
 
 ## Railway Deployment
 
-Service name: `whichglp-post-ingestion`
-Start command: `./start.sh`
-Port: Auto (Railway sets `PORT`)
+Service `Post-Ingestion` is declared in `.railway/railway.ts`: Railpack from the monorepo root, start `cd apps/post-ingestion && uvicorn api:app --host 0.0.0.0 --port $PORT`, healthcheck `/health`, watch `/apps/post-ingestion/**`. Railway sets `PORT`. Triggered daily at 00:00 UTC by `Post-Ingestion-Cron` (tiers 1 and 2, 100 posts each).

@@ -6,7 +6,7 @@
 
 1. Change `railway.ts` (or a file in `functions/`).
 2. `npm ci && npm run typecheck && npm run check` from this directory. `check` evaluates the file the way the CLI does and asserts branch pinning, function round-trips, and that no secret is committed as a literal.
-3. `railway config plan` from a directory linked to the WhichGLP project. Read every line: the plan must list only the change you made, never an unexpected delete of a service, variable, domain, proxy, or volume.
+3. `railway config plan` from a directory linked to the WhichGLP project. Read every line: the plan must list only the change you made, never an unexpected delete of a service, variable, domain, or volume.
 4. `railway config apply` (Bryan only; agents are held read-only on Railway).
 
 ## Rules
@@ -16,7 +16,8 @@
 - **Dashboard edits drift.** After changing anything in the Railway UI, run `railway config pull` on a scratch branch (it overwrites `railway.ts`), read the diff, fold the change back into the real file by hand, and discard the pull.
 - **One file per project.** Do not add a `partial` export or a second language file.
 - **Leave Railway defaults implicit.** Railway reads a stored default back as null (the `ON_FAILURE` restart policy, for one), so declaring a default keeps the plan permanently dirty. Declare a value only when it differs from the default.
-- **Networking is live state.** Each service's private-network hostname (`privateNetworkEndpoint`) and Railway-generated domain are part of the graph the plan diffs; the first plan reported a networking update on every service until both were declared. Declare them through `buildNetworking`.
+- **Networking is live state.** Each service's private-network hostname (`privateNetworkEndpoint`) and Railway-generated domain are part of the graph the plan diffs; leaving either out plans a clear. Declare both through `buildNetworking`.
+- **Repo-built services drain for 15 s.** `DRAINING_SECONDS` sets `deploy.drainingSeconds` on the API and the four Python services; Railway's default is 0 s (SIGKILL straight after SIGTERM). Keep it above the API's `SHUTDOWN_TIMEOUT_MS` (10 s). Functions and Redis leave it unset.
 - **Redis is a `database` node, not a `service`.** Railway addresses it as `database.Redis`; declaring it with `service()` plans a delete-and-recreate. Its variables, TCP proxy, and mount are owned by the database product and stay out of the file.
 
 ## Linking a clone
