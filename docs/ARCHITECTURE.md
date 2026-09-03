@@ -447,12 +447,12 @@ Railway services can be IPv6-only or dual-stack, so every cross-service address 
 
 - `apps/api/src/lib/redis.ts` connects with `family: 0` (dual-stack), `keepAlive: 30000`, `connectTimeout: 10000`.
 - `apps/api/src/routers/recommendations.ts` reads `REC_ENGINE_URL`, falling back to `http://127.0.0.1:8001` locally (never `localhost`, which may resolve to `::1` alone).
-- Python services bind `0.0.0.0` so they answer on both stacks.
+- Python services bind `0.0.0.0` (`--host 0.0.0.0` in `railway.ts`, `host="0.0.0.0"` in each `api.py`), which is IPv4 only; they are reached through Railway's proxy and the `.railway.internal` names, not by a raw IPv6 address.
 - Prefer the `.railway.internal` private hostnames declared in `.railway/railway.ts` for service-to-service calls.
 
 ## Local Development
 
-Local default ports: API `3002`, Rec-Engine `8001`, User-Extraction `8002`, Post-Ingestion `8003`, Post-Extraction `8004` (each reads `PORT`). Health checks: `curl http://localhost:<port>/health`.
+Local default ports: API `3002`, Rec-Engine `8001`, User-Extraction `8002`, Post-Ingestion `8003`, Post-Extraction `8004`. The Python defaults live in each `api.py`'s `__main__` block, so `python3 api.py` picks them up while the `uvicorn` CLI needs `--port` (its own default is 8000). Health checks: `curl http://localhost:<port>/health`.
 
 ### Start all services
 
@@ -471,15 +471,15 @@ python3 api.py
 
 # Terminal 4: Post-Ingestion
 cd apps/post-ingestion
-uvicorn api:app --reload
+uvicorn api:app --reload --port 8003
 
 # Terminal 5: Post-Extraction
 cd apps/post-extraction
-uvicorn api:app --reload
+uvicorn api:app --reload --port 8004
 
 # Terminal 6: User-Extraction
 cd apps/user-extraction
-uvicorn api:app --reload
+uvicorn api:app --reload --port 8002
 
 # Terminal 7: Redis
 redis-server  # Port 6379
