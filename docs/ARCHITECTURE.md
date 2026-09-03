@@ -447,7 +447,7 @@ Railway services can be IPv6-only or dual-stack, so every cross-service address 
 
 - `apps/api/src/lib/redis.ts` connects with `family: 0` (dual-stack), `keepAlive: 30000`, `connectTimeout: 10000`.
 - `apps/api/src/routers/recommendations.ts` reads `REC_ENGINE_URL`, falling back to `http://127.0.0.1:8001` locally (never `localhost`, which may resolve to `::1` alone).
-- Python services bind `0.0.0.0` (`--host 0.0.0.0` in `railway.ts`, `host="0.0.0.0"` in each `api.py`), which is IPv4 only; they are reached through Railway's proxy and the `.railway.internal` names, not by a raw IPv6 address.
+- Python services bind `0.0.0.0` (`--host 0.0.0.0` in `railway.ts`, `host="0.0.0.0"` in each `api.py`), which is IPv4 only.
 - Prefer the `.railway.internal` private hostnames declared in `.railway/railway.ts` for service-to-service calls.
 
 ## Local Development
