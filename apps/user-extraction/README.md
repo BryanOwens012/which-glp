@@ -110,22 +110,13 @@ REDDIT_API_APP_SECRET=your-app-secret
 
 ## Cost Analysis
 
-**GPT-6 Luna Pricing:**
-- Input: $0.10 per 1M tokens ($0.01 cached, $0.125 cache write)
-- Output: $0.50 per 1M tokens
+Extraction runs on GPT-6 Luna. Per-token prices live in `MODEL_PRICING` in
+`scripts/legacy-ingestion/shared/openai_extractor.py`; they are ~30x below Claude
+Sonnet 4's on both input and output.
 
-**Typical User Analysis:**
-- 20 posts + 20 comments ≈ 3,000 input tokens
-- Structured output ≈ 100 output tokens
-- **Cost per user: ~$0.00035** (0.035 cents)
-
-**Comparison to Claude Sonnet 4:**
-- Claude cost per user: ~$0.0105
-- **Savings: ~30x cheaper**
-
-**Estimated Monthly Costs:**
-- 1,000 users: ~$0.70
-- 10,000 users: ~$7.00
+Cost per user has not been measured on GPT-6 Luna. Each call sends a ~3,600-token
+static system prompt (cached after the first call) plus the user's 20 posts and
+20 comments. The `cost_usd` field in each extraction's metadata is the real figure.
 
 ## Railway Deployment
 

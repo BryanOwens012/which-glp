@@ -1,5 +1,5 @@
 """
-OpenAI GPT-6 Luna client for extracting demographic data from Reddit user history.
+OpenAI client for extracting demographic data from Reddit user history.
 
 Thin wrapper over the shared BaseOpenAIExtractor — the OpenAI call, JSON parsing,
 retry/backoff, cost tracking, and metadata all live in shared/openai_extractor.py.
@@ -20,10 +20,9 @@ class OpenAIClient(BaseOpenAIExtractor):
     def extract_demographics(
         self,
         prompts: "tuple[str, str] | str",
-        model: Optional[str] = None,
         max_retries: int = 3,
     ) -> Tuple[UserDemographics, Dict[str, Any]]:
-        return self.extract(prompts, UserDemographics, model=model, max_retries=max_retries)
+        return self.extract(prompts, UserDemographics, max_retries=max_retries)
 
 
 _client_instance: Optional[OpenAIClient] = None

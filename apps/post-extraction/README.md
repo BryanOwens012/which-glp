@@ -1,16 +1,16 @@
 # Post Extraction Service
 
-Extracts structured features from Reddit posts using GPT-6 Luna (replaces Claude Sonnet 4).
+Extracts structured features from Reddit posts using GPT-6 Luna.
 
 ## Overview
 
-Uses GPT-6 Luna API ($0.10/$0.50 per 1M input/output tokens; $0.01 cached input, $0.125 cache write) instead of Claude ($3/$15 per 1M tokens) - **~30x cheaper**.
+Uses the GPT-6 Luna API through the shared extractor. Per-token prices live in `MODEL_PRICING` in `scripts/legacy-ingestion/shared/openai_extractor.py`; they are ~30x below Claude Sonnet 4's on both input and output.
 
-## Cost Savings
+## Cost
 
-- Claude cost per post: ~$0.01
-- GPT-6 Luna cost per post: ~$0.00035
-- **Savings: ~97%** ($10 → $0.35 per 1,000 posts)
+Measured on live calls:
+- A post sends ~9,500 input tokens, nearly all of them the cached static system prompt, and gets ~350–550 output tokens back
+- ~$0.00035 per post while the prompt cache is warm; ~$0.0015 for the call that writes it
 
 ## Usage
 

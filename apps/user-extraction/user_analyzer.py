@@ -329,7 +329,7 @@ class RedditUserAnalyzer:
             # the next user; analyze_user must not silently swallow errors.
             raise
 
-    OPENAI_RATE_LIMIT_DELAY = 5.0  # Seconds between requests (GPT-6 Luna)
+    OPENAI_RATE_LIMIT_DELAY = 5.0  # Seconds between OpenAI requests
 
     def run(self, limit: Optional[int] = None, rate_limit_delay: float = OPENAI_RATE_LIMIT_DELAY):
         """

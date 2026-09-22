@@ -49,6 +49,17 @@ class WeightData(BaseModel):
         return v
 
 
+SEVERITY_VALUES = ("mild", "moderate", "severe")
+SEVERITY_SYNONYMS = {
+    "low": "mild",
+    "minor": "mild",
+    "slight": "mild",
+    "medium": "moderate",
+    "high": "severe",
+    "extreme": "severe",
+}
+
+
 class SideEffectData(BaseModel):
     """Side effect with severity and confidence level"""
     name: str = Field(..., description="Name of the side effect (lowercase)")
@@ -60,6 +71,23 @@ class SideEffectData(BaseModel):
         None,
         description="Confidence in the extraction accuracy"
     )
+
+    @field_validator("severity", mode="before")
+    @classmethod
+    def normalize_severity(cls, v) -> Optional[str]:
+        """
+        Map severity synonyms onto mild/moderate/severe; anything else becomes None.
+
+        The model sometimes answers with the confidence scale (low/medium/high)
+        instead. Severity is optional, so an unrecognized value drops that one
+        datum rather than failing validation for the whole post.
+        """
+        if not isinstance(v, str):
+            return None
+        v_lower = v.strip().lower()
+        if v_lower in SEVERITY_VALUES:
+            return v_lower
+        return SEVERITY_SYNONYMS.get(v_lower)
 
 
 class ExtractedFeatures(BaseModel):

@@ -6,11 +6,10 @@ the OpenAI call, the JSON-extraction fallbacks, retry/backoff, cost tracking,
 and metadata assembly. Subclasses only supply the target Pydantic model (and,
 optionally, a default system prompt) via a thin domain-specific method.
 
-GPT-6 Luna is a reasoning model, so it does NOT accept sampling parameters
-(temperature, top_p, etc.). Deterministic-ish, low-latency extraction is
-achieved with reasoning_effort="none" plus JSON response formatting. The GPT-6
-family dropped "minimal": its efforts are none/low/medium/high/xhigh/max, and
-the default is medium, so omitting the parameter would raise cost and latency.
+Low-latency extraction uses reasoning_effort="none" plus JSON response
+formatting, and sends no sampling parameters (temperature, top_p). GPT-6
+rejects "minimal" with a 400 and defaults to "medium" when the parameter is
+omitted, so "none" is passed explicitly.
 
 Cost (USD per 1M tokens): GPT-6 Luna $0.10 input ($0.01 cached, $0.125 cache
 write) / $0.50 output.
@@ -137,7 +136,6 @@ class BaseOpenAIExtractor:
         response_model: Type[BaseModel],
         *,
         default_system_prompt: Optional[str] = None,
-        model: Optional[str] = None,
         max_retries: int = 3,
     ) -> Tuple[BaseModel, Dict[str, Any]]:
         """
@@ -148,7 +146,6 @@ class BaseOpenAIExtractor:
             response_model: the Pydantic model to validate the JSON output into.
             default_system_prompt: system prompt to use when `prompts` is a bare
                 string (ignored when `prompts` is a tuple).
-            model: model id (defaults to gpt-6-luna).
             max_retries: attempts before giving up.
 
         Returns:
@@ -157,8 +154,9 @@ class BaseOpenAIExtractor:
         Raises:
             OpenAIExtractionError: on invalid output or after exhausting retries.
         """
-        if model is None:
-            model = DEFAULT_MODEL
+        # One model only: DEFAULT_REASONING_EFFORT is valid for it and not for
+        # the GPT-5 family, so the model is not a per-call choice.
+        model = DEFAULT_MODEL
 
         messages = self._build_messages(prompts, default_system_prompt)
 
@@ -197,11 +195,14 @@ class BaseOpenAIExtractor:
                 tokens_input_cached = min(
                     getattr(prompt_details, "cached_tokens", 0) or 0, tokens_input
                 )
-                # Cache writes, billed separately on GPT-6. The field is documented
-                # for the Responses API (input_tokens_details.cache_write_tokens);
-                # read its Chat Completions twin defensively so an absent field
-                # bills as plain input rather than failing the extraction.
-                tokens_input_cache_write = getattr(prompt_details, "cache_write_tokens", 0) or 0
+                # Cache writes (usage.prompt_tokens_details.cache_write_tokens),
+                # billed separately on GPT-6. The SDK reports None on models that
+                # do not bill writes, so default to 0 (billed as plain input).
+                # Clamped to the non-cached input so metadata matches the cost.
+                tokens_input_cache_write = min(
+                    getattr(prompt_details, "cache_write_tokens", 0) or 0,
+                    tokens_input - tokens_input_cached,
+                )
                 cost_usd = self.calculate_cost(
                     model, tokens_input, tokens_output, tokens_input_cached, tokens_input_cache_write
                 )
@@ -235,7 +236,8 @@ class BaseOpenAIExtractor:
                 logger.info(
                     f"Extraction successful - Model: {model}, Cost: ${cost_usd:.6f}, "
                     f"Tokens: {tokens_input}/{tokens_output} "
-                    f"(cached: {tokens_input_cached}, hit rate: {cache_hit_rate:.0%}), "
+                    f"(cached: {tokens_input_cached}, written: {tokens_input_cache_write}, "
+                    f"hit rate: {cache_hit_rate:.0%}), "
                     f"Time: {processing_time_ms}ms"
                 )
                 return result, metadata

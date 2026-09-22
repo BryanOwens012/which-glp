@@ -583,8 +583,7 @@ railway logs -s User-Extraction -p df649372-5b20-4e68-8ccd-31935edceade -e produ
 - **Savings: ~97% cost reduction (~30x)**
 
 **Trade-offs:**
-- Extraction accuracy against Claude has not been re-measured on GPT-6 Luna
-- Faster response times (optimized for speed)
+- Accuracy versus Claude has not been measured
 - Good enough for text extraction, summarization, sentiment analysis
 - Can always upgrade to Claude for critical extractions
 

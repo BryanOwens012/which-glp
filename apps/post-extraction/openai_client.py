@@ -1,5 +1,5 @@
 """
-OpenAI GPT-6 Luna client for post feature extraction (replaces Claude/GLM).
+OpenAI client for post feature extraction.
 
 Thin wrapper over the shared BaseOpenAIExtractor — the OpenAI call, JSON parsing,
 retry/backoff, cost tracking, and metadata all live in shared/openai_extractor.py.
@@ -12,7 +12,7 @@ from shared.openai_extractor import BaseOpenAIExtractor
 
 
 class OpenAIClient(BaseOpenAIExtractor):
-    """Extracts ExtractedFeatures from Reddit posts via GPT-6 Luna."""
+    """Extracts ExtractedFeatures from Reddit posts."""
 
     # Routes same-prefix requests to the same OpenAI cache shard
     PROMPT_CACHE_KEY = "whichglp-post-extraction"
@@ -20,10 +20,9 @@ class OpenAIClient(BaseOpenAIExtractor):
     def extract_features(
         self,
         prompts: "tuple[str, str] | str",
-        model: Optional[str] = None,
         max_retries: int = 3,
     ) -> Tuple[ExtractedFeatures, Dict[str, Any]]:
-        return self.extract(prompts, ExtractedFeatures, model=model, max_retries=max_retries)
+        return self.extract(prompts, ExtractedFeatures, max_retries=max_retries)
 
 
 _client_instance: Optional[OpenAIClient] = None

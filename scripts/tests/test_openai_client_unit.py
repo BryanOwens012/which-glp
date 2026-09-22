@@ -356,7 +356,55 @@ def test_metadata_includes_cache_write_tokens_and_their_cost():
 
 
 def test_metadata_cache_write_tokens_defaults_to_zero_when_field_missing():
-    # The Chat Completions field is not documented; its absence must not fail extraction.
+    # Older models and partial responses omit the field; its absence must not fail extraction.
     ex = build_extractor([make_response('{"summary": "ok"}', cached_tokens=10)])
     _, metadata = ex.extract("x", passthrough)
     assert metadata["tokens_input_cache_write"] == 0
+
+
+def test_metadata_clamps_over_reported_cache_write_tokens():
+    # Writes can only come from non-cached input: 100 prompt − 40 cached = 60.
+    ex = build_extractor([make_response('{"summary": "ok"}', prompt_tokens=100,
+                                        completion_tokens=20, cached_tokens=40,
+                                        cache_write_tokens=500)])
+    _, metadata = ex.extract("x", passthrough)
+    assert metadata["tokens_input_cache_write"] == 60
+    assert metadata["raw_response"]["usage"]["cache_write_tokens"] == 60
+    assert metadata["cost_usd"] == pytest.approx(ex.calculate_cost("gpt-6-luna", 100, 20, 40, 60))
+
+
+@pytest.mark.parametrize(
+    ("details_kwargs", "expected_cached", "expected_write"),
+    [
+        ({"cached_tokens": 40}, 40, 0),  # SDK leaves cache_write_tokens as None
+        ({"cached_tokens": None, "cache_write_tokens": None}, 0, 0),
+        ({"cached_tokens": 40, "cache_write_tokens": 50}, 40, 50),
+    ],
+)
+def test_metadata_from_real_sdk_usage_types(details_kwargs, expected_cached, expected_write):
+    # The real SDK declares these fields, so an unreported count is None rather
+    # than a missing attribute; metadata must still hold integers.
+    from openai.types.completion_usage import CompletionUsage, PromptTokensDetails
+
+    response = make_response('{"summary": "ok"}')
+    response.usage = CompletionUsage(
+        prompt_tokens=100,
+        completion_tokens=20,
+        total_tokens=120,
+        prompt_tokens_details=PromptTokensDetails(**details_kwargs),
+    )
+    ex = build_extractor([response])
+    _, metadata = ex.extract("x", passthrough)
+    assert metadata["tokens_input_cached"] == expected_cached
+    assert metadata["tokens_input_cache_write"] == expected_write
+    assert metadata["raw_response"]["usage"]["cache_write_tokens"] == expected_write
+    assert metadata["cost_usd"] == pytest.approx(
+        ex.calculate_cost("gpt-6-luna", 100, 20, expected_cached, expected_write)
+    )
+
+
+def test_extract_always_uses_the_extraction_model_and_its_effort():
+    # The effort value is only valid for DEFAULT_MODEL, so extract() takes no model override.
+    ex = build_extractor([make_response('{"summary": "ok"}')])
+    with pytest.raises(TypeError):
+        ex.extract("x", passthrough, model="gpt-5-nano")

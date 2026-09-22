@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Minimal test of the OpenAI SDK (GPT-6 Luna) to verify connectivity.
 
-GPT-6 Luna is a reasoning model: it does NOT accept sampling parameters
-(temperature, top_p, etc.). Use reasoning_effort instead.
+GPT-6 Luna is a reasoning model: pass reasoning_effort ("none" is the lowest;
+"minimal" is rejected).
 Docs: https://developers.openai.com/api/docs/models/gpt-6-luna
 """
 
