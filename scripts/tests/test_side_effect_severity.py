@@ -18,7 +18,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "apps" / "post-extraction"))
 
-from schema import ExtractedFeatures, SideEffectData  # noqa: E402
+from schema import ExtractedFeatures, SideEffectData
 
 
 @pytest.mark.parametrize("value", ["mild", "moderate", "severe"])
