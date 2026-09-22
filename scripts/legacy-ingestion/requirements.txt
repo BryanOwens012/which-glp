@@ -6,7 +6,7 @@ pydantic==2.13.5
 # Reddit API
 praw==7.8.2
 
-# OpenAI (GPT-5-nano)
+# OpenAI (GPT-6 Luna)
 openai==2.54.0
 
 # Database

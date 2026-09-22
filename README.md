@@ -18,7 +18,7 @@
 
 ### Engineering
 
-- **Tech stack:** AI agent orchestration (Claude Sonnet 4.5 for code generation, GitHub Copilot + ChatGPT for code review, GPT-5-nano for feature extraction), Python FastAPI, Node.js, Redis, Supabase (PostgreSQL), Next.js, Vercel; designed to run autonomously at <$3/day
+- **Tech stack:** AI agent orchestration (Claude Sonnet 4.5 for code generation, GitHub Copilot + ChatGPT for code review, GPT-6 Luna for feature extraction), Python FastAPI, Node.js, Redis, Supabase (PostgreSQL), Next.js, Vercel; designed to run autonomously at <$3/day
 
 - **Performance:** Database optimization (materialized views, composite indexing, Redis caching) and frontend preconnecting achieve <200ms Speed Index (best case), [700ms Speed Index](https://pagespeed.web.dev/analysis/https-whichglp-com-compare/ddc3fk0bbf?form_factor=desktop) (average case), and Core Web Vitals scores (SI, LCP) superior to Google Search.
 
@@ -64,14 +64,14 @@
 - **Framework:** FastAPI + uvicorn
 - **Language:** Python 3.13+
 - **Database:** Supabase client
-- **AI Model:** GPT-5-nano (via OpenAI SDK), a cost-effective model for simple text extraction, summarization, and sentiment analysis
+- **AI Model:** GPT-6 Luna (via OpenAI SDK), a cost-effective model for simple text extraction, summarization, and sentiment analysis
 - **Function:** Extract structured drug experience data from posts
 
 **4. User Extraction** (`apps/user-extraction`)
 - **Framework:** FastAPI + uvicorn
 - **Language:** Python 3.13+
 - **Database:** Supabase client
-- **AI Model:** GPT-5-nano (via OpenAI SDK)
+- **AI Model:** GPT-6 Luna (via OpenAI SDK)
 - **Function:** Extract user demographics from posts and comments
 
 **5. Recommendation Engine** (`apps/rec-engine`)

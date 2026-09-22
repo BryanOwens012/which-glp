@@ -191,7 +191,7 @@ the only non-`/trpc` path the service answers; everything else returns 404.
 **Tech Stack:**
 - Python 3.13
 - FastAPI + uvicorn
-- GPT-5-nano (OpenAI SDK)
+- GPT-6 Luna (OpenAI SDK)
 - Supabase client
 
 **Responsibilities:**
@@ -219,7 +219,7 @@ the only non-`/trpc` path the service answers; everything else returns 404.
 **Tech Stack:**
 - Python 3.13
 - FastAPI + uvicorn
-- GPT-5-nano (OpenAI SDK)
+- GPT-6 Luna (OpenAI SDK)
 - Supabase client
 
 **Responsibilities:**
@@ -319,7 +319,7 @@ the only non-`/trpc` path the service answers; everything else returns 404.
         ▼
 ┌──────────────────┐
 │ Post-Extraction  │ ◄─── Cron (daily)
-│ (GPT-5-nano)     │
+│ (GPT-6 Luna)     │
 └────────┬─────────┘
          │
          ▼
@@ -332,7 +332,7 @@ the only non-`/trpc` path the service answers; everything else returns 404.
         ▼
 ┌──────────────────┐
 │ User-Extraction  │ ◄─── Cron (daily)
-│ (GPT-5-nano)     │
+│ (GPT-6 Luna)     │
 └────────┬─────────┘
          │
          ▼
@@ -575,15 +575,15 @@ railway logs -s User-Extraction -p df649372-5b20-4e68-8ccd-31935edceade -e produ
 - FastAPI services boot quickly (~2-5 seconds)
 - 2-day intervals ensure fresh data without wasted cycles
 
-### Why GPT-5-nano Instead of Claude?
+### Why GPT-6 Luna Instead of Claude?
 
 **Cost Comparison:**
 - Claude Sonnet 4: $3/1M input tokens, $15/1M output tokens
-- GPT-5-nano: ~$0.05/$0.40 per 1M tokens (via OpenAI SDK)
-- **Savings: ~85% cost reduction**
+- GPT-6 Luna: $0.10/$0.50 per 1M tokens (via OpenAI SDK; $0.01 cached input, $0.125 cache write)
+- **Savings: ~97% cost reduction (~30x)**
 
 **Trade-offs:**
-- Slightly lower quality extractions (~5-10% less accurate)
+- Extraction accuracy against Claude has not been re-measured on GPT-6 Luna
 - Faster response times (optimized for speed)
 - Good enough for text extraction, summarization, sentiment analysis
 - Can always upgrade to Claude for critical extractions

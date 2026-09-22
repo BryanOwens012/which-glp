@@ -1,5 +1,5 @@
 """
-OpenAI GPT-5-nano client for post feature extraction (replaces Claude/GLM).
+OpenAI GPT-6 Luna client for post feature extraction (replaces Claude/GLM).
 
 Thin wrapper over the shared BaseOpenAIExtractor — the OpenAI call, JSON parsing,
 retry/backoff, cost tracking, and metadata all live in shared/openai_extractor.py.
@@ -12,7 +12,7 @@ from shared.openai_extractor import BaseOpenAIExtractor
 
 
 class OpenAIClient(BaseOpenAIExtractor):
-    """Extracts ExtractedFeatures from Reddit posts via GPT-5-nano."""
+    """Extracts ExtractedFeatures from Reddit posts via GPT-6 Luna."""
 
     # Routes same-prefix requests to the same OpenAI cache shard
     PROMPT_CACHE_KEY = "whichglp-post-extraction"

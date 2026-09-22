@@ -1,6 +1,6 @@
 #!/bin/bash
 set -e
-echo "Starting WhichGLP Post Extraction Service (GPT-5-nano)..."
+echo "Starting WhichGLP Post Extraction Service (GPT-6 Luna)..."
 if [ -d "../../venv" ]; then
     source ../../venv/bin/activate
 fi

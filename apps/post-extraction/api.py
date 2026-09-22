@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""FastAPI service for post extraction using GPT-5-nano (replaces Claude)."""
+"""FastAPI service for post extraction using GPT-6 Luna (replaces Claude)."""
 
 import os
 import sys
@@ -13,7 +13,7 @@ from pydantic import BaseModel
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 # Import the extraction pipeline - reuses most code from data-ingestion
-# Just swaps out the AI client from Claude to OpenAI GPT-5-nano
+# Just swaps out the AI client from Claude to OpenAI GPT-6 Luna
 from openai_client import get_client
 from shared.config import get_logger
 
@@ -35,7 +35,7 @@ async def startup_event():
     logger.info("=" * 80)
     logger.info("🚀 POST EXTRACTION SERVICE STARTING UP")
     logger.info("   Service: post-extraction")
-    logger.info("   Model: GPT-5-nano")
+    logger.info("   Model: GPT-6 Luna")
     logger.info(f"   Port: {os.getenv('PORT', '8004')}")
     logger.info(f"   Time: {datetime.now().isoformat()}")
     logger.info("=" * 80)
@@ -65,12 +65,12 @@ class ExtractionRequest(BaseModel):
 
 
 _extraction_running = False
-OPENAI_RATE_LIMIT_DELAY = 5.0  # Seconds between requests (GPT-5-nano)
+OPENAI_RATE_LIMIT_DELAY = 5.0  # Seconds between requests (GPT-6 Luna)
 
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy", "service": "post-extraction", "model": "gpt-5-nano"}
+    return {"status": "healthy", "service": "post-extraction", "model": "gpt-6-luna"}
 
 
 @app.post("/api/extract")
@@ -193,7 +193,7 @@ async def trigger_extraction(
                     prompt = build_post_prompt(
                         subreddit, title, body or "", flair or ""
                     )
-                    logger.debug(f"🤖 Sending to GPT-5-nano for extraction: {post_id}")
+                    logger.debug(f"🤖 Sending to GPT-6 Luna for extraction: {post_id}")
 
                     features, metadata = ai_client.extract_features(prompt)
 
@@ -320,7 +320,7 @@ async def trigger_extraction(
                         f"❌ Failed to extract {post_id}: {str(e)}", exc_info=True
                     )
 
-                # Rate limit: GPT-5-nano
+                # Rate limit: GPT-6 Luna
                 if i < len(posts):
                     time.sleep(OPENAI_RATE_LIMIT_DELAY)
 
@@ -332,7 +332,7 @@ async def trigger_extraction(
             logger.info("=" * 80)
             logger.info("✨ EXTRACTION BATCH COMPLETED")
             logger.info(f"   Total posts queried: {len(posts)}")
-            logger.info(f"   Processed by GPT-5-nano: {processed}")
+            logger.info(f"   Processed by GPT-6 Luna: {processed}")
             logger.info(f"   Failed: {failed}")
             logger.info(f"   Skipped (filtered): {skipped}")
             logger.info(
@@ -360,7 +360,7 @@ async def trigger_extraction(
 
     background_tasks.add_task(run_extraction)
     logger.info("✅ Extraction task queued successfully")
-    return {"status": "started", "message": "Extraction started with GPT-5-nano"}
+    return {"status": "started", "message": "Extraction started with GPT-6 Luna"}
 
 
 @app.get("/api/status")

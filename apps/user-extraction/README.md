@@ -1,21 +1,21 @@
 # User Extraction Service
 
-Analyzes Reddit user post/comment history to extract demographic information using GPT-5-nano.
+Analyzes Reddit user post/comment history to extract demographic information using GPT-6 Luna.
 
 ## Overview
 
 This service:
 1. Queries unique usernames from `reddit_posts` table
 2. Fetches last 20 posts + 20 comments per user via PRAW
-3. Sends to GPT-5-nano for demographic extraction
+3. Sends to GPT-6 Luna for demographic extraction
 4. Inserts results to `reddit_users` table
 
 ## Architecture
 
 ```
 user-extraction/
-├── openai_client.py    # OpenAI SDK wrapper (GPT-5-nano)
-├── user_analyzer.py    # Main analyzer (PRAW + GPT-5-nano)
+├── openai_client.py    # OpenAI SDK wrapper (GPT-6 Luna)
+├── user_analyzer.py    # Main analyzer (PRAW + GPT-6 Luna)
 ├── prompts.py          # Demographic extraction prompts
 ├── schema.py           # Pydantic models (UserDemographics)
 ├── api.py              # FastAPI service
@@ -110,18 +110,18 @@ REDDIT_API_APP_SECRET=your-app-secret
 
 ## Cost Analysis
 
-**GPT-5-nano Pricing:**
-- Input: $0.05 per 1M tokens
-- Output: $0.40 per 1M tokens
+**GPT-6 Luna Pricing:**
+- Input: $0.10 per 1M tokens ($0.01 cached, $0.125 cache write)
+- Output: $0.50 per 1M tokens
 
 **Typical User Analysis:**
 - 20 posts + 20 comments ≈ 3,000 input tokens
 - Structured output ≈ 100 output tokens
-- **Cost per user: ~$0.0002** (0.02 cents)
+- **Cost per user: ~$0.00035** (0.035 cents)
 
 **Comparison to Claude Sonnet 4:**
 - Claude cost per user: ~$0.0105
-- **Savings: ~15x cheaper**
+- **Savings: ~30x cheaper**
 
 **Estimated Monthly Costs:**
 - 1,000 users: ~$0.70

@@ -4,7 +4,7 @@ AI extraction pipeline for Reddit posts and comments.
 This script:
 1. Exports unprocessed posts/comments from Supabase (bulk query)
 2. Builds in-memory lookup for fast context building
-3. Processes each item with GPT-5-nano
+3. Processes each item with GPT-6 Luna
 4. Batch inserts results back to Supabase
 
 Hybrid approach: minimize DB queries, maximize in-memory processing.
@@ -249,7 +249,7 @@ class AIExtractionPipeline:
 
     def process_post(self, post_row: tuple) -> Optional[ExtractionResult]:
         """
-        Process a single post with GPT-5-nano.
+        Process a single post with GPT-6 Luna.
 
         Args:
             post_row: (post_id, title, body, subreddit, author_flair_text)
@@ -304,7 +304,7 @@ class AIExtractionPipeline:
     """
     def process_comment(self, comment_row: tuple) -> Optional[ExtractionResult]:
         '''
-        Process a single comment with GPT-5-nano.
+        Process a single comment with GPT-6 Luna.
 
         Args:
             comment_row: (comment_id, post_id, parent_comment_id, body, author, depth, author_flair_text)

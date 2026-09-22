@@ -1,5 +1,5 @@
 """
-Unit tests for the shared OpenAI (GPT-5-nano) extraction base class.
+Unit tests for the shared OpenAI (GPT-6 Luna) extraction base class.
 
 These mock the OpenAI SDK so they run offline (no API key, no network) and
 isolate the client logic: message construction, the JSON-extraction fallbacks,
@@ -35,7 +35,8 @@ class StrictModel(BaseModel):
 
 
 def make_response(content, prompt_tokens=100, completion_tokens=20,
-                  finish_reason="stop", response_id="resp_1", cached_tokens=None):
+                  finish_reason="stop", response_id="resp_1", cached_tokens=None,
+                  cache_write_tokens=None):
     message = types.SimpleNamespace(content=content)
     choice = types.SimpleNamespace(message=message, finish_reason=finish_reason)
     usage = types.SimpleNamespace(
@@ -43,9 +44,14 @@ def make_response(content, prompt_tokens=100, completion_tokens=20,
         completion_tokens=completion_tokens,
         total_tokens=prompt_tokens + completion_tokens,
     )
+    details = {}
     if cached_tokens is not None:
-        usage.prompt_tokens_details = types.SimpleNamespace(cached_tokens=cached_tokens)
-    return types.SimpleNamespace(id=response_id, choices=[choice], usage=usage, model="gpt-5-nano")
+        details["cached_tokens"] = cached_tokens
+    if cache_write_tokens is not None:
+        details["cache_write_tokens"] = cache_write_tokens
+    if details:
+        usage.prompt_tokens_details = types.SimpleNamespace(**details)
+    return types.SimpleNamespace(id=response_id, choices=[choice], usage=usage, model="gpt-6-luna")
 
 
 class _FakeCompletions:
@@ -89,10 +95,10 @@ def test_string_prompt_builds_single_user_message():
     sent = ex.client.chat.completions.calls[0]
     assert sent["messages"] == [{"role": "user", "content": "hello"}]
     # Reasoning-model invariants: reasoning_effort + JSON mode, NO temperature.
-    assert sent["reasoning_effort"] == "minimal"
+    assert sent["reasoning_effort"] == "none"
     assert sent["response_format"] == {"type": "json_object"}
     assert "temperature" not in sent
-    assert sent["model"] == "gpt-5-nano"
+    assert sent["model"] == "gpt-6-luna"
 
 
 def test_tuple_prompt_sets_system_and_user_messages():
@@ -181,21 +187,21 @@ def test_rate_limit_then_success():
 
 def test_calculate_cost_uses_model_pricing():
     ex = build_extractor([])
-    assert ex.calculate_cost("gpt-5-nano", 1_000_000, 1_000_000) == pytest.approx(0.45)
+    assert ex.calculate_cost("gpt-6-luna", 1_000_000, 1_000_000) == pytest.approx(0.60)
 
 
 def test_calculate_cost_unknown_model_falls_back_to_default():
     ex = build_extractor([])
-    assert ex.calculate_cost("does-not-exist", 1_000_000, 0) == pytest.approx(0.05)
+    assert ex.calculate_cost("does-not-exist", 1_000_000, 0) == pytest.approx(0.10)
 
 
 def test_metadata_shape():
     ex = build_extractor([make_response('{"summary": "ok"}', response_id="resp_42")])
     _, metadata = ex.extract("x", passthrough)
-    assert metadata["model"] == "gpt-5-nano"
+    assert metadata["model"] == "gpt-6-luna"
     assert metadata["tokens_input"] == 100
     assert metadata["tokens_output"] == 20
-    assert metadata["cost_usd"] == pytest.approx(ex.calculate_cost("gpt-5-nano", 100, 20))
+    assert metadata["cost_usd"] == pytest.approx(ex.calculate_cost("gpt-6-luna", 100, 20))
     assert metadata["raw_response"]["id"] == "resp_42"
     assert metadata["raw_response"]["finish_reason"] == "stop"
     assert metadata["raw_response"]["usage"]["total_tokens"] == 120
@@ -208,21 +214,45 @@ def test_metadata_shape():
 def test_calculate_cost_discounts_cached_input():
     ex = build_extractor([])
     # 1M prompt tokens of which 800k cached, 1M output:
-    # 0.2M × $0.05/M + 0.8M × $0.005/M + 1M × $0.40/M = 0.414
-    cost = ex.calculate_cost("gpt-5-nano", 1_000_000, 1_000_000, tokens_input_cached=800_000)
-    assert cost == pytest.approx(0.414)
+    # 0.2M × $0.10/M + 0.8M × $0.01/M + 1M × $0.50/M = 0.528
+    cost = ex.calculate_cost("gpt-6-luna", 1_000_000, 1_000_000, tokens_input_cached=800_000)
+    assert cost == pytest.approx(0.528)
 
 
 def test_calculate_cost_clamps_cached_to_total_input():
     ex = build_extractor([])
-    fully_cached = ex.calculate_cost("gpt-5-nano", 1_000_000, 0, tokens_input_cached=1_000_000)
-    over_reported = ex.calculate_cost("gpt-5-nano", 1_000_000, 0, tokens_input_cached=2_000_000)
-    assert over_reported == pytest.approx(fully_cached) == pytest.approx(0.005)
+    fully_cached = ex.calculate_cost("gpt-6-luna", 1_000_000, 0, tokens_input_cached=1_000_000)
+    over_reported = ex.calculate_cost("gpt-6-luna", 1_000_000, 0, tokens_input_cached=2_000_000)
+    assert over_reported == pytest.approx(fully_cached) == pytest.approx(0.01)
 
 
 def test_calculate_cost_cached_none_treated_as_zero():
     ex = build_extractor([])
-    assert ex.calculate_cost("gpt-5-nano", 1_000_000, 0, tokens_input_cached=None) == pytest.approx(0.05)
+    assert ex.calculate_cost("gpt-6-luna", 1_000_000, 0, tokens_input_cached=None) == pytest.approx(0.10)
+
+
+def test_calculate_cost_bills_cache_writes_at_write_rate():
+    ex = build_extractor([])
+    # 1M prompt tokens: 0.5M cached, 0.3M written to cache, 0.2M plain; no output:
+    # 0.5M × $0.01/M + 0.3M × $0.125/M + 0.2M × $0.10/M = 0.0625
+    cost = ex.calculate_cost("gpt-6-luna", 1_000_000, 0, tokens_input_cached=500_000,
+                             tokens_input_cache_write=300_000)
+    assert cost == pytest.approx(0.0625)
+
+
+def test_calculate_cost_clamps_cache_writes_to_uncached_input():
+    # Writes can only come from input that was not a cache hit.
+    ex = build_extractor([])
+    clamped = ex.calculate_cost("gpt-6-luna", 1_000_000, 0, tokens_input_cached=800_000,
+                                tokens_input_cache_write=5_000_000)
+    # 0.8M × $0.01/M + 0.2M × $0.125/M = 0.033
+    assert clamped == pytest.approx(0.033)
+
+
+def test_calculate_cost_cache_writes_none_treated_as_zero():
+    ex = build_extractor([])
+    assert ex.calculate_cost("gpt-6-luna", 1_000_000, 0,
+                             tokens_input_cache_write=None) == pytest.approx(0.10)
 
 
 def test_calculate_cost_unknown_model_without_cached_rate_charges_full_input():
@@ -243,7 +273,7 @@ def test_metadata_includes_cached_tokens_and_discounted_cost():
     _, metadata = ex.extract("x", passthrough)
     assert metadata["tokens_input_cached"] == 60
     assert metadata["raw_response"]["usage"]["cached_tokens"] == 60
-    assert metadata["cost_usd"] == pytest.approx(ex.calculate_cost("gpt-5-nano", 100, 20, 60))
+    assert metadata["cost_usd"] == pytest.approx(ex.calculate_cost("gpt-6-luna", 100, 20, 60))
 
 
 def test_metadata_cached_tokens_defaults_to_zero_when_details_missing():
@@ -313,3 +343,20 @@ def test_missing_api_key_raises(monkeypatch):
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     with pytest.raises(ValueError):
         BaseOpenAIExtractor()
+
+
+def test_metadata_includes_cache_write_tokens_and_their_cost():
+    ex = build_extractor([make_response('{"summary": "ok"}', prompt_tokens=100,
+                                        completion_tokens=20, cached_tokens=40,
+                                        cache_write_tokens=50)])
+    _, metadata = ex.extract("x", passthrough)
+    assert metadata["tokens_input_cache_write"] == 50
+    assert metadata["raw_response"]["usage"]["cache_write_tokens"] == 50
+    assert metadata["cost_usd"] == pytest.approx(ex.calculate_cost("gpt-6-luna", 100, 20, 40, 50))
+
+
+def test_metadata_cache_write_tokens_defaults_to_zero_when_field_missing():
+    # The Chat Completions field is not documented; its absence must not fail extraction.
+    ex = build_extractor([make_response('{"summary": "ok"}', cached_tokens=10)])
+    _, metadata = ex.extract("x", passthrough)
+    assert metadata["tokens_input_cache_write"] == 0

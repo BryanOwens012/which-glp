@@ -1,5 +1,5 @@
 """
-OpenAI GPT-5-nano client for the (deprecated) legacy ingestion pipeline.
+OpenAI GPT-6 Luna client for the (deprecated) legacy ingestion pipeline.
 
 Thin wrapper over the shared BaseOpenAIExtractor — the OpenAI call, JSON parsing,
 retry/backoff, cost tracking, and metadata all live in shared/openai_extractor.py.
@@ -14,7 +14,7 @@ from shared.openai_extractor import BaseOpenAIExtractor, OpenAIExtractionError  
 
 
 class OpenAIClient(BaseOpenAIExtractor):
-    """Extracts ExtractedFeatures from Reddit posts/comments via GPT-5-nano."""
+    """Extracts ExtractedFeatures from Reddit posts/comments via GPT-6 Luna."""
 
     def extract_features(
         self,

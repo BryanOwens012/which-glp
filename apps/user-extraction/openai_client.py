@@ -1,5 +1,5 @@
 """
-OpenAI GPT-5-nano client for extracting demographic data from Reddit user history.
+OpenAI GPT-6 Luna client for extracting demographic data from Reddit user history.
 
 Thin wrapper over the shared BaseOpenAIExtractor — the OpenAI call, JSON parsing,
 retry/backoff, cost tracking, and metadata all live in shared/openai_extractor.py.

@@ -470,7 +470,7 @@ class ExtractionResult(BaseModel):
     features: ExtractedFeatures = Field(..., description="Extracted structured data")
 
     # Processing metadata
-    model_used: str = Field(..., description="Model used (e.g., gpt-5-nano)")
+    model_used: str = Field(..., description="Model used (e.g., gpt-6-luna)")
     processing_cost_usd: Optional[float] = Field(None, description="Cost in USD for this API call", ge=0)
     tokens_input: Optional[int] = Field(None, description="Input tokens used", ge=0)
     tokens_output: Optional[int] = Field(None, description="Output tokens generated", ge=0)

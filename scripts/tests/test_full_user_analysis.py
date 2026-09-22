@@ -62,7 +62,7 @@ print(f"✓ Fetched {len(posts)} posts, {len(comments)} comments")
 prompts = build_user_prompt(username, posts, comments)
 print(f"✓ Built prompts ({sum(len(p) for p in prompts)} chars)")
 
-# Extract with GPT-5-nano
+# Extract with GPT-6 Luna
 ai_client = get_client()
 print("✓ Calling OpenAI API...")
 demographics, metadata = ai_client.extract_demographics(prompts)
