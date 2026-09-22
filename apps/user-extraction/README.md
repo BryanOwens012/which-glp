@@ -114,7 +114,7 @@ Extraction runs on GPT-6 Luna. Per-token prices live in `MODEL_PRICING` in
 `scripts/legacy-ingestion/shared/openai_extractor.py`; they are ~30x below Claude
 Sonnet 4's on both input and output.
 
-Cost per user has not been measured on GPT-6 Luna. Each call sends a ~3,600-token
+Cost per user has not been measured on GPT-6 Luna. Each call sends a ~4,000-token
 static system prompt (cached after the first call) plus the user's 20 posts and
 20 comments. The `cost_usd` field in each extraction's metadata is the real figure.
 

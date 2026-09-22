@@ -432,7 +432,7 @@
 
 **Goal:** Convert unstructured post/comment text into structured data
 
-**Extraction Model:** GPT-6 Luna (via OpenAI SDK) - cost-effective model for text extraction, summarization, and sentiment analysis
+**Extraction Model:** GPT-6 Luna (via OpenAI SDK)
 
 **Process:**
 1. Query unprocessed posts/comments from database

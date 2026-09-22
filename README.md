@@ -64,7 +64,7 @@
 - **Framework:** FastAPI + uvicorn
 - **Language:** Python 3.13+
 - **Database:** Supabase client
-- **AI Model:** GPT-6 Luna (via OpenAI SDK), a cost-effective model for simple text extraction, summarization, and sentiment analysis
+- **AI Model:** GPT-6 Luna (via OpenAI SDK)
 - **Function:** Extract structured drug experience data from posts
 
 **4. User Extraction** (`apps/user-extraction`)

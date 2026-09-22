@@ -356,7 +356,7 @@ def test_metadata_includes_cache_write_tokens_and_their_cost():
 
 
 def test_metadata_cache_write_tokens_defaults_to_zero_when_field_missing():
-    # Older models and partial responses omit the field; its absence must not fail extraction.
+    # A usage object without the attribute (duck-typed or an older SDK) must not fail extraction.
     ex = build_extractor([make_response('{"summary": "ok"}', cached_tokens=10)])
     _, metadata = ex.extract("x", passthrough)
     assert metadata["tokens_input_cache_write"] == 0
@@ -403,8 +403,11 @@ def test_metadata_from_real_sdk_usage_types(details_kwargs, expected_cached, exp
     )
 
 
-def test_extract_always_uses_the_extraction_model_and_its_effort():
-    # The effort value is only valid for DEFAULT_MODEL, so extract() takes no model override.
+def test_extract_rejects_a_model_override():
+    # The effort value is only known to be valid for DEFAULT_MODEL, so extract()
+    # takes no model override and always sends DEFAULT_MODEL.
     ex = build_extractor([make_response('{"summary": "ok"}')])
     with pytest.raises(TypeError):
         ex.extract("x", passthrough, model="gpt-5-nano")
+    ex.extract("x", passthrough)
+    assert ex.client.chat.completions.calls[0]["model"] == oe.DEFAULT_MODEL

@@ -464,18 +464,16 @@ The Database class creates a new connection per operation (no pooling yet). For 
 
 Extraction runs on GPT-6 Luna (`gpt-6-luna`, `reasoning_effort="none"`; GPT-6 rejects `"minimal"`). Pricing per million tokens, and the pricing table
 the code bills against, live in `scripts/legacy-ingestion/shared/openai_extractor.py`
-(`MODEL_PRICING`) — read it there rather than trusting a number copied into this doc:
-
-- Input: $0.10 ($0.01 for prompt-cache hits, $0.125 for cache writes)
-- Output: $0.50
+(`MODEL_PRICING`) — read the rates there. GPT-6 bills prompt-cache writes separately,
+at 25% above plain input.
 
 Typical post extraction:
 - ~9,500 input tokens, nearly all of them the static system prompt, and ~350–550 output tokens
 - Cost: ~$0.00035 per post while the prompt cache is warm, ~$0.0015 for the call that writes it
 
 So 10,000 posts costs roughly $3.50. Output tokens dominate once the prefix is cached.
-A cache write costs 25% more than plain input, so any byte change to the static prefix
-turns every call into a ~$0.0015 write — see the prompt-caching section above.
+A static prefix that differs between calls (a timestamp or ID in it) turns every call
+into a ~$0.0015 cache write — see the prompt-caching section above.
 
 ### Backup File Sizes
 

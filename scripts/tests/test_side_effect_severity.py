@@ -18,7 +18,11 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "apps" / "post-extraction"))
 
-from schema import ExtractedFeatures, SideEffectData
+from schema import SEVERITY_SYNONYMS, SEVERITY_VALUES, ExtractedFeatures, SideEffectData
+
+
+def test_every_synonym_maps_to_a_real_severity():
+    assert set(SEVERITY_SYNONYMS.values()) <= set(SEVERITY_VALUES)
 
 
 @pytest.mark.parametrize("value", ["mild", "moderate", "severe"])

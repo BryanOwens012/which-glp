@@ -11,8 +11,7 @@ formatting, and sends no sampling parameters (temperature, top_p). GPT-6
 rejects "minimal" with a 400 and defaults to "medium" when the parameter is
 omitted, so "none" is passed explicitly.
 
-Cost (USD per 1M tokens): GPT-6 Luna $0.10 input ($0.01 cached, $0.125 cache
-write) / $0.50 output.
+Per-token prices, including GPT-6's separate cache-write rate: MODEL_PRICING below.
 Docs: https://developers.openai.com/api/docs/models/gpt-6-luna
 """
 
@@ -154,8 +153,8 @@ class BaseOpenAIExtractor:
         Raises:
             OpenAIExtractionError: on invalid output or after exhausting retries.
         """
-        # One model only: DEFAULT_REASONING_EFFORT is valid for it and not for
-        # the GPT-5 family, so the model is not a per-call choice.
+        # One model only: DEFAULT_REASONING_EFFORT is only known to be valid for
+        # it (gpt-5-nano rejects "none"), so the model is not a per-call choice.
         model = DEFAULT_MODEL
 
         messages = self._build_messages(prompts, default_system_prompt)

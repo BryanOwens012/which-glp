@@ -579,12 +579,11 @@ railway logs -s User-Extraction -p df649372-5b20-4e68-8ccd-31935edceade -e produ
 
 **Cost Comparison:**
 - Claude Sonnet 4: $3/1M input tokens, $15/1M output tokens
-- GPT-6 Luna: $0.10/$0.50 per 1M tokens (via OpenAI SDK; $0.01 cached input, $0.125 cache write)
+- GPT-6 Luna: $0.10/$0.50 per 1M tokens (via OpenAI SDK; full rates in `MODEL_PRICING`)
 - **Savings: ~97% cost reduction (~30x)**
 
 **Trade-offs:**
-- Accuracy versus Claude has not been measured
-- Good enough for text extraction, summarization, sentiment analysis
+- Accuracy versus Claude has not been measured on GPT-6 Luna
 - Can always upgrade to Claude for critical extractions
 
 ---

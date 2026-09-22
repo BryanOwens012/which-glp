@@ -5,7 +5,7 @@ These schemas define the structure of data extracted by the model,
 ensuring type safety and validation before database insertion.
 """
 
-from typing import Optional, List, Literal, Dict, Any, Set
+from typing import Optional, List, Literal, Dict, Any, Set, get_args
 from pydantic import BaseModel, Field, field_validator
 from datetime import datetime, timezone
 
@@ -49,7 +49,8 @@ class WeightData(BaseModel):
         return v
 
 
-SEVERITY_VALUES = ("mild", "moderate", "severe")
+Severity = Literal["mild", "moderate", "severe"]
+SEVERITY_VALUES = get_args(Severity)
 SEVERITY_SYNONYMS = {
     "low": "mild",
     "minor": "mild",
@@ -63,7 +64,7 @@ SEVERITY_SYNONYMS = {
 class SideEffectData(BaseModel):
     """Side effect with severity and confidence level"""
     name: str = Field(..., description="Name of the side effect (lowercase)")
-    severity: Optional[Literal["mild", "moderate", "severe"]] = Field(
+    severity: Optional[Severity] = Field(
         None,
         description="Severity of the side effect"
     )
