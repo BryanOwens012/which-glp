@@ -7,56 +7,63 @@ from pathlib import Path
 # Add apps to path. This file is scripts/tests/<file>, so the repo root is
 # parents[2]; apps/user-extraction holds openai_client/prompts/schema plus the
 # `shared` symlink used by `from shared... import`.
-sys.path.insert(0, str(Path(__file__).parents[2] / "apps" / "user-extraction"))
-sys.path.insert(0, str(Path(__file__).parents[2] / "apps" / "shared"))
 
-from openai_client import get_client
-from prompts import build_user_prompt
+def main() -> None:
+    """Run the script. Kept out of module scope so pytest collection does nothing."""
+    sys.path.insert(0, str(Path(__file__).parents[2] / "apps" / "user-extraction"))
+    sys.path.insert(0, str(Path(__file__).parents[2] / "apps" / "shared"))
 
-# Test data
-test_posts = [
-    {
-        "title": "Started Ozempic 3 months ago",
-        "body": "I'm a 45 year old female, started at 220 lbs, now down to 195 lbs on 1mg weekly. Some nausea but manageable.",
-    }
-]
+    from openai_client import get_client
+    from prompts import build_user_prompt
 
-test_comments = [
-    {
-        "body": "I live in California and pay $25/month with insurance through Blue Cross."
-    }
-]
+    # Test data
+    test_posts = [
+        {
+            "title": "Started Ozempic 3 months ago",
+            "body": "I'm a 45 year old female, started at 220 lbs, now down to 195 lbs on 1mg weekly. Some nausea but manageable.",
+        }
+    ]
 
-print("Testing the extraction client...")
-print("=" * 60)
+    test_comments = [
+        {
+            "body": "I live in California and pay $25/month with insurance through Blue Cross."
+        }
+    ]
 
-# Build prompts (system_prompt, user_prompt) — system stays static for prompt caching
-prompts = build_user_prompt("test_user", test_posts, test_comments)
+    print("Testing the extraction client...")
+    print("=" * 60)
 
-print(f"\nPrompt length: {sum(len(p) for p in prompts)} chars")
-print("\nCalling OpenRouter...")
+    # Build prompts (system_prompt, user_prompt) — system stays static for prompt caching
+    prompts = build_user_prompt("test_user", test_posts, test_comments)
 
-# Get client and extract
-client = get_client()
-demographics, metadata = client.extract_demographics(prompts)
+    print(f"\nPrompt length: {sum(len(p) for p in prompts)} chars")
+    print("\nCalling OpenRouter...")
 
-print("\n" + "=" * 60)
-print("EXTRACTION SUCCESSFUL!")
-print("=" * 60)
-print("\nDemographics:")
-print(f"  Age: {demographics.age}")
-print(f"  Sex: {demographics.sex}")
-print(f"  State: {demographics.state}")
-print(f"  Starting weight: {demographics.start_weight_lbs} lbs")
-print(f"  Current weight: {demographics.end_weight_lbs} lbs")
-print(f"  Has insurance: {demographics.has_insurance}")
-print(f"  Insurance provider: {demographics.insurance_provider}")
+    # Get client and extract
+    client = get_client()
+    demographics, metadata = client.extract_demographics(prompts)
 
-print("\nMetadata:")
-print(f"  Model: {metadata['model']}")
-print(f"  Cost: ${metadata['cost_usd']:.6f}")
-print(f"  Input tokens: {metadata['tokens_input']}")
-print(f"  Output tokens: {metadata['tokens_output']}")
-print(f"  Processing time: {metadata['processing_time_ms']}ms")
+    print("\n" + "=" * 60)
+    print("EXTRACTION SUCCESSFUL!")
+    print("=" * 60)
+    print("\nDemographics:")
+    print(f"  Age: {demographics.age}")
+    print(f"  Sex: {demographics.sex}")
+    print(f"  State: {demographics.state}")
+    print(f"  Starting weight: {demographics.start_weight_lbs} lbs")
+    print(f"  Current weight: {demographics.end_weight_lbs} lbs")
+    print(f"  Has insurance: {demographics.has_insurance}")
+    print(f"  Insurance provider: {demographics.insurance_provider}")
 
-print("\n✓ OpenRouter API key is working!")
+    print("\nMetadata:")
+    print(f"  Model: {metadata['model']}")
+    print(f"  Cost: ${metadata['cost_usd']:.6f}")
+    print(f"  Input tokens: {metadata['tokens_input']}")
+    print(f"  Output tokens: {metadata['tokens_output']}")
+    print(f"  Processing time: {metadata['processing_time_ms']}ms")
+
+    print("\n✓ OpenRouter API key is working!")
+
+
+if __name__ == "__main__":
+    main()
