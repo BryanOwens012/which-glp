@@ -1,7 +1,7 @@
 """
 Pydantic models for user demographic data extraction.
 
-This defines the schema that GPT-5-nano should extract from Reddit user histories.
+This defines the schema that GPT-6 Luna should extract from Reddit user histories.
 """
 
 from typing import Optional, List
@@ -16,7 +16,7 @@ class UserDemographics(BaseModel):
     """
     Demographic data extracted from a Reddit user's post/comment history.
 
-    This is what we ask GPT-5-nano to extract from analyzing
+    This is what we ask GPT-6 Luna to extract from analyzing
     a user's last 20 posts + 20 comments.
     """
 

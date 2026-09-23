@@ -7,7 +7,7 @@ This directory contains ad-hoc test and debug scripts for development and troubl
 ### OpenAI Integration Tests
 
 - **`test_openai_minimal.py`** - Minimal test of the OpenAI SDK to verify API key and basic connectivity
-- **`test_openai_client.py`** - Test the OpenAI (GPT-5-nano) client with sample user data
+- **`test_openai_client.py`** - Test the OpenAI (GPT-6 Luna) client with sample user data
 - **`test_full_user_analysis.py`** - End-to-end test of user analysis pipeline
 - **`test_user_analyzer_debug.py`** - Debug script to troubleshoot user analyzer issues
 

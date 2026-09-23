@@ -1,16 +1,16 @@
 # Post Extraction Service
 
-Extracts structured features from Reddit posts using GPT-5-nano (replaces Claude Sonnet 4).
+Extracts structured features from Reddit posts using GPT-6 Luna.
 
 ## Overview
 
-Uses GPT-5-nano API ($0.05/$0.40 per 1M tokens) instead of Claude ($3/$15 per 1M tokens) - **~60x cheaper**.
+Uses the GPT-6 Luna API through the shared extractor. Per-token prices live in `MODEL_PRICING` in `scripts/legacy-ingestion/shared/openai_extractor.py`; they are ~30x below Claude Sonnet 4's on both input and output.
 
-## Cost Savings
+## Cost
 
-- Claude cost per post: ~$0.01
-- GPT-5-nano cost per post: ~$0.0002
-- **Savings: ~93%** ($100 → $7 per 1,000 posts)
+Measured on live calls:
+- A post sends ~9,500 input tokens, nearly all of them the cached static system prompt, and gets ~350–550 output tokens back
+- ~$0.00035 per post while the prompt cache is warm; ~$0.0015 for the call that writes it
 
 ## Usage
 
@@ -25,5 +25,5 @@ curl -X POST http://localhost:8004/api/extract -d '{"subreddit":"Ozempic","limit
 ## Railway Deployment
 
 Service: `Post-Extraction`, declared in `.railway/railway.ts` (Railpack from the monorepo root, start `cd apps/post-extraction && uvicorn api:app --host 0.0.0.0 --port $PORT`, healthcheck `/health`); triggered daily at 06:00 UTC by `Post-Extraction-Cron`
-Model: `gpt-5-nano`
+Model: `gpt-6-luna`
 Env: variable names are declared in `.railway/railway.ts`; values live on Railway

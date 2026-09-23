@@ -5,7 +5,7 @@ User demographics analyzer for Reddit users.
 This script:
 1. Fetches unique usernames from extracted_features table (users with already-extracted posts)
 2. Uses PRAW to get last 20 posts + 20 comments per user
-3. Sends to GPT-5-nano for demographic extraction
+3. Sends to GPT-6 Luna for demographic extraction
 4. Inserts results to reddit_users table
 """
 
@@ -39,7 +39,7 @@ class RedditUserAnalyzer:
     """
     Analyzes Reddit users to extract demographic information.
 
-    Uses PRAW to fetch user history and GPT-5-nano to extract demographics.
+    Uses PRAW to fetch user history and GPT-6 Luna to extract demographics.
     """
 
     def __init__(self):
@@ -180,7 +180,7 @@ class RedditUserAnalyzer:
         # Build (system_prompt, user_prompt) — system stays static for prompt caching
         prompts = build_user_prompt(username, posts, comments)
 
-        # Extract demographics with GPT-5-nano
+        # Extract demographics with GPT-6 Luna
         try:
             demographics, metadata = self.ai_client.extract_demographics(prompts)
 
@@ -329,7 +329,7 @@ class RedditUserAnalyzer:
             # the next user; analyze_user must not silently swallow errors.
             raise
 
-    OPENAI_RATE_LIMIT_DELAY = 5.0  # Seconds between requests (GPT-5-nano)
+    OPENAI_RATE_LIMIT_DELAY = 5.0  # Seconds between OpenAI requests
 
     def run(self, limit: Optional[int] = None, rate_limit_delay: float = OPENAI_RATE_LIMIT_DELAY):
         """

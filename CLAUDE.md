@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-WhichGLP is a GLP-1 weight-loss drug comparison platform that aggregates real-world user experiences from Reddit to help people make informed medication decisions. The project uses AI extraction (GPT-5-nano) to structure unstructured social media data into a searchable database.
+WhichGLP is a GLP-1 weight-loss drug comparison platform that aggregates real-world user experiences from Reddit to help people make informed medication decisions. The project uses AI extraction (GPT-6 Luna) to structure unstructured social media data into a searchable database.
 
 **Mission**: Build a proprietary dataset of GLP-1 outcomes that generic LLMs cannot provide (location-specific pricing, personalized predictions, insurance coverage patterns).
 
@@ -41,7 +41,7 @@ When writing or reviewing code that calls an LLM — or when the user asks which
 
 - **Who uses this call?** A background batch job (no human waiting) tolerates higher latency and can use a larger model for accuracy. A customer-facing feature needs fast time-to-first-token and should prefer a lighter model or adaptive reasoning.
 - **Latency requirements.** Streaming to a live user? Minimize TTFT — prefer smaller models, `effort: 'low'` or `'medium'`, and skip thinking on simple paths (`thinking: { type: 'adaptive' }`). Asynchronous enrichment pipeline? Latency doesn't matter; accuracy does.
-- **Accuracy and reasoning needs.** Simple classification, extraction, or slot-filling → smaller/faster model (e.g. Haiku, GPT-5-nano). Multi-step reasoning, SQL generation, complex analysis → a reasoning-capable model at the appropriate effort level. Don't pay for reasoning on calls that don't need it; don't skimp on it for calls that do.
+- **Accuracy and reasoning needs.** Simple classification, extraction, or slot-filling → smaller/faster model (e.g. Haiku, GPT-6 Luna). Multi-step reasoning, SQL generation, complex analysis → a reasoning-capable model at the appropriate effort level. Don't pay for reasoning on calls that don't need it; don't skimp on it for calls that do.
 - **Tool use.** Heavy agentic tool loops (multiple round-trips, SQL generation, web search) benefit from reasoning. Single-tool structured-extraction calls usually don't.
 - **Context length.** Does the call need long-context (large documents, long conversation history)? Some models handle this better or more cheaply than others.
 - **Cost.** A call made once per user action has a different cost profile than one made per row in a 100k-row enrichment job (e.g. the extraction pipeline). Match the model tier to the volume and business value.
@@ -63,7 +63,7 @@ Present these options explicitly when a model choice is ambiguous. The best comb
 
 ### Aggressive Prompt Caching + Cache Pre-Warming
 
-For **all LLM calls, regardless of provider**, always look for opportunities to implement aggressive prompt caching and to pre-warm the cache so it is always hot when real requests arrive. Prompt caching is a near-free win: cached input tokens are ~50–90% cheaper depending on provider, and time-to-first-token drops by up to ~80%. Pre-warming ensures bursty or low-traffic workloads don't pay cold-cache prices — the warmer keeps the cache alive between real requests. In this repo that especially means the **GPT-5-nano extraction services** (`apps/post-extraction`, `apps/user-extraction`): structure prompts so the static parts (system prompt, extraction instructions, schemas, few-shot examples) form a byte-stable prefix and the volatile parts (the Reddit post/comment being extracted) come last. OpenAI caches automatically for prompts ≥1024 tokens, but only if the prefix is byte-identical across requests — never interpolate timestamps/IDs into the static prefix, and verify hits via `usage.prompt_tokens_details.cached_tokens`. Provider caching APIs and best practices evolve — search the internet for the provider's current prompt-caching docs when implementing or reviewing.
+For **all LLM calls, regardless of provider**, always look for opportunities to implement aggressive prompt caching and to pre-warm the cache so it is always hot when real requests arrive. Prompt caching is a near-free win: cached input tokens are ~50–90% cheaper depending on provider, and time-to-first-token drops by up to ~80%. Pre-warming ensures bursty or low-traffic workloads don't pay cold-cache prices — the warmer keeps the cache alive between real requests. In this repo that especially means the **GPT-6 Luna extraction services** (`apps/post-extraction`, `apps/user-extraction`): structure prompts so the static parts (system prompt, extraction instructions, schemas, few-shot examples) form a byte-stable prefix and the volatile parts (the Reddit post/comment being extracted) come last. OpenAI caches automatically for prompts ≥1024 tokens, but only if the prefix is byte-identical across requests — never interpolate timestamps/IDs into the static prefix, and verify hits via `usage.prompt_tokens_details.cached_tokens`. Provider caching APIs and best practices evolve — search the internet for the provider's current prompt-caching docs when implementing or reviewing.
 
 ### Langfuse (Tracing Yes, Prompts No)
 
@@ -113,7 +113,7 @@ This is a monorepo with the following structure:
 │   ├── rec-engine/        # FastAPI recommendation engine
 │   ├── user-extraction/   # User demographics extraction service
 │   ├── post-ingestion/    # Reddit post fetching service
-│   ├── post-extraction/   # GPT-5-nano-based feature extraction service
+│   ├── post-extraction/   # GPT-6 Luna-based feature extraction service
 │   └── shared/            # Shared database migrations and utilities
 ├── scripts/               # One-off scripts, tests, analysis, legacy code
 │   ├── legacy-ingestion/  # Superseded ingestion pipeline (deprecated)
@@ -192,7 +192,7 @@ scripts/legacy-ingestion/
 │   ├── historical_ingest.py  # Batch ingestion script
 │   └── upload_from_backup.py  # Upload backup files to Supabase
 ├── extraction/             # AI-powered feature extraction
-│   ├── ai_client.py       # OpenAI GPT-5-nano client
+│   ├── ai_client.py       # OpenAI GPT-6 Luna client
 │   ├── ai_extraction.py   # Main extraction pipeline
 │   ├── context.py         # Build context from posts/comments
 │   ├── prompts.py         # Extraction prompts
@@ -462,19 +462,18 @@ The Database class creates a new connection per operation (no pooling yet). For 
 
 ### AI Extraction Costs
 
-Extraction runs on GPT-5-nano. Pricing per million tokens, and the pricing table
+Extraction runs on GPT-6 Luna (`gpt-6-luna`, `reasoning_effort="none"`; GPT-6 rejects `"minimal"`). Pricing per million tokens, and the pricing table
 the code bills against, live in `scripts/legacy-ingestion/shared/openai_extractor.py`
-(`MODEL_PRICING`) — read it there rather than trusting a number copied into this doc:
+(`MODEL_PRICING`) — read the rates there. GPT-6 bills prompt-cache writes separately,
+at 25% above plain input.
 
-- Input: $0.05 ($0.005 for prompt-cache hits)
-- Output: $0.40
+Typical post extraction:
+- ~9,500 input tokens, nearly all of them the static system prompt, and ~350–550 output tokens
+- Cost: ~$0.00035 per post while the prompt cache is warm, ~$0.0015 for the call that writes it
 
-Typical extraction:
-- Post with 5 comments: ~2,000 input tokens, ~300 output tokens
-- Cost: ~$0.0002 per post, before cache hits
-
-So 10,000 posts costs roughly $2. Prompt caching cuts the input side by 90% again
-where the static prefix stays byte-stable — see the prompt-caching section above.
+So 10,000 posts costs roughly $3.50. Output tokens dominate once the prefix is cached.
+A static prefix that differs between calls (a timestamp or ID in it) turns every call
+into a ~$0.0015 cache write — see the prompt-caching section above.
 
 ### Backup File Sizes
 

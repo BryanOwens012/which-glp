@@ -5,7 +5,7 @@ These schemas define the structure of data extracted by the model,
 ensuring type safety and validation before database insertion.
 """
 
-from typing import Optional, List, Literal, Dict, Any, Set
+from typing import Optional, List, Literal, Dict, Any, Set, get_args
 from pydantic import BaseModel, Field, field_validator
 from datetime import datetime, timezone
 
@@ -49,10 +49,22 @@ class WeightData(BaseModel):
         return v
 
 
+Severity = Literal["mild", "moderate", "severe"]
+SEVERITY_VALUES = get_args(Severity)
+SEVERITY_SYNONYMS = {
+    "low": "mild",
+    "minor": "mild",
+    "slight": "mild",
+    "medium": "moderate",
+    "high": "severe",
+    "extreme": "severe",
+}
+
+
 class SideEffectData(BaseModel):
     """Side effect with severity and confidence level"""
     name: str = Field(..., description="Name of the side effect (lowercase)")
-    severity: Optional[Literal["mild", "moderate", "severe"]] = Field(
+    severity: Optional[Severity] = Field(
         None,
         description="Severity of the side effect"
     )
@@ -60,6 +72,23 @@ class SideEffectData(BaseModel):
         None,
         description="Confidence in the extraction accuracy"
     )
+
+    @field_validator("severity", mode="before")
+    @classmethod
+    def normalize_severity(cls, v) -> Optional[str]:
+        """
+        Map severity synonyms onto mild/moderate/severe; anything else becomes None.
+
+        The model sometimes answers with the confidence scale (low/medium/high)
+        instead. Severity is optional, so an unrecognized value drops that one
+        datum rather than failing validation for the whole post.
+        """
+        if not isinstance(v, str):
+            return None
+        v_lower = v.strip().lower()
+        if v_lower in SEVERITY_VALUES:
+            return v_lower
+        return SEVERITY_SYNONYMS.get(v_lower)
 
 
 class ExtractedFeatures(BaseModel):
@@ -470,7 +499,7 @@ class ExtractionResult(BaseModel):
     features: ExtractedFeatures = Field(..., description="Extracted structured data")
 
     # Processing metadata
-    model_used: str = Field(..., description="Model used (e.g., gpt-5-nano)")
+    model_used: str = Field(..., description="Model used (e.g., gpt-6-luna)")
     processing_cost_usd: Optional[float] = Field(None, description="Cost in USD for this API call", ge=0)
     tokens_input: Optional[int] = Field(None, description="Input tokens used", ge=0)
     tokens_output: Optional[int] = Field(None, description="Output tokens generated", ge=0)

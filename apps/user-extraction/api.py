@@ -23,6 +23,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from user_analyzer import RedditUserAnalyzer
 from shared.config import get_logger
+from shared.openai_extractor import DEFAULT_MODEL
 
 logger = get_logger(__name__)
 
@@ -48,7 +49,7 @@ async def startup_event():
     logger.info("🚀 USER EXTRACTION SERVICE STARTING UP")
     logger.info("   Service: user-extraction")
     logger.info(f"   Port: {os.getenv('PORT', '8002')}")
-    logger.info("   Model: GPT-5-nano")
+    logger.info(f"   Model: {DEFAULT_MODEL}")
     logger.info(f"   Time: {datetime.now().isoformat()}")
     logger.info("=" * 80)
 

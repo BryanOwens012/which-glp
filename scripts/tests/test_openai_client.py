@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Quick test of the OpenAI (GPT-5-nano) client to verify API key works."""
+"""Quick test of the OpenAI (GPT-6 Luna) client to verify API key works."""
 
 import sys
 from pathlib import Path

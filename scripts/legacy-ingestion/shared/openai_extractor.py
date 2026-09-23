@@ -1,18 +1,18 @@
 """
-Shared OpenAI (GPT-5-nano) extraction client.
+Shared OpenAI (GPT-6 Luna) extraction client.
 
 This base class owns everything the three extraction services have in common:
 the OpenAI call, the JSON-extraction fallbacks, retry/backoff, cost tracking,
 and metadata assembly. Subclasses only supply the target Pydantic model (and,
 optionally, a default system prompt) via a thin domain-specific method.
 
-GPT-5-nano is a reasoning model, so it does NOT accept sampling parameters
-(temperature, top_p, etc.) — sending them returns a 400. Deterministic-ish,
-low-latency extraction is achieved with reasoning_effort="minimal" plus JSON
-response formatting.
+Low-latency extraction uses reasoning_effort="none" plus JSON response
+formatting, and sends no sampling parameters (temperature, top_p). GPT-6
+rejects "minimal" with a 400 and defaults to "medium" when the parameter is
+omitted, so "none" is passed explicitly.
 
-Cost (USD per 1M tokens): GPT-5-nano $0.05 input ($0.005 cached) / $0.40 output.
-Docs: https://developers.openai.com/api/docs/models/gpt-5-nano
+Per-token prices, including GPT-6's separate cache-write rate: MODEL_PRICING below.
+Docs: https://developers.openai.com/api/docs/models/gpt-6-luna
 """
 
 import os
@@ -35,15 +35,21 @@ load_dotenv(Path(__file__).resolve().parents[3] / ".env")
 logger = get_logger(__name__)
 
 # OpenAI model pricing (USD per million tokens). "input_cached" is the rate for
-# prompt-cache hits (90% discount on the gpt-5 family).
+# prompt-cache hits; "input_cache_write" is the rate for tokens written to the
+# prompt cache, which the GPT-6 family bills separately from plain input.
 MODEL_PRICING: Dict[str, Dict[str, float]] = {
-    "gpt-5-nano": {"input": 0.05, "input_cached": 0.005, "output": 0.40},
+    "gpt-6-luna": {
+        "input": 0.10,
+        "input_cached": 0.01,
+        "input_cache_write": 0.125,
+        "output": 0.50,
+    },
 }
 
-DEFAULT_MODEL = "gpt-5-nano"
-# GPT-5-nano is a reasoning model; "minimal" keeps latency and cost low for
+DEFAULT_MODEL = "gpt-6-luna"
+# "none" is the lowest effort GPT-6 accepts; it keeps latency and cost low for
 # straightforward extraction/classification tasks.
-DEFAULT_REASONING_EFFORT = "minimal"
+DEFAULT_REASONING_EFFORT = "none"
 
 # Retry backoff: wait grows linearly with each attempt (K * (attempt + 1)).
 RATE_LIMIT_BACKOFF_SECONDS = 30
@@ -56,7 +62,7 @@ class OpenAIExtractionError(Exception):
 
 class BaseOpenAIExtractor:
     """
-    Base GPT-5-nano extraction client.
+    Base GPT-6 Luna extraction client.
 
     Subclasses expose a domain method (e.g. extract_features / extract_demographics)
     that calls self.extract(prompts, TheirPydanticModel).
@@ -95,20 +101,31 @@ class BaseOpenAIExtractor:
         logger.info("OpenAI client initialized")
 
     def calculate_cost(
-        self, model: str, tokens_input: int, tokens_output: int, tokens_input_cached: int = 0
+        self,
+        model: str,
+        tokens_input: int,
+        tokens_output: int,
+        tokens_input_cached: int = 0,
+        tokens_input_cache_write: int = 0,
     ) -> float:
         """
         Return the USD cost of a call given token counts.
 
-        `tokens_input` is the TOTAL prompt tokens (cache hits included);
-        `tokens_input_cached` is the cached subset, billed at the discounted rate.
+        `tokens_input` is the TOTAL prompt tokens (cache hits and writes included);
+        `tokens_input_cached` is the cache-hit subset and `tokens_input_cache_write`
+        the cache-write subset, each billed at its own rate.
         """
         pricing = MODEL_PRICING.get(model, MODEL_PRICING[DEFAULT_MODEL])
         tokens_input_cached = min(tokens_input_cached or 0, tokens_input)
-        tokens_input_uncached = tokens_input - tokens_input_cached
+        tokens_input_cache_write = min(
+            tokens_input_cache_write or 0, tokens_input - tokens_input_cached
+        )
+        tokens_input_plain = tokens_input - tokens_input_cached - tokens_input_cache_write
         return (
-            (tokens_input_uncached / 1_000_000) * pricing["input"]
+            (tokens_input_plain / 1_000_000) * pricing["input"]
             + (tokens_input_cached / 1_000_000) * pricing.get("input_cached", pricing["input"])
+            + (tokens_input_cache_write / 1_000_000)
+            * pricing.get("input_cache_write", pricing["input"])
             + (tokens_output / 1_000_000) * pricing["output"]
         )
 
@@ -118,7 +135,6 @@ class BaseOpenAIExtractor:
         response_model: Type[BaseModel],
         *,
         default_system_prompt: Optional[str] = None,
-        model: Optional[str] = None,
         max_retries: int = 3,
     ) -> Tuple[BaseModel, Dict[str, Any]]:
         """
@@ -129,7 +145,6 @@ class BaseOpenAIExtractor:
             response_model: the Pydantic model to validate the JSON output into.
             default_system_prompt: system prompt to use when `prompts` is a bare
                 string (ignored when `prompts` is a tuple).
-            model: model id (defaults to gpt-5-nano).
             max_retries: attempts before giving up.
 
         Returns:
@@ -138,8 +153,9 @@ class BaseOpenAIExtractor:
         Raises:
             OpenAIExtractionError: on invalid output or after exhausting retries.
         """
-        if model is None:
-            model = DEFAULT_MODEL
+        # One model only: DEFAULT_REASONING_EFFORT is only known to be valid for
+        # it (gpt-5-nano rejects "none"), so the model is not a per-call choice.
+        model = DEFAULT_MODEL
 
         messages = self._build_messages(prompts, default_system_prompt)
 
@@ -178,7 +194,17 @@ class BaseOpenAIExtractor:
                 tokens_input_cached = min(
                     getattr(prompt_details, "cached_tokens", 0) or 0, tokens_input
                 )
-                cost_usd = self.calculate_cost(model, tokens_input, tokens_output, tokens_input_cached)
+                # Cache writes (usage.prompt_tokens_details.cache_write_tokens),
+                # billed separately on GPT-6. The SDK reports None on models that
+                # do not bill writes, so default to 0 (billed as plain input).
+                # Clamped to the non-cached input so metadata matches the cost.
+                tokens_input_cache_write = min(
+                    getattr(prompt_details, "cache_write_tokens", 0) or 0,
+                    tokens_input - tokens_input_cached,
+                )
+                cost_usd = self.calculate_cost(
+                    model, tokens_input, tokens_output, tokens_input_cached, tokens_input_cache_write
+                )
                 cache_hit_rate = (tokens_input_cached / tokens_input) if tokens_input else 0.0
 
                 metadata = {
@@ -186,6 +212,7 @@ class BaseOpenAIExtractor:
                     "cost_usd": cost_usd,
                     "tokens_input": tokens_input,
                     "tokens_input_cached": tokens_input_cached,
+                    "tokens_input_cache_write": tokens_input_cache_write,
                     "tokens_output": tokens_output,
                     "processing_time_ms": processing_time_ms,
                     "raw_response": {
@@ -196,6 +223,7 @@ class BaseOpenAIExtractor:
                         "usage": {
                             "prompt_tokens": tokens_input,
                             "cached_tokens": tokens_input_cached,
+                            "cache_write_tokens": tokens_input_cache_write,
                             "completion_tokens": tokens_output,
                             "total_tokens": getattr(
                                 response.usage, "total_tokens", tokens_input + tokens_output
@@ -207,7 +235,8 @@ class BaseOpenAIExtractor:
                 logger.info(
                     f"Extraction successful - Model: {model}, Cost: ${cost_usd:.6f}, "
                     f"Tokens: {tokens_input}/{tokens_output} "
-                    f"(cached: {tokens_input_cached}, hit rate: {cache_hit_rate:.0%}), "
+                    f"(cached: {tokens_input_cached}, written: {tokens_input_cache_write}, "
+                    f"hit rate: {cache_hit_rate:.0%}), "
                     f"Time: {processing_time_ms}ms"
                 )
                 return result, metadata
