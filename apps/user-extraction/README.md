@@ -1,21 +1,21 @@
 # User Extraction Service
 
-Analyzes Reddit user post/comment history to extract demographic information using GPT-6 Luna.
+Analyzes Reddit user post/comment history to extract demographic information using Muse Spark 1.3 Contributor, via OpenRouter.
 
 ## Overview
 
 This service:
 1. Queries unique usernames from `reddit_posts` table
 2. Fetches last 20 posts + 20 comments per user via PRAW
-3. Sends to GPT-6 Luna for demographic extraction
+3. Sends to Muse Spark via OpenRouter for demographic extraction
 4. Inserts results to `reddit_users` table
 
 ## Architecture
 
 ```
 user-extraction/
-├── openai_client.py    # OpenAI SDK wrapper (GPT-6 Luna)
-├── user_analyzer.py    # Main analyzer (PRAW + GPT-6 Luna)
+├── openai_client.py    # OpenAI SDK wrapper calling Muse Spark through OpenRouter
+├── user_analyzer.py    # Main analyzer (PRAW + Muse Spark)
 ├── prompts.py          # Demographic extraction prompts
 ├── schema.py           # Pydantic models (UserDemographics)
 ├── api.py              # FastAPI service
@@ -95,8 +95,8 @@ curl http://localhost:8002/api/status
 
 Required in `.env`:
 ```bash
-# OpenAI API
-OPENAI_API_KEY=your-openai-api-key
+# OpenRouter (Muse Spark, via the OpenAI SDK)
+OPENROUTER_API_KEY=your-openrouter-api-key
 
 # Supabase
 SUPABASE_URL=https://your-project.supabase.co
@@ -108,13 +108,19 @@ REDDIT_API_APP_ID=your-app-id
 REDDIT_API_APP_SECRET=your-app-secret
 ```
 
+Get an OpenRouter key at https://openrouter.ai/settings/keys. Muse Spark trains on prompts,
+so the OpenRouter account's privacy settings must allow training providers for paid models,
+or requests fail with "No endpoints found matching your data policy".
+
 ## Cost Analysis
 
-Extraction runs on GPT-6 Luna. Per-token prices live in `MODEL_PRICING` in
-`scripts/legacy-ingestion/shared/openai_extractor.py`; they are ~30x below Claude
-Sonnet 4's on both input and output.
+Extraction runs on Muse Spark 1.3 Contributor, via OpenRouter. Per-token prices live in
+`MODEL_PRICING` in `scripts/legacy-ingestion/shared/openai_extractor.py`; Muse Spark lists
+no separate cache-write rate, so a cache-writing call bills as plain input. Billed cost is
+read from OpenRouter's `usage.cost` on each response; `MODEL_PRICING` is only the fallback
+estimate when OpenRouter doesn't return one.
 
-Cost per user has not been measured on GPT-6 Luna. Each call sends a ~4,000-token
+Cost per user has not been measured on Muse Spark. Each call sends a ~4,000-token
 static system prompt (cached after the first call) plus the user's 20 posts and
 20 comments. The `cost_usd` field in each extraction's metadata is the real figure.
 
@@ -129,7 +135,7 @@ static system prompt (cached after the first call) plus the user's 20 posts and
 ### Environment Variables
 
 Variable names are declared on the `User-Extraction` service in `.railway/railway.ts`; values are set on Railway (`preserve()`). The ones this service reads:
-- `OPENAI_API_KEY`
+- `OPENROUTER_API_KEY`
 - `SUPABASE_URL`
 - `SUPABASE_DB_PASSWORD`
 - `REDDIT_API_APP_NAME`
@@ -147,7 +153,7 @@ Declared in `.railway/railway.ts`:
 
 **Logs:**
 - Service logs available via Railway dashboard
-- Check for errors in OpenAI API calls
+- Check for errors in OpenRouter API calls
 - Monitor cost accumulation
 
 **Database:**
@@ -171,9 +177,10 @@ SELECT SUM(processing_cost_usd) as total_cost FROM reddit_users;
 - Check that `reddit_posts` table has data
 - Verify usernames aren't all `[deleted]`
 
-**OpenAI API errors:**
-- Check `OPENAI_API_KEY` is set correctly
-- Verify OpenAI account has credits
+**OpenRouter API errors:**
+- Check `OPENROUTER_API_KEY` is set correctly
+- Verify the OpenRouter account has credits
+- Verify the account's data-policy settings allow training providers for paid models (Muse Spark trains on prompts)
 - Check network connectivity
 
 **PRAW errors:**

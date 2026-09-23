@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""FastAPI service for post extraction with the OpenAI extraction model."""
+"""FastAPI service for post extraction with Muse Spark (via OpenRouter)."""
 
 import os
 import sys
@@ -65,7 +65,7 @@ class ExtractionRequest(BaseModel):
 
 
 _extraction_running = False
-OPENAI_RATE_LIMIT_DELAY = 5.0  # Seconds between OpenAI requests
+LLM_RATE_LIMIT_DELAY = 5.0  # Seconds between LLM requests
 
 
 @app.get("/health")
@@ -112,7 +112,7 @@ async def trigger_extraction(
             logger.info("✅ Database connection established")
 
             ai_client = get_client()
-            logger.info("✅ OpenAI client initialized")
+            logger.info("✅ Extraction client initialized")
 
             # Query unprocessed posts using PostgreSQL function
             # This uses extraction_status flag for efficient filtering
@@ -320,9 +320,9 @@ async def trigger_extraction(
                         f"❌ Failed to extract {post_id}: {str(e)}", exc_info=True
                     )
 
-                # Rate limit between OpenAI requests
+                # Rate limit between LLM requests
                 if i < len(posts):
-                    time.sleep(OPENAI_RATE_LIMIT_DELAY)
+                    time.sleep(LLM_RATE_LIMIT_DELAY)
 
             db.close()
             logger.info("🔌 Database connection closed")

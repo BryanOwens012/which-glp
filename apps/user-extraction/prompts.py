@@ -1,5 +1,5 @@
 """
-Prompts for GPT-6 Luna to extract demographic data from Reddit user history.
+Prompts for Muse Spark to extract demographic data from Reddit user history.
 """
 
 SYSTEM_PROMPT = """You are a demographic data extraction assistant analyzing Reddit user post histories to build personalized medication recommendation profiles.
@@ -414,8 +414,9 @@ def build_user_prompt(username: str, posts: list, comments: list) -> tuple[str, 
     Build prompts for demographic extraction from user's post/comment history.
 
     The static SYSTEM_PROMPT is returned separately from the volatile user
-    history so it forms a byte-stable prefix for OpenAI prompt caching (the
-    system prompt alone exceeds the 1024-token caching minimum).
+    history so it forms a byte-stable prefix: the shared client marks the system
+    prompt with an explicit cache_control breakpoint, since Muse Spark does not
+    cache implicitly.
 
     Args:
         username: Reddit username (without u/ prefix)

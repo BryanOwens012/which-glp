@@ -8,91 +8,98 @@ from dotenv import load_dotenv
 
 # This file is scripts/tests/<file>, so the repo root is parents[2];
 # apps/user-extraction holds openai_client/prompts/schema plus the `shared` symlink.
-sys.path.insert(0, str(Path(__file__).parents[2] / "apps" / "user-extraction"))
-sys.path.insert(0, str(Path(__file__).parents[2] / "apps" / "shared"))
 
-load_dotenv()
+def main() -> None:
+    """Run the script. Kept out of module scope so pytest collection does nothing."""
+    sys.path.insert(0, str(Path(__file__).parents[2] / "apps" / "user-extraction"))
+    sys.path.insert(0, str(Path(__file__).parents[2] / "apps" / "shared"))
 
-import praw
-from shared.database import DatabaseManager
-from openai_client import get_client
-from prompts import build_user_prompt
+    load_dotenv()
 
-print("=" * 60)
-print("USER ANALYSIS TEST")
-print("=" * 60)
+    import praw
+    from shared.database import DatabaseManager
+    from openai_client import get_client
+    from prompts import build_user_prompt
 
-# Get 1 unanalyzed user
-db = DatabaseManager()
-with db.conn.cursor() as cursor:
-    cursor.execute("""
-        SELECT DISTINCT author
-        FROM reddit_posts
-        WHERE author NOT IN (SELECT username FROM reddit_users)
-        AND author IS NOT NULL
-        AND author != '[deleted]'
-        AND author != 'AutoModerator'
-        LIMIT 1
-    """)
-    username = cursor.fetchone()[0]
+    print("=" * 60)
+    print("USER ANALYSIS TEST")
+    print("=" * 60)
 
-print(f"\nAnalyzing: u/{username}")
+    # Get 1 unanalyzed user
+    db = DatabaseManager()
+    with db.conn.cursor() as cursor:
+        cursor.execute("""
+            SELECT DISTINCT author
+            FROM reddit_posts
+            WHERE author NOT IN (SELECT username FROM reddit_users)
+            AND author IS NOT NULL
+            AND author != '[deleted]'
+            AND author != 'AutoModerator'
+            LIMIT 1
+        """)
+        username = cursor.fetchone()[0]
 
-# Initialize PRAW
-reddit = praw.Reddit(
-    client_id=os.getenv("REDDIT_API_APP_ID"),
-    client_secret=os.getenv("REDDIT_API_APP_SECRET"),
-    user_agent=os.getenv("REDDIT_API_APP_NAME"),
-)
+    print(f"\nAnalyzing: u/{username}")
 
-# Fetch user history
-redditor = reddit.redditor(username)
+    # Initialize PRAW
+    reddit = praw.Reddit(
+        client_id=os.getenv("REDDIT_API_APP_ID"),
+        client_secret=os.getenv("REDDIT_API_APP_SECRET"),
+        user_agent=os.getenv("REDDIT_API_APP_NAME"),
+    )
 
-posts = []
-for submission in redditor.submissions.new(limit=5):
-    posts.append({"title": submission.title, "body": submission.selftext or ""})
+    # Fetch user history
+    redditor = reddit.redditor(username)
 
-comments = []
-for comment in redditor.comments.new(limit=5):
-    comments.append({"body": comment.body or ""})
+    posts = []
+    for submission in redditor.submissions.new(limit=5):
+        posts.append({"title": submission.title, "body": submission.selftext or ""})
 
-print(f"✓ Fetched {len(posts)} posts, {len(comments)} comments")
+    comments = []
+    for comment in redditor.comments.new(limit=5):
+        comments.append({"body": comment.body or ""})
 
-# Build prompts (system_prompt, user_prompt) — system stays static for prompt caching
-prompts = build_user_prompt(username, posts, comments)
-print(f"✓ Built prompts ({sum(len(p) for p in prompts)} chars)")
+    print(f"✓ Fetched {len(posts)} posts, {len(comments)} comments")
 
-# Extract with GPT-6 Luna
-ai_client = get_client()
-print("✓ Calling OpenAI API...")
-demographics, metadata = ai_client.extract_demographics(prompts)
+    # Build prompts (system_prompt, user_prompt) — system stays static for prompt caching
+    prompts = build_user_prompt(username, posts, comments)
+    print(f"✓ Built prompts ({sum(len(p) for p in prompts)} chars)")
 
-print("\n✓ EXTRACTION SUCCESSFUL")
-print(f"  Cost: ${metadata['cost_usd']:.6f}")
-print(f"  Confidence: {demographics.confidence_score}")
-print(f"  Age: {demographics.age}, Sex: {demographics.sex}, State: {demographics.state}")
+    # Extract with Muse Spark
+    ai_client = get_client()
+    print("✓ Calling OpenRouter...")
+    demographics, metadata = ai_client.extract_demographics(prompts)
 
-# Insert to database
-with db.conn.cursor() as cursor:
-    cursor.execute("""
-        INSERT INTO reddit_users (
-            username, age, sex, state, country,
-            height_inches, start_weight_lbs, end_weight_lbs,
-            comorbidities, has_insurance, insurance_provider,
-            post_count, comment_count, confidence_score,
-            model_used, processing_cost_usd
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-    """, (
-        username, demographics.age, demographics.sex, demographics.state, demographics.country,
-        demographics.height_inches, demographics.start_weight_lbs, demographics.end_weight_lbs,
-        demographics.comorbidities, demographics.has_insurance, demographics.insurance_provider,
-        len(posts), len(comments), demographics.confidence_score,
-        metadata['model'], metadata['cost_usd']
-    ))
-    db.conn.commit()
+    print("\n✓ EXTRACTION SUCCESSFUL")
+    print(f"  Cost: ${metadata['cost_usd']:.6f}")
+    print(f"  Confidence: {demographics.confidence_score}")
+    print(f"  Age: {demographics.age}, Sex: {demographics.sex}, State: {demographics.state}")
 
-print("✓ Inserted to database")
+    # Insert to database
+    with db.conn.cursor() as cursor:
+        cursor.execute("""
+            INSERT INTO reddit_users (
+                username, age, sex, state, country,
+                height_inches, start_weight_lbs, end_weight_lbs,
+                comorbidities, has_insurance, insurance_provider,
+                post_count, comment_count, confidence_score,
+                model_used, processing_cost_usd
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, (
+            username, demographics.age, demographics.sex, demographics.state, demographics.country,
+            demographics.height_inches, demographics.start_weight_lbs, demographics.end_weight_lbs,
+            demographics.comorbidities, demographics.has_insurance, demographics.insurance_provider,
+            len(posts), len(comments), demographics.confidence_score,
+            metadata['model'], metadata['cost_usd']
+        ))
+        db.conn.commit()
 
-print("\n" + "=" * 60)
-print("TEST COMPLETE!")
-print("=" * 60)
+    print("✓ Inserted to database")
+
+    print("\n" + "=" * 60)
+    print("TEST COMPLETE!")
+    print("=" * 60)
+
+
+if __name__ == "__main__":
+    main()

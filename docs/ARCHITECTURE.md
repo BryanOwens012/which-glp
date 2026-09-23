@@ -191,7 +191,7 @@ the only non-`/trpc` path the service answers; everything else returns 404.
 **Tech Stack:**
 - Python 3.13
 - FastAPI + uvicorn
-- GPT-6 Luna (OpenAI SDK)
+- Muse Spark 1.3 Contributor (via OpenRouter, OpenAI SDK)
 - Supabase client
 
 **Responsibilities:**
@@ -219,7 +219,7 @@ the only non-`/trpc` path the service answers; everything else returns 404.
 **Tech Stack:**
 - Python 3.13
 - FastAPI + uvicorn
-- GPT-6 Luna (OpenAI SDK)
+- Muse Spark 1.3 Contributor (via OpenRouter, OpenAI SDK)
 - Supabase client
 
 **Responsibilities:**
@@ -319,7 +319,7 @@ the only non-`/trpc` path the service answers; everything else returns 404.
         ▼
 ┌──────────────────┐
 │ Post-Extraction  │ ◄─── Cron (daily)
-│ (GPT-6 Luna)     │
+│ (Muse Spark)     │
 └────────┬─────────┘
          │
          ▼
@@ -332,7 +332,7 @@ the only non-`/trpc` path the service answers; everything else returns 404.
         ▼
 ┌──────────────────┐
 │ User-Extraction  │ ◄─── Cron (daily)
-│ (GPT-6 Luna)     │
+│ (Muse Spark)     │
 └────────┬─────────┘
          │
          ▼
@@ -496,7 +496,7 @@ SUPABASE_SERVICE_KEY=your-service-key
 REDDIT_CLIENT_ID=your-client-id
 REDDIT_CLIENT_SECRET=your-client-secret
 REDDIT_USER_AGENT=whichglp-ingestion/0.1
-OPENAI_API_KEY=your-openai-api-key
+OPENROUTER_API_KEY=your-openrouter-api-key
 ```
 
 2. **`apps/frontend/.env.local`**:
@@ -575,15 +575,15 @@ railway logs -s User-Extraction -p df649372-5b20-4e68-8ccd-31935edceade -e produ
 - FastAPI services boot quickly (~2-5 seconds)
 - 2-day intervals ensure fresh data without wasted cycles
 
-### Why GPT-6 Luna Instead of Claude?
+### Why Muse Spark Instead of Claude?
 
 **Cost Comparison:**
 - Claude Sonnet 4: $3/1M input tokens, $15/1M output tokens
-- GPT-6 Luna: $0.10/$0.50 per 1M tokens (via OpenAI SDK; full rates in `MODEL_PRICING`)
-- **Savings: ~97% cost reduction (~30x)**
+- Muse Spark 1.3 Contributor: $0.10 input / $0.002 cached input / $0.20 output per 1M tokens (full rates in `MODEL_PRICING`)
+- **Savings: 30x on input, 75x on output**
 
 **Trade-offs:**
-- Accuracy versus Claude has not been measured on GPT-6 Luna
+- Accuracy versus Claude has not been measured on Muse Spark
 - Can always upgrade to Claude for critical extractions
 
 ---

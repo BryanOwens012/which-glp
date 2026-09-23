@@ -27,7 +27,7 @@ ingestion/            # Reddit data ingestion
 
 extraction/           # AI-powered feature extraction
 ├── ai_extraction.py  # Main extraction pipeline
-├── ai_client.py      # OpenAI GPT-6 Luna client wrapper
+├── ai_client.py      # OpenAI-SDK wrapper calling Muse Spark through OpenRouter
 ├── prompts.py        # Prompt templates for extraction
 ├── context.py        # Context builder for nested comments
 └── schema.py         # Pydantic models for extracted data
@@ -296,7 +296,7 @@ scripts/legacy-ingestion/
 ├── extraction/                   # AI-powered feature extraction
 │   ├── __init__.py
 │   ├── ai_extraction.py          # Main extraction pipeline
-│   ├── ai_client.py              # OpenAI GPT-6 Luna client wrapper
+│   ├── ai_client.py              # OpenAI-SDK wrapper calling Muse Spark through OpenRouter
 │   ├── prompts.py                # Prompt templates for extraction
 │   ├── context.py                # Context builder for nested comments
 │   └── schema.py                 # Pydantic models for extracted data
@@ -331,7 +331,7 @@ Handles fetching raw data from Reddit API:
 
 ### 2. Extraction (`extraction/`)
 AI-powered feature extraction from ingested data:
-- OpenAI GPT-6 Luna integration for structured data extraction
+- Muse Spark 1.3 Contributor via OpenRouter for structured data extraction
 - Prompt engineering for accurate feature detection
 - Context building for nested comment threads
 - Pydantic schemas for type-safe extraction
