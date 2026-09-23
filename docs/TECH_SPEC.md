@@ -337,14 +337,14 @@
 - **Framework:** FastAPI + uvicorn
 - **Language:** Python 3.13+
 - **Database:** Supabase client
-- **AI Model:** GPT-6 Luna (via OpenAI SDK)
+- **AI Model:** Muse Spark 1.3 Contributor (via OpenRouter, OpenAI SDK)
 - **Function:** Extract structured drug experience data from posts
 
 **4. User Extraction** (`apps/user-extraction`)
 - **Framework:** FastAPI + uvicorn
 - **Language:** Python 3.13+
 - **Database:** Supabase client
-- **AI Model:** GPT-6 Luna (via OpenAI SDK)
+- **AI Model:** Muse Spark 1.3 Contributor (via OpenRouter, OpenAI SDK)
 - **Function:** Extract user demographics from Reddit user history
 
 **5. Recommendation Engine** (`apps/rec-engine`)
@@ -381,7 +381,7 @@
 
 - **Primary ingestion:** Reddit API (PRAW) via scheduled cron jobs
 - **Type safety:** tRPC ensures frontend/backend contract enforcement
-- **AI Processing:** GPT-6 Luna (cost-effective alternative to Claude Sonnet 4)
+- **AI Processing:** Muse Spark 1.3 Contributor via OpenRouter (cost-effective alternative to Claude Sonnet 4)
 - **Automated Pipeline:** Cron jobs orchestrate the data ingestion → extraction → view refresh cycle
 - **Microservices:** Each service independently scalable on Railway
 
@@ -432,12 +432,12 @@
 
 **Goal:** Convert unstructured post/comment text into structured data
 
-**Extraction Model:** GPT-6 Luna (via OpenAI SDK)
+**Extraction Model:** Muse Spark 1.3 Contributor (via OpenRouter, OpenAI SDK)
 
 **Process:**
 1. Query unprocessed posts/comments from database
 2. Build context for each item (parent post, parent comments, top replies)
-3. Send to GPT-6 Luna API with structured extraction prompt
+3. Send to Muse Spark via OpenRouter with structured extraction prompt
 4. Parse JSON response into database schema
 5. Store extracted features in `extracted_features` table
 6. Backup extraction results to JSON files

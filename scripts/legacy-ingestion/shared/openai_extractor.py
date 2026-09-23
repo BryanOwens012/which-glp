@@ -1,18 +1,28 @@
 """
-Shared OpenAI (GPT-6 Luna) extraction client.
+Shared extraction client: Muse Spark 1.3 Contributor through OpenRouter.
 
 This base class owns everything the three extraction services have in common:
-the OpenAI call, the JSON-extraction fallbacks, retry/backoff, cost tracking,
+the LLM call, the JSON-extraction fallbacks, retry/backoff, cost tracking,
 and metadata assembly. Subclasses only supply the target Pydantic model (and,
 optionally, a default system prompt) via a thin domain-specific method.
 
-Low-latency extraction uses reasoning_effort="none" plus JSON response
-formatting, and sends no sampling parameters (temperature, top_p). GPT-6
-rejects "minimal" with a 400 and defaults to "medium" when the parameter is
-omitted, so "none" is passed explicitly.
+OpenRouter speaks the OpenAI Chat Completions API, so the `openai` SDK is used
+with OpenRouter's base URL. OpenRouter-only fields go through `extra_body`.
 
-Per-token prices, including GPT-6's separate cache-write rate: MODEL_PRICING below.
-Docs: https://developers.openai.com/api/docs/models/gpt-6-luna
+Reasoning is mandatory on Muse Spark: OpenRouter rejects effort "none", and the
+default is "medium", so the lowest accepted effort, "minimal", is sent
+explicitly. Muse Spark has no implicit prompt caching, so the system prompt
+carries an explicit `cache_control` breakpoint (see _build_messages).
+
+The Contributor tier trains on prompts. The OpenRouter account's privacy
+settings must allow training providers for paid models, or every request fails
+with "No endpoints found matching your data policy".
+
+Billed cost is read from OpenRouter's `usage.cost`; MODEL_PRICING is the
+fallback when a response omits it.
+Docs: https://openrouter.ai/meta/muse-spark-1.3-contributor
+      https://openrouter.ai/docs/guides/best-practices/prompt-caching
+      https://openrouter.ai/docs/guides/best-practices/reasoning-tokens
 """
 
 import os
@@ -34,22 +44,24 @@ load_dotenv(Path(__file__).resolve().parents[3] / ".env")
 
 logger = get_logger(__name__)
 
-# OpenAI model pricing (USD per million tokens). "input_cached" is the rate for
-# prompt-cache hits; "input_cache_write" is the rate for tokens written to the
-# prompt cache, which the GPT-6 family bills separately from plain input.
+OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+
+# Model pricing (USD per million tokens), from OpenRouter's model catalog.
+# "input_cached" is the rate for prompt-cache hits; "input_cache_write", where a
+# model bills cache writes separately, is the rate for tokens written to the
+# cache (absent here: Muse Spark lists no write rate, so writes bill as input).
 MODEL_PRICING: Dict[str, Dict[str, float]] = {
-    "gpt-6-luna": {
+    "meta/muse-spark-1.3-contributor": {
         "input": 0.10,
-        "input_cached": 0.01,
-        "input_cache_write": 0.125,
-        "output": 0.50,
+        "input_cached": 0.002,
+        "output": 0.20,
     },
 }
 
-DEFAULT_MODEL = "gpt-6-luna"
-# "none" is the lowest effort GPT-6 accepts; it keeps latency and cost low for
-# straightforward extraction/classification tasks.
-DEFAULT_REASONING_EFFORT = "none"
+DEFAULT_MODEL = "meta/muse-spark-1.3-contributor"
+# "minimal" is the lowest effort Muse Spark accepts (reasoning is mandatory, so
+# "none" is rejected); it keeps latency and cost low for extraction.
+DEFAULT_REASONING_EFFORT = "minimal"
 
 # Retry backoff: wait grows linearly with each attempt (K * (attempt + 1)).
 RATE_LIMIT_BACKOFF_SECONDS = 30
@@ -62,43 +74,44 @@ class OpenAIExtractionError(Exception):
 
 class BaseOpenAIExtractor:
     """
-    Base GPT-6 Luna extraction client.
+    Base Muse Spark (OpenRouter) extraction client.
 
     Subclasses expose a domain method (e.g. extract_features / extract_demographics)
     that calls self.extract(prompts, TheirPydanticModel).
 
     Prompt caching: prompts must keep the static system prompt as a byte-stable
-    prefix (volatile content only in the user message) so OpenAI's automatic
-    prefix caching (≥1024 tokens) hits. Subclasses should set PROMPT_CACHE_KEY
-    to a per-service constant — OpenAI combines it with the prefix hash to route
-    same-prefix traffic to the same machine, improving hit rates.
+    prefix (volatile content only in the user message). The system message is
+    sent with a `cache_control` breakpoint, since Muse Spark caches only
+    explicitly. Subclasses should set PROMPT_CACHE_KEY to a per-service
+    constant: OpenRouter uses it as the sticky-routing key (when no session_id
+    is sent), keeping same-prefix traffic on the provider that holds the cache.
     """
 
-    # Per-service prompt-cache routing key (override in subclasses).
+    # Per-service sticky-routing key (override in subclasses).
     PROMPT_CACHE_KEY: Optional[str] = None
 
     def __init__(self, api_key: Optional[str] = None, prompt_cache_key: Optional[str] = None):
         """
         Args:
-            api_key: OpenAI API key (defaults to the OPENAI_API_KEY env var).
+            api_key: OpenRouter API key (defaults to the OPENROUTER_API_KEY env var).
             prompt_cache_key: cache-routing key (defaults to the class's
                 PROMPT_CACHE_KEY).
 
         Raises:
             ValueError: if no API key is available.
         """
-        self.api_key = api_key or os.getenv("OPENAI_API_KEY")
+        self.api_key = api_key or os.getenv("OPENROUTER_API_KEY")
         if not self.api_key:
             raise ValueError(
-                "OPENAI_API_KEY not found. Set it in your .env file. "
-                "Get a key at: https://platform.openai.com/api-keys"
+                "OPENROUTER_API_KEY not found. Set it in your .env file. "
+                "Get a key at: https://openrouter.ai/settings/keys"
             )
         # `is None` (not `or`) so an explicit "" can disable a subclass's key
         self.prompt_cache_key = (
             prompt_cache_key if prompt_cache_key is not None else self.PROMPT_CACHE_KEY
         )
-        self.client = OpenAI(api_key=self.api_key)
-        logger.info("OpenAI client initialized")
+        self.client = OpenAI(api_key=self.api_key, base_url=OPENROUTER_BASE_URL)
+        logger.info("OpenRouter client initialized")
 
     def calculate_cost(
         self,
@@ -153,13 +166,13 @@ class BaseOpenAIExtractor:
         Raises:
             OpenAIExtractionError: on invalid output or after exhausting retries.
         """
-        # One model only: DEFAULT_REASONING_EFFORT is only known to be valid for
-        # it (gpt-5-nano rejects "none"), so the model is not a per-call choice.
+        # One model only: supported reasoning efforts differ per model, so the
+        # model is not a per-call choice.
         model = DEFAULT_MODEL
 
         messages = self._build_messages(prompts, default_system_prompt)
 
-        # Steer same-prefix requests to the same cache shard when a key is set.
+        # Keep same-prefix requests on the provider holding the cache when a key is set.
         cache_kwargs: Dict[str, Any] = (
             {"prompt_cache_key": self.prompt_cache_key} if self.prompt_cache_key else {}
         )
@@ -170,8 +183,12 @@ class BaseOpenAIExtractor:
                 response = self.client.chat.completions.create(
                     model=model,
                     messages=messages,
-                    reasoning_effort=DEFAULT_REASONING_EFFORT,
                     response_format={"type": "json_object"},
+                    # OpenRouter's unified reasoning control. exclude=True drops the
+                    # reasoning text from the response; its tokens are still billed.
+                    extra_body={
+                        "reasoning": {"effort": DEFAULT_REASONING_EFFORT, "exclude": True}
+                    },
                     **cache_kwargs,
                 )
                 processing_time_ms = int((time.time() - start_time) * 1000)
@@ -194,22 +211,32 @@ class BaseOpenAIExtractor:
                 tokens_input_cached = min(
                     getattr(prompt_details, "cached_tokens", 0) or 0, tokens_input
                 )
-                # Cache writes (usage.prompt_tokens_details.cache_write_tokens),
-                # billed separately on GPT-6. The SDK reports None on models that
-                # do not bill writes, so default to 0 (billed as plain input).
+                # Cache writes (usage.prompt_tokens_details.cache_write_tokens).
+                # Reported as None or absent on models that do not bill writes
+                # separately, so default to 0 (billed as plain input).
                 # Clamped to the non-cached input so metadata matches the cost.
                 tokens_input_cache_write = min(
                     getattr(prompt_details, "cache_write_tokens", 0) or 0,
                     tokens_input - tokens_input_cached,
                 )
-                cost_usd = self.calculate_cost(
-                    model, tokens_input, tokens_output, tokens_input_cached, tokens_input_cache_write
-                )
+                # OpenRouter reports the amount actually charged in usage.cost (USD
+                # credits); the SDK keeps it as an extra field. Fall back to the
+                # price table only when it is missing.
+                reported_cost = getattr(response.usage, "cost", None)
+                if isinstance(reported_cost, (int, float)):
+                    cost_usd = float(reported_cost)
+                    cost_source = "openrouter"
+                else:
+                    cost_usd = self.calculate_cost(
+                        model, tokens_input, tokens_output, tokens_input_cached, tokens_input_cache_write
+                    )
+                    cost_source = "estimated"
                 cache_hit_rate = (tokens_input_cached / tokens_input) if tokens_input else 0.0
 
                 metadata = {
                     "model": model,
                     "cost_usd": cost_usd,
+                    "cost_source": cost_source,
                     "tokens_input": tokens_input,
                     "tokens_input_cached": tokens_input_cached,
                     "tokens_input_cache_write": tokens_input_cache_write,
@@ -233,7 +260,7 @@ class BaseOpenAIExtractor:
                 }
 
                 logger.info(
-                    f"Extraction successful - Model: {model}, Cost: ${cost_usd:.6f}, "
+                    f"Extraction successful - Model: {model}, Cost: ${cost_usd:.6f} ({cost_source}), "
                     f"Tokens: {tokens_input}/{tokens_output} "
                     f"(cached: {tokens_input_cached}, written: {tokens_input_cache_write}, "
                     f"hit rate: {cache_hit_rate:.0%}), "
@@ -251,7 +278,7 @@ class BaseOpenAIExtractor:
                 if is_rate_limit:
                     logger.warning(f"Rate limited (attempt {attempt + 1}/{max_retries}), waiting {wait_time}s...")
                 else:
-                    logger.error(f"OpenAI error (attempt {attempt + 1}/{max_retries}): {e}")
+                    logger.error(f"OpenRouter error (attempt {attempt + 1}/{max_retries}): {e}")
                 if attempt < max_retries - 1:
                     time.sleep(wait_time)
                 else:
@@ -264,19 +291,28 @@ class BaseOpenAIExtractor:
     def _build_messages(
         prompts: "tuple[str, str] | str", default_system_prompt: Optional[str]
     ) -> list:
-        """Build the chat messages from a (system, user) tuple or a bare user prompt."""
+        """
+        Build the chat messages from a (system, user) tuple or a bare user prompt.
+
+        The system prompt is the static, byte-stable prefix, so it is sent as a
+        content block carrying a `cache_control` breakpoint: Muse Spark caches
+        only explicitly marked prefixes. The volatile user prompt stays after it.
+        """
         if isinstance(prompts, tuple):
             system_prompt, user_prompt = prompts
-            return [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ]
-        if default_system_prompt:
-            return [
-                {"role": "system", "content": default_system_prompt},
-                {"role": "user", "content": prompts},
-            ]
-        return [{"role": "user", "content": prompts}]
+        else:
+            system_prompt, user_prompt = default_system_prompt, prompts
+        if not system_prompt:
+            return [{"role": "user", "content": user_prompt}]
+        return [
+            {
+                "role": "system",
+                "content": [
+                    {"type": "text", "text": system_prompt, "cache_control": {"type": "ephemeral"}}
+                ],
+            },
+            {"role": "user", "content": user_prompt},
+        ]
 
     @staticmethod
     def _parse_json(response_text: str) -> Dict[str, Any]:

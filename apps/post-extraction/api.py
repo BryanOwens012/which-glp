@@ -65,7 +65,7 @@ class ExtractionRequest(BaseModel):
 
 
 _extraction_running = False
-OPENAI_RATE_LIMIT_DELAY = 5.0  # Seconds between OpenAI requests
+LLM_RATE_LIMIT_DELAY = 5.0  # Seconds between LLM requests
 
 
 @app.get("/health")
@@ -322,7 +322,7 @@ async def trigger_extraction(
 
                 # Rate limit between OpenAI requests
                 if i < len(posts):
-                    time.sleep(OPENAI_RATE_LIMIT_DELAY)
+                    time.sleep(LLM_RATE_LIMIT_DELAY)
 
             db.close()
             logger.info("🔌 Database connection closed")

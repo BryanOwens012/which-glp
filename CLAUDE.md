@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-WhichGLP is a GLP-1 weight-loss drug comparison platform that aggregates real-world user experiences from Reddit to help people make informed medication decisions. The project uses AI extraction (GPT-6 Luna) to structure unstructured social media data into a searchable database.
+WhichGLP is a GLP-1 weight-loss drug comparison platform that aggregates real-world user experiences from Reddit to help people make informed medication decisions. The project uses AI extraction (Muse Spark 1.3 Contributor, via OpenRouter) to structure unstructured social media data into a searchable database.
 
 **Mission**: Build a proprietary dataset of GLP-1 outcomes that generic LLMs cannot provide (location-specific pricing, personalized predictions, insurance coverage patterns).
 
@@ -41,7 +41,7 @@ When writing or reviewing code that calls an LLM — or when the user asks which
 
 - **Who uses this call?** A background batch job (no human waiting) tolerates higher latency and can use a larger model for accuracy. A customer-facing feature needs fast time-to-first-token and should prefer a lighter model or adaptive reasoning.
 - **Latency requirements.** Streaming to a live user? Minimize TTFT — prefer smaller models, `effort: 'low'` or `'medium'`, and skip thinking on simple paths (`thinking: { type: 'adaptive' }`). Asynchronous enrichment pipeline? Latency doesn't matter; accuracy does.
-- **Accuracy and reasoning needs.** Simple classification, extraction, or slot-filling → smaller/faster model (e.g. Haiku, GPT-6 Luna). Multi-step reasoning, SQL generation, complex analysis → a reasoning-capable model at the appropriate effort level. Don't pay for reasoning on calls that don't need it; don't skimp on it for calls that do.
+- **Accuracy and reasoning needs.** Simple classification, extraction, or slot-filling → smaller/faster model (e.g. Haiku, Muse Spark 1.3 Contributor). Multi-step reasoning, SQL generation, complex analysis → a reasoning-capable model at the appropriate effort level. Don't pay for reasoning on calls that don't need it; don't skimp on it for calls that do.
 - **Tool use.** Heavy agentic tool loops (multiple round-trips, SQL generation, web search) benefit from reasoning. Single-tool structured-extraction calls usually don't.
 - **Context length.** Does the call need long-context (large documents, long conversation history)? Some models handle this better or more cheaply than others.
 - **Cost.** A call made once per user action has a different cost profile than one made per row in a 100k-row enrichment job (e.g. the extraction pipeline). Match the model tier to the volume and business value.
@@ -63,7 +63,7 @@ Present these options explicitly when a model choice is ambiguous. The best comb
 
 ### Aggressive Prompt Caching + Cache Pre-Warming
 
-For **all LLM calls, regardless of provider**, always look for opportunities to implement aggressive prompt caching and to pre-warm the cache so it is always hot when real requests arrive. Prompt caching is a near-free win: cached input tokens are ~50–90% cheaper depending on provider, and time-to-first-token drops by up to ~80%. Pre-warming ensures bursty or low-traffic workloads don't pay cold-cache prices — the warmer keeps the cache alive between real requests. In this repo that especially means the **GPT-6 Luna extraction services** (`apps/post-extraction`, `apps/user-extraction`): structure prompts so the static parts (system prompt, extraction instructions, schemas, few-shot examples) form a byte-stable prefix and the volatile parts (the Reddit post/comment being extracted) come last. OpenAI caches automatically for prompts ≥1024 tokens, but only if the prefix is byte-identical across requests — never interpolate timestamps/IDs into the static prefix, and verify hits via `usage.prompt_tokens_details.cached_tokens`. Provider caching APIs and best practices evolve — search the internet for the provider's current prompt-caching docs when implementing or reviewing.
+For **all LLM calls, regardless of provider**, always look for opportunities to implement aggressive prompt caching and to pre-warm the cache so it is always hot when real requests arrive. Prompt caching is a near-free win: cached input tokens are ~50–90% cheaper depending on provider, and time-to-first-token drops by up to ~80%. Pre-warming ensures bursty or low-traffic workloads don't pay cold-cache prices — the warmer keeps the cache alive between real requests. In this repo that especially means the **Muse Spark extraction services** (`apps/post-extraction`, `apps/user-extraction`), calling Meta's `meta/muse-spark-1.3-contributor` through OpenRouter: structure prompts so the static parts (system prompt, extraction instructions, schemas, few-shot examples) form a byte-stable prefix and the volatile parts (the Reddit post/comment being extracted) come last. OpenRouter does not cache implicitly for this model — the client places an explicit `cache_control: {"type": "ephemeral"}` breakpoint on the system prompt content block, and sends `PROMPT_CACHE_KEY` as `prompt_cache_key` to pin OpenRouter's sticky routing to the same upstream. Never interpolate timestamps/IDs into the static prefix, and verify hits via `usage.prompt_tokens_details.cached_tokens` (and `cache_write_tokens`). Provider caching APIs and best practices evolve — search the internet for the provider's current prompt-caching docs when implementing or reviewing.
 
 ### Langfuse (Tracing Yes, Prompts No)
 
@@ -113,7 +113,7 @@ This is a monorepo with the following structure:
 │   ├── rec-engine/        # FastAPI recommendation engine
 │   ├── user-extraction/   # User demographics extraction service
 │   ├── post-ingestion/    # Reddit post fetching service
-│   ├── post-extraction/   # GPT-6 Luna-based feature extraction service
+│   ├── post-extraction/   # Muse Spark-based feature extraction service (via OpenRouter)
 │   └── shared/            # Shared database migrations and utilities
 ├── scripts/               # One-off scripts, tests, analysis, legacy code
 │   ├── legacy-ingestion/  # Superseded ingestion pipeline (deprecated)
@@ -164,9 +164,11 @@ REDDIT_API_APP_NAME=whichglp-ingestion/0.1
 REDDIT_API_APP_ID=your-client-id
 REDDIT_API_APP_SECRET=your-client-secret
 
-# OpenAI (for AI extraction)
-OPENAI_API_KEY=your-api-key
+# OpenRouter (for AI extraction, via the OpenAI SDK pointed at OpenRouter)
+OPENROUTER_API_KEY=your-api-key
 ```
+
+Get an OpenRouter key at https://openrouter.ai/settings/keys. The extraction model (Muse Spark 1.3 Contributor) trains on prompts, so the OpenRouter account's privacy settings must allow training providers for paid models — otherwise requests fail with "No endpoints found matching your data policy".
 
 **Database Connection**: The code extracts the project reference from `SUPABASE_URL` and constructs the PostgreSQL connection string automatically. See `scripts/legacy-ingestion/shared/database.py` for implementation.
 
@@ -192,7 +194,7 @@ scripts/legacy-ingestion/
 │   ├── historical_ingest.py  # Batch ingestion script
 │   └── upload_from_backup.py  # Upload backup files to Supabase
 ├── extraction/             # AI-powered feature extraction
-│   ├── ai_client.py       # OpenAI GPT-6 Luna client
+│   ├── ai_client.py       # OpenAI-SDK wrapper calling Muse Spark through OpenRouter
 │   ├── ai_extraction.py   # Main extraction pipeline
 │   ├── context.py         # Build context from posts/comments
 │   ├── prompts.py         # Extraction prompts
@@ -246,7 +248,7 @@ python3 -m reddit_ingestion.upload_from_backup /path/to/backup/dir
 **Hybrid Approach** (minimize database queries, maximize in-memory processing):
 1. **Bulk Export**: Query all unprocessed posts/comments from Supabase into memory
 2. **In-Memory Lookup**: Build dictionaries for O(1) context lookup (post → comments, comment → parent comment)
-3. **AI Processing**: For each item, build context and send to the OpenAI API
+3. **AI Processing**: For each item, build context and send to Muse Spark via OpenRouter (OpenAI SDK)
 4. **Batch Insert**: Insert extracted features back to Supabase in batches
 
 ### Running Extraction
@@ -462,18 +464,23 @@ The Database class creates a new connection per operation (no pooling yet). For 
 
 ### AI Extraction Costs
 
-Extraction runs on GPT-6 Luna (`gpt-6-luna`, `reasoning_effort="none"`; GPT-6 rejects `"minimal"`). Pricing per million tokens, and the pricing table
-the code bills against, live in `scripts/legacy-ingestion/shared/openai_extractor.py`
-(`MODEL_PRICING`) — read the rates there. GPT-6 bills prompt-cache writes separately,
-at 25% above plain input.
+Extraction runs on Muse Spark 1.3 Contributor (`meta/muse-spark-1.3-contributor`) through
+OpenRouter, using the `openai` Python SDK pointed at `https://openrouter.ai/api/v1`.
+Reasoning is mandatory on this model — OpenRouter rejects effort `"none"` — so the client
+sends `reasoning: {effort: "minimal", exclude: true}` via `extra_body`. Pricing per million
+tokens, and the pricing table the code bills against, live in
+`scripts/legacy-ingestion/shared/openai_extractor.py` (`MODEL_PRICING`) — read the rates
+there. Muse Spark lists no separate cache-write rate; a cache-writing call bills as plain
+input. Billed cost is read from OpenRouter's `usage.cost` on each response
+(`cost_source: "openrouter"`); `MODEL_PRICING` is only the fallback estimate
+(`cost_source: "estimated"`) for when OpenRouter doesn't return one.
 
-Typical post extraction:
-- ~9,500 input tokens, nearly all of them the static system prompt, and ~350–550 output tokens
-- Cost: ~$0.00035 per post while the prompt cache is warm, ~$0.0015 for the call that writes it
-
-So 10,000 posts costs roughly $3.50. Output tokens dominate once the prefix is cached.
-A static prefix that differs between calls (a timestamp or ID in it) turns every call
-into a ~$0.0015 cache write — see the prompt-caching section above.
+Typical post extraction sends ~9,500 input tokens, nearly all of them the static system
+prompt. Per-post cost on Muse Spark has not been measured — measure it with
+`scripts/tests/test_openai_minimal.py`, a live smoke test that sends the real system prompt
+twice and prints cached/written tokens and billed cost. A static prefix that differs between
+calls (a timestamp or ID in it) defeats the cache entirely — see the prompt-caching section
+above.
 
 ### Backup File Sizes
 
@@ -546,7 +553,7 @@ DELAY_BETWEEN_POSTS = 1.0     # Increase from 0.5
 
 ### AI extraction timeout errors
 
-The OpenAI API can time out on large posts. The code already has retry logic with exponential backoff. If it persists, reduce context size in `extraction/context.py`.
+OpenRouter can time out on large posts. The code already has retry logic with exponential backoff. If it persists, reduce context size in `extraction/context.py`.
 
 ## Additional Resources
 
@@ -554,4 +561,4 @@ The OpenAI API can time out on large posts. The code already has retry logic wit
 - **Supabase Dashboard**: https://app.supabase.com (view tables, run SQL queries)
 - **Reddit API Docs**: https://www.reddit.com/dev/api/
 - **PRAW Docs**: https://praw.readthedocs.io/
-- **OpenAI API Docs**: https://platform.openai.com/docs/
+- **OpenRouter API Docs**: https://openrouter.ai/docs/

@@ -329,9 +329,9 @@ class RedditUserAnalyzer:
             # the next user; analyze_user must not silently swallow errors.
             raise
 
-    OPENAI_RATE_LIMIT_DELAY = 5.0  # Seconds between OpenAI requests
+    LLM_RATE_LIMIT_DELAY = 5.0  # Seconds between LLM requests
 
-    def run(self, limit: Optional[int] = None, rate_limit_delay: float = OPENAI_RATE_LIMIT_DELAY):
+    def run(self, limit: Optional[int] = None, rate_limit_delay: float = LLM_RATE_LIMIT_DELAY):
         """
         Run the full user analysis pipeline.
 
@@ -408,8 +408,8 @@ def main():
     parser.add_argument(
         "--rate-limit",
         type=float,
-        default=RedditUserAnalyzer.OPENAI_RATE_LIMIT_DELAY,
-        help=f"Delay in seconds between users (default: {RedditUserAnalyzer.OPENAI_RATE_LIMIT_DELAY})"
+        default=RedditUserAnalyzer.LLM_RATE_LIMIT_DELAY,
+        help=f"Delay in seconds between users (default: {RedditUserAnalyzer.LLM_RATE_LIMIT_DELAY})"
     )
 
     args = parser.parse_args()

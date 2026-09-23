@@ -89,7 +89,17 @@ const sharedSecrets = [
 ] as const;
 
 /** Extra variables on the LLM ingestion/extraction services and their cron triggers. */
-const extractionSecrets = ["GLM_API_KEY", "GLM_API_URL", "GLM_MODEL", "OPENAI_API_KEY"] as const;
+/**
+ * OPENROUTER_API_KEY is what extraction reads. OPENAI_API_KEY stays declared so a revert
+ * to the OpenAI client keeps working; drop it once OpenRouter extraction is settled.
+ */
+const extractionSecrets = [
+  "GLM_API_KEY",
+  "GLM_API_URL",
+  "GLM_MODEL",
+  "OPENAI_API_KEY",
+  "OPENROUTER_API_KEY",
+] as const;
 
 const preserveAll = (names: readonly string[]): Record<string, VariableValue> =>
   Object.fromEntries(names.map((name) => [name, preserve()]));

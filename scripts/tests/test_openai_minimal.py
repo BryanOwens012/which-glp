@@ -1,33 +1,39 @@
 #!/usr/bin/env python3
-"""Minimal test of the OpenAI SDK (GPT-6 Luna) to verify connectivity.
+"""Live smoke test: Muse Spark 1.3 Contributor through OpenRouter, with prompt caching.
 
-GPT-6 Luna is a reasoning model: pass reasoning_effort ("none" is the lowest;
-"minimal" is rejected).
-Docs: https://developers.openai.com/api/docs/models/gpt-6-luna
+Sends the real post-extraction system prompt twice with the extraction client's
+exact request shape, then prints token usage, cache reads/writes, and billed cost.
+The second call should report cached_tokens close to the system prompt's size;
+zero means the cache breakpoint is not taking effect.
+
+Needs OPENROUTER_API_KEY in the repository-root .env. Spends a fraction of a cent.
+Run from the repository root: venv/bin/python scripts/tests/test_openai_minimal.py
 """
 
-import os
-from dotenv import load_dotenv
-from openai import OpenAI
+import sys
+from pathlib import Path
 
-load_dotenv()
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "apps" / "post-extraction"))
 
-api_key = os.getenv("OPENAI_API_KEY")
-print(f"API Key found: {api_key[:20]}...")
+from openai_client import OpenAIClient  # noqa: E402
+from prompts import SYSTEM_PROMPT  # noqa: E402
 
-client = OpenAI(api_key=api_key)
-print("Client created successfully")
+client = OpenAIClient()
+print(f"System prompt: {len(SYSTEM_PROMPT)} characters")
 
-print("\nTesting with gpt-6-luna...")
-try:
-    response = client.chat.completions.create(
-        model="gpt-6-luna",
-        messages=[
-            {"role": "user", "content": "Say 'hello' and nothing else."}
-        ],
-        reasoning_effort="none",
+for attempt in (1, 2):
+    user_prompt = f"Post {attempt}: Started Zepbound 2.5mg, down 4 lbs in two weeks. Reply in JSON."
+    try:
+        _, metadata = client.extract((SYSTEM_PROMPT, user_prompt), lambda **kw: kw, max_retries=1)
+    except Exception as e:
+        print(f"Call {attempt} failed: {e}")
+        sys.exit(1)
+    usage = metadata["raw_response"]["usage"]
+    print(
+        f"Call {attempt}: model={metadata['raw_response']['model']} "
+        f"prompt={usage['prompt_tokens']} cached={usage['cached_tokens']} "
+        f"written={usage['cache_write_tokens']} completion={usage['completion_tokens']} "
+        f"cost=${metadata['cost_usd']:.6f} ({metadata['cost_source']}) "
+        f"time={metadata['processing_time_ms']}ms"
     )
-    print(f"Response: {response.choices[0].message.content}")
-    print(f"Tokens: {response.usage.prompt_tokens}/{response.usage.completion_tokens}")
-except Exception as e:
-    print(f"ERROR with gpt-6-luna: {e}")

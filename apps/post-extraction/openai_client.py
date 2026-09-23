@@ -1,7 +1,7 @@
 """
-OpenAI client for post feature extraction.
+Extraction client (Muse Spark via OpenRouter) for post feature extraction.
 
-Thin wrapper over the shared BaseOpenAIExtractor — the OpenAI call, JSON parsing,
+Thin wrapper over the shared BaseOpenAIExtractor — the OpenRouter call, JSON parsing,
 retry/backoff, cost tracking, and metadata all live in shared/openai_extractor.py.
 """
 
@@ -14,7 +14,7 @@ from shared.openai_extractor import BaseOpenAIExtractor
 class OpenAIClient(BaseOpenAIExtractor):
     """Extracts ExtractedFeatures from Reddit posts."""
 
-    # Routes same-prefix requests to the same OpenAI cache shard
+    # OpenRouter sticky-routing key: keeps same-prefix requests on the cached provider
     PROMPT_CACHE_KEY = "whichglp-post-extraction"
 
     def extract_features(
