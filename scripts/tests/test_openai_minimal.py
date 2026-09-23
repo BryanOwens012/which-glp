@@ -6,9 +6,10 @@ exact request shape, then prints token usage, cache reads/writes, and billed cos
 The second call should usually report cached_tokens close to the system prompt's
 size; zero on every run means the cache breakpoint is not taking effect.
 
-Named without a test_ prefix so pytest never collects it: it makes paid API calls.
+It makes paid API calls, so everything runs inside main() under the __main__ guard:
+pytest collection only imports the module and makes no calls (it defines no tests).
 Needs OPENROUTER_API_KEY in the repository-root .env. Spends a fraction of a cent.
-Run from the repository root: venv/bin/python scripts/tests/smoke_openrouter_cache.py
+Run from the repository root: venv/bin/python scripts/tests/test_openai_minimal.py
 """
 
 import sys

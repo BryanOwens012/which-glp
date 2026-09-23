@@ -10,7 +10,7 @@ Uses Muse Spark through the shared extractor (the `openai` Python SDK pointed at
 
 - A post sends ~9,500 input tokens, nearly all of them the static system prompt, and gets ~800 output tokens back (reasoning included, billed as output)
 - About $0.0003 per post on average: ~$0.00012 on a cache hit, ~$0.001 on a miss, so the cache hit rate drives cost
-- `scripts/tests/smoke_openrouter_cache.py` is a live smoke test that sends the real system prompt twice and prints cached/written tokens and billed cost
+- `scripts/tests/test_openai_minimal.py` is a live smoke test that sends the real system prompt twice and prints cached/written tokens and billed cost
 
 ## Usage
 
