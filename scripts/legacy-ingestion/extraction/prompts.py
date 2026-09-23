@@ -1,5 +1,5 @@
 """
-Prompt templates for GPT-6 Luna extraction of structured data from Reddit posts/comments.
+Prompt templates for Muse Spark extraction of structured data from Reddit posts/comments.
 
 These templates guide the model to extract weight loss features, costs, and experiences
 in a structured format while maintaining accuracy and not hallucinating data.

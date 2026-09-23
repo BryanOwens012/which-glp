@@ -88,8 +88,8 @@ const sharedSecrets = [
   "SUPABASE_URL",
 ] as const;
 
-/** Extra variables on the LLM ingestion/extraction services and their cron triggers. */
 /**
+ * Extra variables on the LLM ingestion/extraction services and their cron triggers.
  * OPENROUTER_API_KEY is what extraction reads. OPENAI_API_KEY stays declared so a revert
  * to the OpenAI client keeps working; drop it once OpenRouter extraction is settled.
  */

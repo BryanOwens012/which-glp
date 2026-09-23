@@ -62,9 +62,9 @@ print(f"✓ Fetched {len(posts)} posts, {len(comments)} comments")
 prompts = build_user_prompt(username, posts, comments)
 print(f"✓ Built prompts ({sum(len(p) for p in prompts)} chars)")
 
-# Extract with GPT-6 Luna
+# Extract with Muse Spark
 ai_client = get_client()
-print("✓ Calling OpenAI API...")
+print("✓ Calling OpenRouter...")
 demographics, metadata = ai_client.extract_demographics(prompts)
 
 print("\n✓ EXTRACTION SUCCESSFUL")

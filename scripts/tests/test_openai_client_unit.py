@@ -404,6 +404,22 @@ def test_api_key_read_from_openrouter_env(monkeypatch):
     assert BaseOpenAIExtractor().api_key == "sk-or-test"
 
 
+def test_request_kwargs_bind_to_real_sdk_signature():
+    # The fake client accepts any kwarg; bind what extract() sends against the real
+    # SDK's create() signature so a misspelled or unsupported argument fails here.
+    import inspect
+    from openai import OpenAI
+
+    class KeyedExtractor(BaseOpenAIExtractor):
+        PROMPT_CACHE_KEY = "whichglp-test"
+
+    ex = KeyedExtractor(api_key="sk-test")
+    ex.client = _FakeClient([make_response('{"x": 1}')])
+    ex.extract(("SYSTEM", "USER"), passthrough)
+    real_create = OpenAI(api_key="sk-test", base_url=oe.OPENROUTER_BASE_URL).chat.completions.create
+    inspect.signature(real_create).bind(**ex.client.chat.completions.calls[0])
+
+
 def test_client_targets_openrouter():
     ex = BaseOpenAIExtractor(api_key="sk-or-test")
     assert str(ex.client.base_url).rstrip("/") == "https://openrouter.ai/api/v1"
@@ -428,8 +444,11 @@ def test_reported_zero_cost_is_kept():
     assert metadata["cost_source"] == "openrouter"
 
 
-def test_non_numeric_reported_cost_falls_back_to_estimate():
-    ex = build_extractor([make_response('{"summary": "ok"}', cost="0.5")])
+@pytest.mark.parametrize("bad_cost", ["0.5", True, False, -5.0, float("nan"), float("inf")])
+def test_unusable_reported_cost_falls_back_to_estimate(bad_cost):
+    # A string, a bool (an int subclass), a negative, or a non-finite amount must not
+    # reach processing_cost_usd; the price-table estimate is used instead.
+    ex = build_extractor([make_response('{"summary": "ok"}', cost=bad_cost)])
     _, metadata = ex.extract("x", passthrough)
     assert metadata["cost_usd"] == pytest.approx(ex.calculate_cost(MODEL, 100, 20))
     assert metadata["cost_source"] == "estimated"

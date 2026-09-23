@@ -1,5 +1,5 @@
 """
-OpenAI client for the (deprecated) legacy ingestion pipeline.
+Extraction client (Muse Spark via OpenRouter) for the (deprecated) legacy ingestion pipeline.
 
 Thin wrapper over the shared BaseOpenAIExtractor — the OpenRouter call, JSON parsing,
 retry/backoff, cost tracking, and metadata all live in shared/openai_extractor.py.

@@ -475,12 +475,14 @@ input. Billed cost is read from OpenRouter's `usage.cost` on each response
 (`cost_source: "openrouter"`); `MODEL_PRICING` is only the fallback estimate
 (`cost_source: "estimated"`) for when OpenRouter doesn't return one.
 
-Typical post extraction sends ~9,500 input tokens, nearly all of them the static system
-prompt. Per-post cost on Muse Spark has not been measured — measure it with
-`scripts/tests/test_openai_minimal.py`, a live smoke test that sends the real system prompt
-twice and prints cached/written tokens and billed cost. A static prefix that differs between
-calls (a timestamp or ID in it) defeats the cache entirely — see the prompt-caching section
-above.
+A post extraction sends ~9,500 input tokens, nearly all of them the static system prompt,
+and gets ~800 output tokens back (reasoning included, billed as output). It costs about
+$0.0003 on average: ~$0.00012 when the system prompt is a cache hit and ~$0.001 when it
+misses, so the cache hit rate drives cost. Hits are intermittent even with the breakpoint.
+`scripts/tests/smoke_openrouter_cache.py` is a live smoke test that sends the real system
+prompt twice and prints cached/written tokens and billed cost. A static prefix that differs
+between calls (a timestamp or ID in it) defeats the cache entirely — see the prompt-caching
+section above.
 
 ### Backup File Sizes
 

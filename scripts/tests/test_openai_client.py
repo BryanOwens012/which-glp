@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Quick test of the OpenAI (GPT-6 Luna) client to verify API key works."""
+"""Quick test of the Muse Spark (OpenRouter) client to verify the API key works."""
 
 import sys
 from pathlib import Path
@@ -27,14 +27,14 @@ test_comments = [
     }
 ]
 
-print("Testing OpenAI client...")
+print("Testing the extraction client...")
 print("=" * 60)
 
 # Build prompts (system_prompt, user_prompt) — system stays static for prompt caching
 prompts = build_user_prompt("test_user", test_posts, test_comments)
 
 print(f"\nPrompt length: {sum(len(p) for p in prompts)} chars")
-print("\nCalling OpenAI API...")
+print("\nCalling OpenRouter...")
 
 # Get client and extract
 client = get_client()
@@ -59,4 +59,4 @@ print(f"  Input tokens: {metadata['tokens_input']}")
 print(f"  Output tokens: {metadata['tokens_output']}")
 print(f"  Processing time: {metadata['processing_time_ms']}ms")
 
-print("\n✓ OpenAI API key is working!")
+print("\n✓ OpenRouter API key is working!")

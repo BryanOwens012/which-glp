@@ -27,6 +27,7 @@ Docs: https://openrouter.ai/meta/muse-spark-1.3-contributor
 
 import os
 import json
+import math
 import time
 from typing import Any, Dict, Optional, Tuple, Type
 from pathlib import Path
@@ -221,9 +222,9 @@ class BaseOpenAIExtractor:
                 )
                 # OpenRouter reports the amount actually charged in usage.cost (USD
                 # credits); the SDK keeps it as an extra field. Fall back to the
-                # price table only when it is missing.
+                # price table when it is missing or not a usable amount.
                 reported_cost = getattr(response.usage, "cost", None)
-                if isinstance(reported_cost, (int, float)):
+                if self._is_billable_amount(reported_cost):
                     cost_usd = float(reported_cost)
                     cost_source = "openrouter"
                 else:
@@ -286,6 +287,16 @@ class BaseOpenAIExtractor:
 
         # Unreachable: the loop above always returns or raises on the last attempt.
         raise OpenAIExtractionError(f"Extraction failed after {max_retries} retries")
+
+    @staticmethod
+    def _is_billable_amount(value: Any) -> bool:
+        """True for a finite, non-negative number (bool excluded, since bool is an int)."""
+        return (
+            isinstance(value, (int, float))
+            and not isinstance(value, bool)
+            and math.isfinite(value)
+            and value >= 0
+        )
 
     @staticmethod
     def _build_messages(

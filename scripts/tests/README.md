@@ -6,7 +6,7 @@ This directory contains ad-hoc test and debug scripts for development and troubl
 
 ### LLM (OpenRouter) Integration Tests
 
-- **`test_openai_minimal.py`** - Live smoke test of Muse Spark 1.3 Contributor through OpenRouter: sends the real post-extraction system prompt twice and prints cached/written tokens and billed cost
+- **`smoke_openrouter_cache.py`** - Live smoke test (named without `test_` so pytest never collects it; it makes paid calls) of Muse Spark 1.3 Contributor through OpenRouter: sends the real post-extraction system prompt twice and prints cached/written tokens and billed cost
 - **`test_openai_client.py`** - Test the OpenAI-SDK (Muse Spark, via OpenRouter) client with sample user data
 - **`test_full_user_analysis.py`** - End-to-end test of user analysis pipeline
 - **`test_user_analyzer_debug.py`** - Debug script to troubleshoot user analyzer issues
@@ -25,7 +25,7 @@ cd "$(git rev-parse --show-toplevel)"
 source venv/bin/activate
 
 # Run Python tests
-python3 scripts/tests/test_openai_minimal.py
+python3 scripts/tests/smoke_openrouter_cache.py
 python3 scripts/tests/test_openai_client.py
 python3 scripts/tests/test_full_user_analysis.py
 python3 scripts/tests/test_user_analyzer_debug.py

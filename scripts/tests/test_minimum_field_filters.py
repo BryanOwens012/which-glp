@@ -60,7 +60,7 @@ def run_tests():
     passed = 0
 
     # ========================================================================
-    # POSITIVE TEST CASES - Should PASS filter (be processed by GPT-6 Luna)
+    # POSITIVE TEST CASES - Should PASS filter (be processed by Muse Spark)
     # ========================================================================
 
     print("\n" + "=" * 80)
@@ -152,7 +152,7 @@ def run_tests():
         passed += 1
 
     # ========================================================================
-    # NEGATIVE TEST CASES - Should FAIL filter (skip GPT-6 Luna processing)
+    # NEGATIVE TEST CASES - Should FAIL filter (skip Muse Spark processing)
     # ========================================================================
 
     print("\n" + "=" * 80)
