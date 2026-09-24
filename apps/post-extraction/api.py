@@ -104,8 +104,7 @@ async def trigger_extraction(
 
             # Import here to avoid circular dependencies
             from shared.database import DatabaseManager
-            from prompts import build_post_prompt
-            from rows import ground_extraction, to_feature_row, weight_conflict
+            from pipeline import extract_post_row
             from keyword_filters import should_process_post
             from minimum_field_filters import filter_post, diagnose_post
 
@@ -128,34 +127,23 @@ async def trigger_extraction(
                 {"p_subreddit": request.subreddit, "p_limit": request.limit},
             ).execute()
 
-            all_posts = response.data if response.data else []
-
-            # Convert to tuple format for processing
-            posts = [
-                (
-                    p["post_id"],
-                    p["title"],
-                    p["body"],
-                    p["subreddit"],
-                    p["author_flair_text"],
-                    p.get("created_at"),
-                )
-                for p in all_posts
-            ]
+            posts = response.data if response.data else []
 
             logger.info(f"📊 Found {len(posts)} unprocessed posts")
 
             # Process each post with two-stage filtering
-            for i, (post_id, title, body, subreddit, flair, created_at) in enumerate(posts, 1):
+            for i, post in enumerate(posts, 1):
+                post_id, title, body = post["post_id"], post["title"], post["body"]
+                subreddit, flair = post["subreddit"], post["author_flair_text"]
+                # The filters take reddit_posts rows as tuples.
+                post_row = (post_id, title, body, subreddit, flair)
                 try:
                     logger.info(
                         f"📝 Processing post {i}/{len(posts)}: {post_id} from r/{subreddit}"
                     )
 
                     # Stage 1: Keyword-based filter (fast, checks drug/topic relevance)
-                    if not should_process_post(
-                        (post_id, title, body, subreddit, flair), subreddit
-                    ):
+                    if not should_process_post(post_row, subreddit):
                         log_message = "keyword_filter: not drug-related"
                         logger.info(f"⏭️  Skipping post {post_id} ({log_message})")
 
@@ -172,7 +160,6 @@ async def trigger_extraction(
                         continue
 
                     # Stage 2: Minimum data filter (checks for required fields)
-                    post_row = (post_id, title, body, subreddit, flair)
                     if not filter_post(post_row):
                         diagnosis = diagnose_post(
                             title or "", body or "", flair or "", subreddit
@@ -192,20 +179,19 @@ async def trigger_extraction(
                         skipped += 1
                         continue
 
-                    prompt = build_post_prompt(
-                        subreddit, title, body or "", flair or "", created_at or ""
-                    )
                     logger.debug(f"🤖 Sending to {DEFAULT_MODEL} for extraction: {post_id}")
-
-                    extraction, metadata = ai_client.extract_features(prompt)
-
-                    # Null any quoted number the post does not actually contain.
-                    dropped = ground_extraction(
-                        extraction, "\n".join(filter(None, [title, flair, body]))
+                    result = extract_post_row(
+                        ai_client,
+                        subreddit=subreddit,
+                        title=title,
+                        body=body,
+                        flair=flair,
+                        created_at=post.get("created_at"),
                     )
-                    if dropped:
-                        logger.warning(f"⚠️  {post_id}: dropped ungrounded {', '.join(dropped)}")
-                    if weight_conflict(extraction):
+                    metadata = result.metadata
+                    if result.dropped:
+                        logger.warning(f"⚠️  {post_id}: dropped ungrounded {', '.join(result.dropped)}")
+                    if result.has_weight_conflict:
                         logger.warning(f"⚠️  {post_id}: stated weight_lost disagrees with start/end weights")
 
                     cost = metadata.get("cost_usd", 0)
@@ -214,7 +200,7 @@ async def trigger_extraction(
                     feature_data = {
                         "post_id": post_id,
                         "comment_id": None,
-                        **to_feature_row(extraction),
+                        **result.row,
                         "model_used": metadata.get("model"),
                         "processing_cost_usd": cost,
                         "tokens_input": metadata.get("tokens_input"),

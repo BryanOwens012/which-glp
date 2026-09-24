@@ -7,7 +7,7 @@ schema) instead of being normalized after the fact. Add a value here rather than
 teaching a downstream consumer a new spelling.
 """
 
-from typing import Dict, Literal, get_args
+from typing import Dict, Literal, Tuple, get_args
 
 # GLP-1 drugs (and close relatives) as they are stored. "Semaglutide"/"Tirzepatide"
 # mean the generic was named without saying brand or compounded; "Other" carries the
@@ -33,6 +33,27 @@ CanonicalDrug = Literal[
 ]
 CANONICAL_DRUGS = get_args(CanonicalDrug)
 
+WeightUnit = Literal["lbs", "kg"]
+WEIGHT_UNIT_SYNONYMS: Dict[str, str] = {"kgs": "kg", "kilos": "kg", "lb": "lbs", "pounds": "lbs"}
+KG_TO_LBS = 2.20462
+
+Severity = Literal["mild", "moderate", "severe"]
+SEVERITY_VALUES = get_args(Severity)
+SEVERITY_SYNONYMS: Dict[str, str] = {
+    "low": "mild",
+    "minor": "mild",
+    "slight": "mild",
+    "medium": "moderate",
+    "high": "severe",
+    "extreme": "severe",
+}
+# Exactly the currencies extracted_features' valid_currency CHECK allows (migration 002).
+# A cost in any other currency is not recorded.
+Currency = Literal["USD", "CAD", "GBP", "EUR", "AUD"]
+CURRENCIES = get_args(Currency)
+Sex = Literal["male", "female", "ftm", "mtf", "other"]
+DrugSource = Literal["brand", "compounded", "other"]
+
 # Canonical names that settle the source on their own. Generic names ("Semaglutide",
 # "Tirzepatide", "Liraglutide") and "Other" leave it to the post.
 BRAND_DRUGS = frozenset({
@@ -52,10 +73,12 @@ PostType = Literal[
     "news_or_discussion",  # news, policy, pricing, general talk with no first-hand use
     "other",
 ]
+POST_TYPES = get_args(PostType)
 
 TreatmentStatus = Literal["taking", "paused", "stopped", "not_started", "unknown"]
+TREATMENT_STATUSES = get_args(TreatmentStatus)
 
-# Canonical side-effect names. Synonyms map onto one name (see SIDE_EFFECT_GUIDE), so
+# Canonical side-effect names. Synonyms map onto one name (see SIDE_EFFECT_SYNONYMS), so
 # "fatigue", "exhaustion", and "low energy" are counted once, as "fatigue".
 SideEffectName = Literal[
     "nausea",
@@ -91,27 +114,31 @@ SideEffectName = Literal[
 ]
 SIDE_EFFECT_NAMES = get_args(SideEffectName)
 
-# What each canonical side effect absorbs. Rendered into the system prompt.
-SIDE_EFFECT_GUIDE: Dict[str, str] = {
-    "acid reflux": "heartburn, GERD, reflux",
-    "burping": "burps, belching, sulfur burps",
-    "abdominal pain": "stomach pain, cramps, upset stomach, gastroparesis-type pain",
-    "fatigue": "tiredness, exhaustion, low energy, lethargy",
-    "headache": "headache, migraine",
-    "dizziness": "lightheadedness, vertigo, feeling faint",
-    "hair loss": "shedding, thinning hair",
-    "injection site reaction": "redness, itching, swelling, rash, or bruising at the injection site",
-    "reduced appetite": "loss of appetite, can't eat enough, forgetting to eat",
-    "food aversion": "specific foods now repulsive or not tolerated",
-    "increased hunger": "hunger or food noise returning or worsening",
-    "low blood sugar": "hypoglycemia, shaky from low sugar",
-    "gallbladder problem": "gallstones, gallbladder attack or removal",
-    "pancreas problem": "pancreatitis, elevated lipase or amylase",
-    "allergic reaction": "hives, body rash, swelling not at the injection site",
-    "skin sensitivity": "skin hurts to touch, allodynia, burning skin",
-    "insomnia": "trouble sleeping, sleep disruption",
-    "anxiety": "anxiety, panic attacks",
-    "depression": "low mood, anhedonia, apathy, suicidal thoughts",
+# The phrasings each canonical side effect absorbs. The prompt lists them, and the eval
+# maps free-text names through them, so this is the one place a synonym is added.
+SIDE_EFFECT_SYNONYMS: Dict[str, Tuple[str, ...]] = {
+    "acid reflux": ("heartburn", "gerd", "reflux"),
+    "burping": ("burps", "belching", "sulfur burps"),
+    "abdominal pain": ("stomach pain", "stomach cramps", "cramps", "upset stomach", "stomach issues"),
+    "fatigue": ("tiredness", "exhaustion", "low energy", "lethargy"),
+    "headache": ("migraine",),
+    "dizziness": ("lightheadedness", "vertigo", "feeling faint"),
+    "hair loss": ("hair shedding", "shedding", "thinning hair"),
+    "injection site reaction": (
+        "injection site redness", "injection site itching", "injection site swelling",
+        "injection site rash", "injection site bruising",
+    ),
+    "reduced appetite": ("loss of appetite", "decreased appetite", "can't eat enough", "forgetting to eat"),
+    "food aversion": ("foods now repulsive", "foods no longer tolerated"),
+    "increased hunger": ("hunger returning", "food noise returning"),
+    "low blood sugar": ("hypoglycemia", "shaky from low sugar"),
+    "gallbladder problem": ("gallstones", "gallbladder attack", "gallbladder removal"),
+    "pancreas problem": ("pancreatitis", "elevated lipase", "elevated amylase"),
+    "allergic reaction": ("hives", "body rash", "swelling away from the injection site"),
+    "skin sensitivity": ("skin hurts to touch", "allodynia", "burning skin"),
+    "insomnia": ("trouble sleeping", "sleep disruption", "sleep disturbance"),
+    "anxiety": ("panic attacks", "panic attack"),
+    "depression": ("low mood", "anhedonia", "apathy", "suicidal thoughts"),
 }
 
 # Subreddits whose name settles which drug a post is about when the text only says

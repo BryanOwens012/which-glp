@@ -8,27 +8,27 @@ build_post_prompt. Never interpolate a date, id, or per-post value into SYSTEM_P
 
 import json
 
-from vocab import CANONICAL_DRUGS, SIDE_EFFECT_GUIDE, SIDE_EFFECT_NAMES, SUBREDDIT_DRUG_HINTS
+from vocab import CANONICAL_DRUGS, SIDE_EFFECT_NAMES, SIDE_EFFECT_SYNONYMS, SUBREDDIT_DRUG_HINTS
 
 _SIDE_EFFECT_LINES = "\n".join(
-    f"- {name}" + (f": {SIDE_EFFECT_GUIDE[name]}" if name in SIDE_EFFECT_GUIDE else "")
+    f"- {name}" + (f": {', '.join(SIDE_EFFECT_SYNONYMS[name])}" if name in SIDE_EFFECT_SYNONYMS else "")
     for name in SIDE_EFFECT_NAMES
 )
 _SUBREDDIT_LINES = "\n".join(f"- r/{sub}: {drug}" for sub, drug in sorted(SUBREDDIT_DRUG_HINTS.items()))
 
-_EXAMPLE_1_INPUT = """SUBREDDIT: r/Mounjaro
+EXAMPLE_1_INPUT = """SUBREDDIT: r/Mounjaro
 POSTED: 2026-03-02
 TITLE: 3 month update - feeling amazing!
 AUTHOR FLAIR: 35F 5'4" SW:220 CW:195 GW:150
 BODY:
 Started MJ the first week of December at 2.5. Terrible nausea for the first 2 weeks but it went away completely. Now on 7.5. Insurance (BCBS) covers it, $25 a month with the savings card. I have PCOS. My A1C went from 6.1 to 5.4! Walking 30 min a day. My sister told me to try Wegovy first but I'm glad I didn't. Honestly wish I'd started years ago."""
 
-_EXAMPLE_1_OUTPUT = {
+EXAMPLE_1_OUTPUT = {
     "post_type": "experience_report",
     "summary": "I started Mounjaro in early December at 2.5mg and I'm now on 7.5mg, down from 220 to 195 lbs. I had bad nausea for the first two weeks, but it went away completely. My insurance (BCBS) covers it and I pay $25 a month with the savings card. My A1C dropped from 6.1 to 5.4 and I walk 30 minutes a day. I wish I had started years ago.",
     "drugs": [
         {"name": "Mounjaro", "other_name": None, "relation": "current", "source": "brand", "sentiment": 0.95},
-        {"name": "Wegovy", "other_name": None, "relation": "mentioned_only", "source": None, "sentiment": None},
+        {"name": "Wegovy", "other_name": None, "relation": "mentioned_only", "source": "brand", "sentiment": None},
     ],
     "primary_drug": "Mounjaro",
     "treatment_status": "taking",
@@ -47,7 +47,7 @@ _EXAMPLE_1_OUTPUT = {
     "has_insurance": True,
     "insurance_provider": "Blue Cross Blue Shield",
     "pharmacy_access_issues": None,
-    "side_effects": [{"name": "nausea", "detail": None, "severity": "severe", "resolved": True}],
+    "side_effects": [{"name": "nausea", "detail": None, "severity": "moderate", "resolved": True}],
     "side_effect_timing": "first 2 weeks",
     "food_intolerances": [],
     "comorbidities": ["pcos"],
@@ -69,13 +69,13 @@ _EXAMPLE_1_OUTPUT = {
     "country": None,
 }
 
-_EXAMPLE_2_INPUT = """SUBREDDIT: r/tirzepatidecompound
+EXAMPLE_2_INPUT = """SUBREDDIT: r/tirzepatidecompound
 POSTED: 2026-05-20
 TITLE: Units question for new vial
 BODY:
 My last vial was 20mg/ml and I pulled 50 units for 10mg. New one from my telehealth is 17mg/ml, how many units is 10mg? Down 31 lbs since January so I don't want to mess this up lol. $249/mo is way better than the $1,086 Zepbound wanted."""
 
-_EXAMPLE_2_OUTPUT = {
+EXAMPLE_2_OUTPUT = {
     "post_type": "question",
     "summary": "I'm on compounded tirzepatide at 10mg and switching from a 20mg/ml vial to a 17mg/ml vial, and I'm asking how many units to draw. I've lost 31 lbs since January. I pay $249 a month through my telehealth, much less than the $1,086 brand Zepbound would cost.",
     "drugs": [
@@ -176,7 +176,7 @@ The subreddit also settles brand versus compounded: in r/tirzepatidecompound, a 
 
 **duration_weeks**: weeks since the author started GLP-1 treatment, counting across switches. Round to whole weeks (1 month = 4.3 weeks). duration_quote is the verbatim span it comes from. A first dose taken on the posted date is 0; a first dose still to come leaves it null. Null if the post does not say when they started.
 
-**cost_per_month**: what the author pays per month for the drug (after insurance and savings cards). Convert other billing periods: $499 every 4 weeks is 499; $900 for 3 months is 300. A price someone else pays, or a price the author was quoted and did not pay, is not their cost. currency: the currency of that cost (OTHER if not in the list); null when there is no cost. cost_quote: the verbatim span.
+**cost_per_month**: what the author pays per month for the drug (after insurance and savings cards). Convert other billing periods: $499 every 4 weeks is 499; $900 for 3 months is 300. A price someone else pays, or a price the author was quoted and did not pay, is not their cost. currency: USD, CAD, GBP, EUR, or AUD. A cost in any other currency is not recorded: leave cost_per_month, currency, and cost_quote null. cost_quote: the verbatim span.
 
 **has_insurance**: true when insurance covers the drug for the author (a copay, approved prior authorization, "covered"); false when it does not (denied, not covered, paying cash or out of pocket, compounded bought without insurance); null when the post does not say. insurance_provider: the named insurer, expanded ("BCBS" = Blue Cross Blue Shield, "UHC" = UnitedHealthcare).
 
@@ -213,16 +213,16 @@ Every quote field must be copied verbatim from the post (title, flair, or body),
 # Examples
 
 Input:
-{_EXAMPLE_1_INPUT}
+{EXAMPLE_1_INPUT}
 
 Output:
-{json.dumps(_EXAMPLE_1_OUTPUT, indent=1)}
+{json.dumps(EXAMPLE_1_OUTPUT, indent=1)}
 
 Input:
-{_EXAMPLE_2_INPUT}
+{EXAMPLE_2_INPUT}
 
 Output:
-{json.dumps(_EXAMPLE_2_OUTPUT, indent=1)}
+{json.dumps(EXAMPLE_2_OUTPUT, indent=1)}
 """
 
 
@@ -241,7 +241,8 @@ def build_post_prompt(
         title: Post title.
         body: Post body text; may be empty.
         author_flair: Author flair text; may carry age, sex, and weights.
-        posted_date: ISO date the post was created, used to resolve relative times.
+        posted_date: ISO date or timestamp the post was created (only the date is used),
+            to resolve relative times.
 
     Returns:
         (SYSTEM_PROMPT, user prompt).

@@ -12,18 +12,19 @@ For each field, over every post:
     rec   of the posts where gold has a value, the share the run matched
 Sentiment fields also report MAE where both have a value and `invented`, the number of
 posts where the run scored an opinion the gold says was never expressed.
+weight_loss_lbs_view is weight loss as the site computes it today (start minus end
+weight); weight_loss_lbs also counts the weight_lost column.
 
 Usage (from the repository root, venv active):
-    python3 scripts/extraction-eval/score.py v1-minimal v2-minimal v2-low
+    python3 scripts/extraction-eval/score.py v1-minimal v2-low
 """
 
 import argparse
 import glob
+import sys
 from typing import Any, Callable, Dict, List, Optional
 
-from eval_lib import DATA_DIR, KG_TO_LBS, comparable, read_json
-
-from rows import source_for_name
+from eval_lib import DATA_DIR, read_json, to_comparable, to_lbs
 
 COUNTRY_ALIASES = {"us": "USA", "united states": "USA", "usa": "USA", "united kingdom": "UK", "uk": "UK", "england": "UK"}
 
@@ -34,22 +35,22 @@ def load_gold() -> Dict[str, Dict[str, Any]]:
         for label in read_json(path):
             row = dict(label)
             row["side_effects"] = [{"name": n} for n in label.get("side_effects") or []]
-            # The stored drug_source comes from the same rule for every run.
-            row["drug_source"] = source_for_name(label.get("primary_drug"), label.get("drug_source"))
-            if row.get("weight_lost") is None and row.get("beginning_weight") and row.get("end_weight"):
-                start, end = row["beginning_weight"], row["end_weight"]
-                lbs = [w["value"] * (KG_TO_LBS if w["unit"] == "kg" else 1) for w in (start, end)]
-                if lbs[0] > lbs[1]:
-                    row["weight_lost"] = {"value": lbs[0] - lbs[1], "unit": "lbs"}
-            gold[label["post_id"]] = comparable(row)
+            # Gold states only a total the post gives, as the pipeline does; derive the
+            # rest from start and end weights the same way rows.derive_weight_lost does.
+            start, end = row.get("beginning_weight"), row.get("end_weight")
+            if row.get("weight_lost") is None and start and end:
+                lost_lbs = to_lbs(start["value"], start["unit"]) - to_lbs(end["value"], end["unit"])
+                if lost_lbs > 0:
+                    row["weight_lost"] = {"value": lost_lbs, "unit": "lbs"}
+            gold[label["post_id"]] = to_comparable(row)
     return gold
 
 
-def _near(tolerance: Callable[[float], float]) -> Callable[[Any, Any], bool]:
+def make_near_matcher(tolerance: Callable[[float], float]) -> Callable[[Any, Any], bool]:
     return lambda a, b: abs(a - b) <= tolerance(b)
 
 
-def _country(v: Optional[str]) -> Optional[str]:
+def _normalize_country(v: Optional[str]) -> Optional[str]:
     return COUNTRY_ALIASES.get(v.strip().lower(), v.strip()) if isinstance(v, str) else None
 
 
@@ -58,27 +59,32 @@ FIELDS: Dict[str, Callable[[Any, Any], bool]] = {
     "treatment_status": lambda a, b: a == b,
     "primary_drug": lambda a, b: a == b,
     "drug_source": lambda a, b: a == b,
-    "weight_loss_lbs": _near(lambda g: max(2.0, 0.05 * g)),
-    "beginning_weight_lbs": _near(lambda g: 1.0),
-    "end_weight_lbs": _near(lambda g: 1.0),
-    "duration_weeks": _near(lambda g: max(2.0, 0.15 * g)),
-    "cost_per_month": _near(lambda g: max(1.0, 0.05 * g)),
+    "weight_loss_lbs_view": make_near_matcher(lambda g: max(2.0, 0.05 * g)),
+    "weight_loss_lbs": make_near_matcher(lambda g: max(2.0, 0.05 * g)),
+    "beginning_weight_lbs": make_near_matcher(lambda g: 1.0),
+    "end_weight_lbs": make_near_matcher(lambda g: 1.0),
+    "duration_weeks": make_near_matcher(lambda g: max(2.0, 0.15 * g)),
+    "cost_per_month": make_near_matcher(lambda g: max(1.0, 0.05 * g)),
     "has_insurance": lambda a, b: a == b,
     "age": lambda a, b: a == b,
     "sex": lambda a, b: a == b,
-    "country": lambda a, b: _country(a) == _country(b),
+    "country": lambda a, b: _normalize_country(a) == _normalize_country(b),
 }
 SENTIMENT_FIELDS = ("sentiment_post", "recommendation_score")
+# Fields v1 has no column for; reported as n/a for a run that never fills them.
+V2_ONLY_FIELDS = ("post_type", "treatment_status")
 
 
 def score_run(run: Dict[str, Any], gold: Dict[str, Dict[str, Any]]) -> Dict[str, str]:
-    preds = {pid: comparable(r["row"]) if "row" in r else None for pid, r in run.items()}
+    preds = {pid: to_comparable(r["row"]) if "row" in r else None for pid, r in run.items()}
     ids = [pid for pid in gold if pid in preds]
+    if not ids:
+        sys.exit("No post in this run has a gold label: were they sampled from the same posts.json?")
     failed = sum(1 for pid in ids if preds[pid] is None)
     out: Dict[str, str] = {"posts": f"{len(ids)} ({failed} failed)"}
 
     for field, match in FIELDS.items():
-        if all(preds[p] is None or preds[p].get(field) is None for p in ids) and field in ("post_type", "treatment_status"):
+        if field in V2_ONLY_FIELDS and all(preds[p] is None or preds[p].get(field) is None for p in ids):
             out[field] = "n/a"
             continue
         agree = pred_n = pred_ok = gold_n = gold_ok = 0

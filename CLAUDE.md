@@ -243,6 +243,9 @@ python3 -m reddit_ingestion.upload_from_backup /path/to/backup/dir
 
 ## AI Extraction Pipeline
 
+This section describes the legacy batch pipeline (`scripts/legacy-ingestion/extraction/`).
+The deployed extractor is `apps/post-extraction`; see Post Extraction below.
+
 ### Extraction Architecture
 
 **Hybrid Approach** (minimize database queries, maximize in-memory processing):
@@ -487,8 +490,11 @@ section above.
 
 ### Post Extraction (`apps/post-extraction`)
 
-The deployed extractor owns its files; `scripts/legacy-ingestion/extraction/` is the
-superseded pipeline and is not imported by the service (only `shared/` is shared).
+The service owns `vocab.py`, `schema.py`, `prompts.py`, `rows.py`, and `pipeline.py`.
+Two symlinks still reach into the legacy tree: `keyword_filters.py`
+(→ `scripts/legacy-ingestion/extraction/filters.py`) and `shared/`
+(→ `scripts/legacy-ingestion/shared/`, home of the shared extractor client). The legacy
+`extraction/schema.py` and `prompts.py` survive only as the eval's v1 baseline.
 
 - **`vocab.py`** holds the controlled vocabularies: canonical drug names, side-effect
   names and the synonyms each absorbs, post types, treatment statuses, and the subreddit
@@ -498,11 +504,15 @@ superseded pipeline and is not imported by the service (only `shared/` is shared
   strict-compatible: every field required, `extra="forbid"`, no free-form dicts.
 - **`prompts.py`** defines every field once. Nulls are preferred to guesses because every
   numeric field is averaged downstream; sentiment is null when no opinion is expressed.
-  Quoted numbers (weights, duration, cost) carry a verbatim `quote`.
+  Quoted numbers carry a verbatim quote (`quote` on weights, `duration_quote`,
+  `cost_quote`).
 - **`rows.py`** is the deterministic layer: `ground_extraction` nulls any quoted value
-  whose quote is not in the post, `derive_weight_lost` fills `weight_lost` from start and
-  end weights, and brand/compounded canonical names settle `drug_source`. Logic with one
-  right answer goes here, not in the prompt.
+  whose quote is not in the post (or, for a weight, does not state the number),
+  `derive_weight_lost` fills `weight_lost` from start and end weights, and
+  brand/compounded canonical names settle `drug_source`. Logic with one right answer
+  goes here, not in the prompt.
+- **`pipeline.py`** (`extract_post_row`) runs one post through prompt, model, grounding,
+  and row mapping. The service and the eval both call it; never re-implement the steps.
 - A validation failure is sent back to the model once with the errors
   (`VALIDATION_REPAIRS = 1`) before the post is marked failed.
 
@@ -552,7 +562,7 @@ python3 -m reddit_ingestion.upload_from_backup backups/ingestion/historical_run_
 ### Adding New Extracted Features
 
 1. Create migration file: `apps/shared/migrations/NNN_add_new_field.up.sql` (`NNN` = the next unused prefix) and its `.down.sql`, verified on a local throwaway database; Bryan applies it
-2. Add the field to `PostExtraction` in `apps/post-extraction/schema.py` (required, nullable, no default: the schema is sent in strict mode)
+2. Add the field to `PostExtraction` in `apps/post-extraction/schema.py` (required with no default, since the schema is sent in strict mode: nullable for a scalar, `[]` when empty for a list)
 3. Define it under `# Fields` in `apps/post-extraction/prompts.py`, and add it to both examples there
 4. Map it to its column in `apps/post-extraction/rows.py`
 5. Measure the change with the extraction eval (see Post Extraction above) before shipping

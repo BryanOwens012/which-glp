@@ -6,7 +6,9 @@ Run: venv/bin/pytest scripts/tests/test_post_extraction_v2.py -q
 """
 
 import copy
+import importlib
 import json
+import re
 import sys
 import types
 from pathlib import Path
@@ -17,11 +19,22 @@ from pydantic import ValidationError
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "apps" / "post-extraction"))
 
-import shared.openai_extractor as oe  # noqa: E402
-from prompts import _EXAMPLE_1_OUTPUT, _EXAMPLE_2_OUTPUT, SYSTEM_PROMPT, build_post_prompt  # noqa: E402
-from rows import derive_weight_lost, ground_extraction, source_for_name, to_feature_row, weight_conflict  # noqa: E402
-from schema import PostExtraction  # noqa: E402
-from shared.openai_extractor import BaseOpenAIExtractor, OpenAIExtractionError, strict_json_schema  # noqa: E402
+# Imported after the path insert, which is what makes the service's modules importable.
+oe = importlib.import_module("shared.openai_extractor")
+_prompts = importlib.import_module("prompts")
+_rows = importlib.import_module("rows")
+PostExtraction = importlib.import_module("schema").PostExtraction
+
+_EXAMPLE_1_OUTPUT, _EXAMPLE_2_OUTPUT = _prompts.EXAMPLE_1_OUTPUT, _prompts.EXAMPLE_2_OUTPUT
+SYSTEM_PROMPT, build_post_prompt = _prompts.SYSTEM_PROMPT, _prompts.build_post_prompt
+derive_weight_lost, ground_extraction = _rows.derive_weight_lost, _rows.ground_extraction
+build_source_text, resolve_source_for_name = _rows.build_source_text, _rows.resolve_source_for_name
+to_feature_row, has_weight_conflict = _rows.to_feature_row, _rows.has_weight_conflict
+BaseOpenAIExtractor, OpenAIExtractionError = oe.BaseOpenAIExtractor, oe.OpenAIExtractionError
+build_strict_json_schema = oe.build_strict_json_schema
+OpenAIClient = importlib.import_module("openai_client").OpenAIClient
+_vocab = importlib.import_module("vocab")
+MIGRATIONS = ROOT / "apps" / "shared" / "migrations"
 
 
 def make_extraction(**overrides) -> PostExtraction:
@@ -59,7 +72,7 @@ def test_every_schema_property_is_required_and_closed():
             for value in node:
                 walk(value)
 
-    schema = strict_json_schema(PostExtraction)
+    schema = build_strict_json_schema(PostExtraction)
     assert "$ref" not in json.dumps(schema) and "$defs" not in schema
     walk(schema)
 
@@ -131,6 +144,30 @@ def test_value_without_a_quote_is_dropped():
     assert ground_extraction(extraction, POST_TEXT) == ["duration_weeks"]
 
 
+@pytest.mark.parametrize("quote", ["   ", "**", "_", "", "I"])
+def test_blank_markup_or_trivial_quotes_ground_nothing(quote):
+    extraction = make_extraction(weight_lost={"value": 31, "unit": "lbs", "quote": quote})
+    assert ground_extraction(extraction, POST_TEXT) == ["weight_lost"]
+    assert extraction.weight_lost is None
+
+
+def test_a_weight_whose_quote_states_another_number_is_dropped():
+    extraction = make_extraction(weight_lost={"value": 400, "unit": "lbs", "quote": "Down 31 lbs"})
+    assert ground_extraction(extraction, POST_TEXT) == ["weight_lost"]
+
+
+def test_a_weight_converted_from_stone_is_kept():
+    extraction = make_extraction(weight_lost={"value": 28, "unit": "lbs", "quote": "down 2 st"})
+    assert ground_extraction(extraction, "Update: down 2 st since January, $249/mo") == []
+
+
+def test_a_converted_monthly_cost_is_kept_and_an_amountless_cost_quote_is_not():
+    converted = make_extraction(weight_lost=None, cost_per_month=300, cost_quote="$900 for 3 months", duration_quote=None, duration_weeks=None)
+    assert ground_extraction(converted, "I pay $900 for 3 months") == []
+    amountless = make_extraction(weight_lost=None, cost_quote="way better than", duration_quote=None, duration_weeks=None)
+    assert ground_extraction(amountless, POST_TEXT) == ["cost_per_month"]
+
+
 # --------------------------------------------------------------------------
 # Row mapping
 # --------------------------------------------------------------------------
@@ -142,6 +179,8 @@ def test_weight_lost_is_derived_from_start_and_end_when_not_stated():
         end_weight={"value": 195, "unit": "lbs", "quote": "CW:195"},
     )
     assert derive_weight_lost(extraction) == {"value": 25, "unit": "lbs", "quote": None, "derived": True}
+    stated = make_extraction()
+    assert derive_weight_lost(stated) == {"value": 31, "unit": "lbs", "quote": "Down 31 lbs since January", "derived": False}
 
 
 def test_mixed_units_derive_in_lbs_and_a_gain_is_not_a_loss():
@@ -160,17 +199,17 @@ def test_mixed_units_derive_in_lbs_and_a_gain_is_not_a_loss():
     assert derive_weight_lost(gain) is None
 
 
-def test_weight_conflict_flags_disagreeing_numbers():
+def test_has_weight_conflict_flags_disagreeing_numbers():
     agree = make_extraction(
         beginning_weight={"value": 220, "unit": "lbs", "quote": "220"},
         end_weight={"value": 190, "unit": "lbs", "quote": "190"},
     )
-    assert not weight_conflict(agree)  # 30 vs stated 31 is within tolerance
+    assert not has_weight_conflict(agree)  # 30 vs stated 31 is within tolerance
     disagree = make_extraction(
         beginning_weight={"value": 220, "unit": "lbs", "quote": "220"},
         end_weight={"value": 210, "unit": "lbs", "quote": "210"},
     )
-    assert weight_conflict(disagree)
+    assert has_weight_conflict(disagree)
 
 
 @pytest.mark.parametrize(
@@ -184,8 +223,8 @@ def test_weight_conflict_flags_disagreeing_numbers():
         (None, None, None),
     ],
 )
-def test_source_for_name(name, stated, expected):
-    assert source_for_name(name, stated) == expected
+def test_resolve_source_for_name(name, stated, expected):
+    assert resolve_source_for_name(name, stated) == expected
 
 
 def test_feature_row_derives_legacy_drug_columns():
@@ -208,6 +247,92 @@ def test_feature_row_uses_other_name_for_other_drugs():
     assert row["drugs_mentioned"] == ["Metformin"]
     assert row["drug_sentiments"] == {"Metformin": 0.6}
     assert row["drug_source"] is None
+
+
+def _drug(name, relation="current", source=None, other_name=None, sentiment=None):
+    return {"name": name, "other_name": other_name, "relation": relation, "source": source, "sentiment": sentiment}
+
+
+@pytest.mark.parametrize(
+    "primary, drugs, expected",
+    [
+        # A generic primary keeps the source the post stated for it.
+        ("Tirzepatide", [_drug("Tirzepatide", source="compounded")], "compounded"),
+        # Another drug's source is never attributed to the primary.
+        ("Semaglutide", [_drug("Semaglutide"), _drug("Ozempic", "previous", "brand")], None),
+        # With no primary, the first taken drug decides, and a brand name settles it.
+        (None, [_drug("Zepbound")], "brand"),
+        (None, [_drug("Tirzepatide", source="other")], "other"),
+        # Planned and mentioned-only drugs are not taken, so they never decide.
+        (None, [_drug("Zepbound", "planned"), _drug("Wegovy", "mentioned_only", "brand")], None),
+    ],
+)
+def test_drug_source(primary, drugs, expected):
+    assert to_feature_row(make_extraction(primary_drug=primary, drugs=drugs))["drug_source"] == expected
+
+
+def test_other_primary_drug_is_stored_under_its_written_name():
+    extraction = make_extraction(
+        primary_drug="Other",
+        drugs=[_drug("Other", "mentioned_only", other_name="phentermine"), _drug("Other", other_name="metformin")],
+    )
+    assert to_feature_row(extraction)["primary_drug"] == "Metformin"  # the taken one wins
+    blank = make_extraction(primary_drug="Other", drugs=[_drug("Other", other_name="  ")])
+    row = to_feature_row(blank)
+    assert row["primary_drug"] is None
+    assert row["drugs_mentioned"] == []
+
+
+def test_other_side_effect_is_stored_under_its_detail_or_dropped():
+    extraction = make_extraction(side_effects=[
+        {"name": "other", "detail": "Tinnitus", "severity": "mild", "resolved": None},
+        {"name": "other", "detail": None, "severity": None, "resolved": None},
+        {"name": "nausea", "detail": None, "severity": None, "resolved": True},
+    ])
+    names = [s["name"] for s in to_feature_row(extraction)["side_effects"]]
+    assert names == ["tinnitus", "nausea"]
+
+
+def test_a_string_where_a_list_belongs_becomes_one_item():
+    assert make_extraction(comorbidities="Hypertension").comorbidities == ["hypertension"]
+
+
+def test_extra_key_in_a_side_effect_is_rejected():
+    # The live v1 shape carried a per-effect "confidence"; strict mode refuses it, and the
+    # extractor's repair request is what recovers the post.
+    data = copy.deepcopy(_EXAMPLE_2_OUTPUT)
+    data["side_effects"] = [{"name": "nausea", "detail": None, "severity": "low", "resolved": None, "confidence": "medium"}]
+    with pytest.raises(ValidationError):
+        PostExtraction(**data)
+
+
+def test_build_source_text_skips_missing_parts_and_quotes_can_span_them():
+    assert build_source_text("Title", None, "") == "Title"
+    extraction = make_extraction(duration_quote="Title My last")
+    assert ground_extraction(extraction, build_source_text("Title", None, "My last vial")) == ["weight_lost", "cost_per_month"]
+    assert extraction.duration_weeks == 20
+
+
+def _check_values(migration: str, constraint: str) -> set:
+    sql = (MIGRATIONS / migration).read_text()
+    clause = sql[sql.index(constraint):]
+    clause = clause[: clause.index(")")]
+    return set(re.findall(r"'([^']+)'", clause))
+
+
+def test_currencies_match_the_database_check():
+    assert set(_vocab.CURRENCIES) == _check_values("002_create_extracted_features.up.sql", "valid_currency")
+
+
+@pytest.mark.parametrize(
+    "values, constraint",
+    [("POST_TYPES", "extracted_features_post_type_check"), ("TREATMENT_STATUSES", "extracted_features_treatment_status_check")],
+)
+def test_post_v2_enums_match_migration_035(values, constraint):
+    sql = (MIGRATIONS / "035_post_extraction_v2.up.sql").read_text()
+    add = sql[sql.index(f"ADD CONSTRAINT {constraint}"):]
+    add = add[: add.index(";")]
+    assert set(getattr(_vocab, values)) == set(re.findall(r"'([^']+)'", add))
 
 
 # --------------------------------------------------------------------------
@@ -274,3 +399,36 @@ def test_repairs_are_bounded():
     with pytest.raises(OpenAIExtractionError):
         ex.extract(("SYSTEM", "USER"), PostExtraction)
     assert len(ex.client.chat.completions.calls) == 2
+
+
+def test_post_client_uses_strict_schema_low_effort_and_one_repair():
+    client = OpenAIClient(api_key="sk-test")
+    client.client = types.SimpleNamespace(chat=types.SimpleNamespace(completions=_Completions([
+        _response(json.dumps({**_EXAMPLE_2_OUTPUT, "post_type": "rant"})),
+        _response(json.dumps(_EXAMPLE_2_OUTPUT)),
+    ])))
+    _, meta = client.extract_features(("SYSTEM", "USER"))
+    call = client.client.chat.completions.calls[0]
+    assert call["response_format"]["json_schema"]["strict"] is True
+    assert call["response_format"]["json_schema"]["name"] == "PostExtraction"
+    assert call["extra_body"]["reasoning"]["effort"] == "low"
+    assert meta["validation_repairs"] == 1
+
+
+def test_constructor_overrides_class_configuration():
+    ex = BaseOpenAIExtractor(api_key="sk-test", reasoning_effort="medium", structured_output=True, validation_repairs=2)
+    assert (ex.reasoning_effort, ex.structured_output, ex.validation_repairs) == ("medium", True, 2)
+    default = BaseOpenAIExtractor(api_key="sk-test")
+    assert (default.reasoning_effort, default.structured_output, default.validation_repairs) == ("minimal", False, 0)
+
+
+def test_every_billed_call_counts_toward_cost_tokens_and_time():
+    bad = json.dumps({**_EXAMPLE_2_OUTPUT, "post_type": "rant"})
+    ex = _extractor(
+        [_response(bad, cost=0.001), _response("not json", cost=0.002), _response(json.dumps(_EXAMPLE_2_OUTPUT), cost=0.004)],
+        VALIDATION_REPAIRS=1,
+    )
+    _, meta = ex.extract(("SYSTEM", "USER"), PostExtraction)
+    assert meta["cost_usd"] == pytest.approx(0.007)
+    assert meta["tokens_input"] == 300 and meta["tokens_output"] == 60
+    assert meta["raw_response"]["usage"]["prompt_tokens"] == 100  # the returned response's own usage

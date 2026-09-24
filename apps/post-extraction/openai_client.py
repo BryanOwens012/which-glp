@@ -17,8 +17,8 @@ class OpenAIClient(BaseOpenAIExtractor):
 
     # OpenRouter sticky-routing key: keeps same-prefix requests on the cached provider
     PROMPT_CACHE_KEY = "whichglp-post-extraction"
-    # "low" measurably beat "minimal" on duration and drug naming in the extraction eval
-    # (scripts/extraction-eval) for about 1.6x the cost; "medium" added little more.
+    # Chosen with scripts/extraction-eval: "low" beat "minimal" on duration and drug
+    # naming at $0.00038 vs $0.00024 per post; "medium" added little more at $0.00071.
     REASONING_EFFORT = "low"
     STRUCTURED_OUTPUT = True
     VALIDATION_REPAIRS = 1

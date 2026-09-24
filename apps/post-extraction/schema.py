@@ -4,42 +4,34 @@ Pydantic model for post extraction.
 `PostExtraction` is what the model returns. It is sent to OpenRouter as a strict JSON
 schema, so every field is required (nullable where data may be missing), enumerations
 come from vocab.py, and there are no free-form dicts. The `mode="before"` validators
-repair near-misses (unit spellings, severity synonyms) so one odd value does not fail
+repair near-misses (unit spellings, severity synonyms, a string where a list belongs)
+for when a provider does not enforce the strict schema, so one odd value does not fail
 the whole post.
 
 rows.py turns a validated extraction into an `extracted_features` row.
 """
 
-from typing import List, Literal, Optional, get_args
+from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from vocab import (
     CANONICAL_DRUGS,
+    SEVERITY_SYNONYMS,
+    SEVERITY_VALUES,
     SIDE_EFFECT_NAMES,
+    WEIGHT_UNIT_SYNONYMS,
     CanonicalDrug,
+    Currency,
     DrugRelation,
+    DrugSource,
     PostType,
+    Severity,
+    Sex,
     SideEffectName,
     TreatmentStatus,
+    WeightUnit,
 )
-
-WeightUnit = Literal["lbs", "kg"]
-Severity = Literal["mild", "moderate", "severe"]
-SEVERITY_VALUES = get_args(Severity)
-SEVERITY_SYNONYMS = {
-    "low": "mild",
-    "minor": "mild",
-    "slight": "mild",
-    "medium": "moderate",
-    "high": "severe",
-    "extreme": "severe",
-}
-Currency = Literal["USD", "CAD", "GBP", "EUR", "AUD", "NZD", "OTHER"]
-Sex = Literal["male", "female", "ftm", "mtf", "other"]
-DrugSource = Literal["brand", "compounded", "other"]
-
-_UNIT_SYNONYMS = {"kgs": "kg", "kilos": "kg", "lb": "lbs", "pounds": "lbs"}
 
 
 class _Strict(BaseModel):
@@ -60,7 +52,7 @@ class Weight(_Strict):
     def _normalize_unit(cls, v):
         if isinstance(v, str):
             v = v.strip().lower()
-            return _UNIT_SYNONYMS.get(v, v)
+            return WEIGHT_UNIT_SYNONYMS.get(v, v)
         return v
 
 
@@ -75,7 +67,7 @@ class DrugUse(_Strict):
 
     @field_validator("name", mode="before")
     @classmethod
-    def _canonical_name(cls, v):
+    def _canonicalize_name(cls, v):
         if isinstance(v, str):
             for canonical in CANONICAL_DRUGS:
                 if v.strip().lower() == canonical.lower():
@@ -102,7 +94,7 @@ class SideEffect(_Strict):
 
     @field_validator("name", mode="before")
     @classmethod
-    def _known_name(cls, v):
+    def _normalize_name(cls, v):
         if isinstance(v, str) and v.strip().lower() in SIDE_EFFECT_NAMES:
             return v.strip().lower()
         return v
@@ -179,6 +171,8 @@ class PostExtraction(_Strict):
     def _lowercase_list(cls, v):
         if v is None:
             return []
+        if isinstance(v, str):
+            v = [v]
         return [item.strip().lower() for item in v if isinstance(item, str) and item.strip()]
 
     @field_validator("drugs", "side_effects", mode="before")

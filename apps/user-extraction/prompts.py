@@ -61,10 +61,26 @@ Type 2 diabetes is the mother's, so it is not a comorbidity. The newest weight (
 
 Return only the JSON object."""
 
+from datetime import datetime, timezone
+from typing import Any, Dict
+
 MAX_ITEMS = 20
 
 
-def _item_header(kind: str, index: int, item: dict) -> str:
+def build_item_context(item: Any) -> Dict[str, str]:
+    """
+    Subreddit, UTC date, and the author's flair in that subreddit, from a PRAW
+    Submission or Comment, in the shape build_user_prompt reads.
+    """
+    created = getattr(item, "created_utc", None)
+    return {
+        "subreddit": str(getattr(item, "subreddit", "") or ""),
+        "created": datetime.fromtimestamp(created, tz=timezone.utc).date().isoformat() if created else "",
+        "flair": getattr(item, "author_flair_text", None) or "",
+    }
+
+
+def _build_item_header(kind: str, index: int, item: dict) -> str:
     """'## Post 1 | r/Mounjaro | 2026-04-02 | FLAIR: 35F', leaving out any part that is missing."""
     parts = [f"## {kind} {index}"]
     if (item.get("subreddit") or "").strip():
@@ -96,23 +112,27 @@ def build_user_prompt(username: str, posts: list, comments: list) -> tuple[str, 
         body = (post.get("body") or "").strip()
         if not title and not body:
             continue
-        post_blocks.append("\n".join(filter(None, [_item_header("Post", i, post), title, body])))
+        post_blocks.append("\n".join(filter(None, [_build_item_header("Post", i, post), title, body])))
 
     comment_blocks = []
     for i, comment in enumerate((comments or [])[:MAX_ITEMS], 1):
         body = (comment.get("body") or "").strip()
         if not body:
             continue
-        comment_blocks.append(f"{_item_header('Comment', i, comment)}\n{body}")
+        comment_blocks.append(f"{_build_item_header('Comment', i, comment)}\n{body}")
 
+    posts_text = "\n\n".join(post_blocks) or "(No posts)"
+    comments_text = "\n\n".join(comment_blocks) or "(No comments)"
     user_prompt = f"""===== USER HISTORY FOR u/{username} =====
 
 ### Recent Posts (newest first):
 
-{chr(10).join(b + chr(10) for b in post_blocks) if post_blocks else "(No posts)"}
+{posts_text}
+
 ### Recent Comments (newest first):
 
-{chr(10).join(b + chr(10) for b in comment_blocks) if comment_blocks else "(No comments)"}
+{comments_text}
+
 ===== END OF USER HISTORY ====="""
 
     return SYSTEM_PROMPT, user_prompt

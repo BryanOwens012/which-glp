@@ -3,15 +3,17 @@ Shared extraction client: Muse Spark 1.3 Contributor through OpenRouter.
 
 This base class owns everything the three extraction services have in common:
 the LLM call, the JSON-extraction fallbacks, retry/backoff, cost tracking,
-and metadata assembly. Subclasses only supply the target Pydantic model (and,
-optionally, a default system prompt) via a thin domain-specific method.
+validation repair, and metadata assembly. Subclasses supply the target Pydantic
+model through a thin domain method, and may override PROMPT_CACHE_KEY,
+REASONING_EFFORT, STRUCTURED_OUTPUT, and VALIDATION_REPAIRS (each also settable per
+instance through the constructor).
 
 OpenRouter speaks the OpenAI Chat Completions API, so the `openai` SDK is used
 with OpenRouter's base URL. OpenRouter-only fields go through `extra_body`.
 
-Reasoning is mandatory on Muse Spark: OpenRouter rejects effort "none", and the
-default is "medium", so the lowest accepted effort, "minimal", is sent
-explicitly. Muse Spark has no implicit prompt caching, so the system prompt
+Reasoning is mandatory on Muse Spark: OpenRouter rejects effort "none" and
+defaults to "medium", so each client sends its REASONING_EFFORT explicitly
+(default "minimal", the lowest accepted). Muse Spark has no implicit prompt caching, so the system prompt
 carries an explicit `cache_control` breakpoint (see _build_messages).
 
 The Contributor tier trains on prompts. The OpenRouter account's privacy
@@ -30,7 +32,7 @@ import os
 import json
 import math
 import time
-from typing import Any, Dict, Optional, Tuple, Type
+from typing import Any, Dict, NamedTuple, Optional, Tuple, Type
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -74,6 +76,15 @@ RATE_LIMIT_BACKOFF_SECONDS = 30
 ERROR_BACKOFF_SECONDS = 5
 
 
+class UsageTokens(NamedTuple):
+    """Token counts for one response; cached and written are clamped to the prompt total."""
+
+    input: int
+    cached: int
+    written: int
+    output: int
+
+
 class OpenAIExtractionError(Exception):
     """Raised when extraction fails (after retries, or on invalid model output)."""
 
@@ -103,15 +114,26 @@ class BaseOpenAIExtractor:
     # strict-compatible: no defaults, no free-form dicts, extra="forbid".
     STRUCTURED_OUTPUT: bool = False
     # Validation failures answered with the errors and a request for corrected JSON.
-    # 0 fails fast on the first ValidationError.
+    # 0 fails fast on the first ValidationError. Each repair uses one of max_retries'
+    # attempts.
     VALIDATION_REPAIRS: int = 0
 
-    def __init__(self, api_key: Optional[str] = None, prompt_cache_key: Optional[str] = None):
+    def __init__(
+        self,
+        api_key: Optional[str] = None,
+        prompt_cache_key: Optional[str] = None,
+        *,
+        reasoning_effort: Optional[str] = None,
+        structured_output: Optional[bool] = None,
+        validation_repairs: Optional[int] = None,
+    ):
         """
         Args:
             api_key: OpenRouter API key (defaults to the OPENROUTER_API_KEY env var).
             prompt_cache_key: cache-routing key (defaults to the class's
                 PROMPT_CACHE_KEY).
+            reasoning_effort, structured_output, validation_repairs: per-instance
+                overrides of the class attributes of the same (uppercase) name.
 
         Raises:
             ValueError: if no API key is available.
@@ -126,6 +148,9 @@ class BaseOpenAIExtractor:
         self.prompt_cache_key = (
             prompt_cache_key if prompt_cache_key is not None else self.PROMPT_CACHE_KEY
         )
+        self.reasoning_effort = reasoning_effort if reasoning_effort is not None else self.REASONING_EFFORT
+        self.structured_output = structured_output if structured_output is not None else self.STRUCTURED_OUTPUT
+        self.validation_repairs = validation_repairs if validation_repairs is not None else self.VALIDATION_REPAIRS
         self.client = OpenAI(api_key=self.api_key, base_url=OPENROUTER_BASE_URL)
         logger.info("OpenRouter client initialized")
 
@@ -199,16 +224,29 @@ class BaseOpenAIExtractor:
                 "json_schema": {
                     "name": response_model.__name__,
                     "strict": True,
-                    "schema": strict_json_schema(response_model),
+                    "schema": build_strict_json_schema(response_model),
                 },
             }
-            if self.STRUCTURED_OUTPUT
+            if self.structured_output
             else {"type": "json_object"}
         )
-        repairs_left = self.VALIDATION_REPAIRS
-        repair_cost_usd = 0.0
+        repairs_left = self.validation_repairs
+        # Earlier calls in this extraction whose output was not used (sent back for
+        # repair, unparseable, or empty): billed, so their cost, tokens, and time are
+        # added to the successful call's.
+        unused_cost_usd = 0.0
+        unused_tokens = UsageTokens(0, 0, 0, 0)
+        unused_time_ms = 0
+
+        def count_unused(response: Any, elapsed_ms: int) -> None:
+            nonlocal unused_cost_usd, unused_tokens, unused_time_ms
+            unused_cost_usd += self._compute_response_cost(model, response)[0]
+            unused_tokens = UsageTokens(*(a + b for a, b in zip(unused_tokens, self._read_usage(response.usage))))
+            unused_time_ms += elapsed_ms
 
         for attempt in range(max_retries):
+            response = None
+            processing_time_ms = 0
             try:
                 start_time = time.time()
                 response = self.client.chat.completions.create(
@@ -218,7 +256,7 @@ class BaseOpenAIExtractor:
                     # OpenRouter's unified reasoning control. exclude=True drops the
                     # reasoning text from the response; its tokens are still billed.
                     extra_body={
-                        "reasoning": {"effort": self.REASONING_EFFORT, "exclude": True}
+                        "reasoning": {"effort": self.reasoning_effort, "exclude": True}
                     },
                     **cache_kwargs,
                 )
@@ -237,31 +275,19 @@ class BaseOpenAIExtractor:
                     if repairs_left <= 0 or attempt == max_retries - 1:
                         raise
                     repairs_left -= 1
-                    repair_cost_usd += self._response_cost(model, response)[0]
+                    count_unused(response, processing_time_ms)
                     logger.warning(f"Validation failed, asking the model to repair: {e.error_count()} error(s)")
-                    messages = self._repair_messages(base_messages, response_text, e)
+                    messages = self._build_repair_messages(base_messages, response_text, e)
                     continue
 
-                tokens_input = response.usage.prompt_tokens
-                tokens_output = response.usage.completion_tokens
-                # Prompt-cache hits (usage.prompt_tokens_details.cached_tokens);
-                # tracked so cost is right and cache regressions are visible in logs.
-                # Clamped to total prompt tokens so cost and hit rate stay consistent.
-                prompt_details = getattr(response.usage, "prompt_tokens_details", None)
-                tokens_input_cached = min(
-                    getattr(prompt_details, "cached_tokens", 0) or 0, tokens_input
+                final = self._read_usage(response.usage)
+                cost_usd, cost_source = self._compute_response_cost(model, response)
+                cost_usd += unused_cost_usd
+                tokens_input, tokens_input_cached, tokens_input_cache_write, tokens_output = (
+                    a + b for a, b in zip(final, unused_tokens)
                 )
-                # Cache writes (usage.prompt_tokens_details.cache_write_tokens).
-                # Reported as None or absent on models that do not bill writes
-                # separately, so default to 0 (billed as plain input).
-                # Clamped to the non-cached input so metadata matches the cost.
-                tokens_input_cache_write = min(
-                    getattr(prompt_details, "cache_write_tokens", 0) or 0,
-                    tokens_input - tokens_input_cached,
-                )
-                cost_usd, cost_source = self._response_cost(model, response)
-                cost_usd += repair_cost_usd
-                cache_hit_rate = (tokens_input_cached / tokens_input) if tokens_input else 0.0
+                processing_time_ms += unused_time_ms
+                cache_hit_rate = (final.cached / final.input) if final.input else 0.0
 
                 metadata = {
                     "model": model,
@@ -272,19 +298,21 @@ class BaseOpenAIExtractor:
                     "tokens_input_cache_write": tokens_input_cache_write,
                     "tokens_output": tokens_output,
                     "processing_time_ms": processing_time_ms,
-                    "validation_repairs": self.VALIDATION_REPAIRS - repairs_left,
+                    "validation_repairs": self.validation_repairs - repairs_left,
                     "raw_response": {
                         "id": response.id,
                         "model": response.model,
                         "content": response_text,
                         "finish_reason": response.choices[0].finish_reason,
+                        # This response's own usage; the top-level cost and token
+                        # counts also include earlier calls whose output went unused.
                         "usage": {
-                            "prompt_tokens": tokens_input,
-                            "cached_tokens": tokens_input_cached,
-                            "cache_write_tokens": tokens_input_cache_write,
-                            "completion_tokens": tokens_output,
+                            "prompt_tokens": final.input,
+                            "cached_tokens": final.cached,
+                            "cache_write_tokens": final.written,
+                            "completion_tokens": final.output,
                             "total_tokens": getattr(
-                                response.usage, "total_tokens", tokens_input + tokens_output
+                                response.usage, "total_tokens", final.input + final.output
                             ),
                         },
                     },
@@ -300,10 +328,13 @@ class BaseOpenAIExtractor:
                 return result, metadata
 
             except ValidationError as e:
-                # Schema mismatch won't fix itself on retry — fail fast.
+                # Out of validation repairs (or none configured): a plain retry would
+                # resend the same request, so fail fast.
                 raise OpenAIExtractionError(f"Pydantic validation failed: {e}") from e
 
             except Exception as e:
+                if response is not None and getattr(response, "usage", None) is not None:
+                    count_unused(response, processing_time_ms)
                 is_rate_limit = "429" in str(e) or "rate limit" in str(e).lower()
                 wait_time = (RATE_LIMIT_BACKOFF_SECONDS if is_rate_limit else ERROR_BACKOFF_SECONDS) * (attempt + 1)
                 if is_rate_limit:
@@ -318,7 +349,22 @@ class BaseOpenAIExtractor:
         # Unreachable: the loop above always returns or raises on the last attempt.
         raise OpenAIExtractionError(f"Extraction failed after {max_retries} retries")
 
-    def _response_cost(self, model: str, response: Any) -> Tuple[float, str]:
+    @staticmethod
+    def _read_usage(usage: Any) -> UsageTokens:
+        """
+        Token counts from a response's usage.
+
+        cached (prompt_tokens_details.cached_tokens) is clamped to the prompt total, and
+        written (cache_write_tokens, None or absent on models that bill writes as plain
+        input) to the uncached remainder, so cost and hit rate stay consistent.
+        """
+        details = getattr(usage, "prompt_tokens_details", None)
+        prompt = usage.prompt_tokens
+        cached = min(getattr(details, "cached_tokens", 0) or 0, prompt)
+        written = min(getattr(details, "cache_write_tokens", 0) or 0, prompt - cached)
+        return UsageTokens(prompt, cached, written, usage.completion_tokens)
+
+    def _compute_response_cost(self, model: str, response: Any) -> Tuple[float, str]:
         """
         Return (USD cost, source) for one response.
 
@@ -330,17 +376,14 @@ class BaseOpenAIExtractor:
         reported_cost = getattr(usage, "cost", None)
         if self._is_billable_amount(reported_cost):
             return float(reported_cost), "openrouter"
-        tokens_input = usage.prompt_tokens
-        prompt_details = getattr(usage, "prompt_tokens_details", None)
-        cached = min(getattr(prompt_details, "cached_tokens", 0) or 0, tokens_input)
-        written = min(getattr(prompt_details, "cache_write_tokens", 0) or 0, tokens_input - cached)
+        tokens = self._read_usage(usage)
         return (
-            self.calculate_cost(model, tokens_input, usage.completion_tokens, cached, written),
+            self.calculate_cost(model, tokens.input, tokens.output, tokens.cached, tokens.written),
             "estimated",
         )
 
     @staticmethod
-    def _repair_messages(base_messages: list, response_text: str, error: ValidationError) -> list:
+    def _build_repair_messages(base_messages: list, response_text: str, error: ValidationError) -> list:
         """The original conversation plus the invalid answer and its validation errors."""
         errors = "\n".join(
             f"- {'.'.join(str(p) for p in err['loc']) or '(root)'}: {err['msg']}"
@@ -417,7 +460,7 @@ class BaseOpenAIExtractor:
             ) from e
 
 
-def strict_json_schema(model: Type[BaseModel]) -> Dict[str, Any]:
+def build_strict_json_schema(model: Type[BaseModel]) -> Dict[str, Any]:
     """
     Return `model`'s JSON schema with every $ref inlined, for a strict response_format.
 

@@ -113,3 +113,29 @@ def test_items_carry_subreddit_date_and_flair_when_known():
     assert "## Comment 1\nC" in user_prompt  # missing parts are left out, never "None"
     assert "None" not in user_prompt
     assert "newest first" in user_prompt
+
+
+def test_item_context_reads_praw_like_objects_in_utc():
+    import types
+    from datetime import datetime, timezone
+
+    class Subreddit:
+        def __str__(self):
+            return "Mounjaro"
+
+    late_utc = datetime(2026, 4, 2, 23, 30, tzinfo=timezone.utc).timestamp()
+    item = types.SimpleNamespace(subreddit=Subreddit(), created_utc=late_utc, author_flair_text=None)
+    assert prompts_module.build_item_context(item) == {"subreddit": "Mounjaro", "created": "2026-04-02", "flair": ""}
+
+
+def test_item_context_tolerates_missing_attributes():
+    assert prompts_module.build_item_context(object()) == {"subreddit": "", "created": "", "flair": ""}
+
+
+def test_country_is_not_defaulted():
+    schema_spec = importlib.util.spec_from_file_location(
+        "user_extraction_schema", PROMPTS_PATH.with_name("schema.py")
+    )
+    schema_module = importlib.util.module_from_spec(schema_spec)
+    schema_spec.loader.exec_module(schema_module)
+    assert schema_module.UserDemographics.model_validate({}).country is None

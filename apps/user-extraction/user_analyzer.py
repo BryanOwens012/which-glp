@@ -14,7 +14,7 @@ import os
 import time
 from typing import List, Dict, Any, Optional
 from pathlib import Path
-from datetime import datetime, timezone
+from datetime import datetime
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -22,7 +22,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from shared.database import DatabaseManager
 from shared.config import get_logger
 from openai_client import get_client
-from prompts import build_user_prompt
+from prompts import build_item_context, build_user_prompt
 
 # Import PRAW
 try:
@@ -96,16 +96,6 @@ class RedditUserAnalyzer:
         logger.info(f"Found {len(unanalyzed)} unanalyzed users (from extracted_features)")
         return unanalyzed
 
-    @staticmethod
-    def _item_context(item) -> Dict[str, str]:
-        """Subreddit, date, and the author's flair in that subreddit, for the prompt."""
-        created = getattr(item, 'created_utc', None)
-        return {
-            'subreddit': str(getattr(item, 'subreddit', '') or ''),
-            'created': datetime.fromtimestamp(created, tz=timezone.utc).date().isoformat() if created else '',
-            'flair': getattr(item, 'author_flair_text', None) or '',
-        }
-
     def fetch_user_history(
         self,
         username: str,
@@ -135,13 +125,13 @@ class RedditUserAnalyzer:
                 posts.append({
                     'title': submission.title,
                     'body': submission.selftext or '',
-                    **self._item_context(submission),
+                    **build_item_context(submission),
                 })
 
             for comment in redditor.comments.new(limit=comments_limit):
                 comments.append({
                     'body': comment.body or '',
-                    **self._item_context(comment),
+                    **build_item_context(comment),
                 })
 
             logger.info(f"Fetched {len(posts)} posts, {len(comments)} comments for u/{username}")
