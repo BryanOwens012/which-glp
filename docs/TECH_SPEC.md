@@ -320,7 +320,7 @@
 ### Backend Services
 
 **1. API Service** (`apps/api`)
-- **Runtime:** Node.js 22+
+- **Runtime:** Node.js 24+
 - **Language:** TypeScript (strict mode)
 - **Framework:** tRPC (type-safe API)
 - **Database:** Supabase client
