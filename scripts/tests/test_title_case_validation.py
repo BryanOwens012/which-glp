@@ -8,6 +8,7 @@ This tests the Pydantic validation without making any API calls.
 """
 
 import importlib.util
+import sys
 from pathlib import Path
 
 # Loaded by path under its own name: the service's schema module is also called "schema",

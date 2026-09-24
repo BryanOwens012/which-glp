@@ -6,7 +6,10 @@ Run: venv/bin/pytest scripts/tests/test_extraction_eval.py -q
 """
 
 import importlib.util
+import sys
 from pathlib import Path
+
+import pytest
 
 EVAL_LIB = Path(__file__).resolve().parents[2] / "scripts" / "extraction-eval" / "eval_lib.py"
 _spec = importlib.util.spec_from_file_location("extraction_eval_lib", EVAL_LIB)
@@ -46,3 +49,12 @@ def test_free_text_side_effects_map_onto_the_vocabulary():
     assert eval_lib.to_comparable({"side_effects": names})["side_effects"] == [
         "fatigue", "injection site reaction", "other",
     ]
+
+
+def test_scoring_a_run_with_no_gold_overlap_stops():
+    sys.path.insert(0, str(EVAL_LIB.parent))
+    spec = importlib.util.spec_from_file_location("extraction_eval_score", EVAL_LIB.with_name("score.py"))
+    score = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(score)
+    with pytest.raises(SystemExit):
+        score.score_run({"unlabeled": {"row": {}}}, {})

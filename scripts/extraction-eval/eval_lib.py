@@ -38,8 +38,8 @@ _rows = importlib.import_module("rows")
 CANONICAL_DRUGS, SIDE_EFFECT_NAMES, SIDE_EFFECT_SYNONYMS = (
     _vocab.CANONICAL_DRUGS, _vocab.SIDE_EFFECT_NAMES, _vocab.SIDE_EFFECT_SYNONYMS,
 )
-build_source_text, resolve_source_for_name, to_lbs = (
-    _rows.build_source_text, _rows.resolve_source_for_name, _rows.to_lbs,
+compute_loss_lbs, resolve_source_for_name, to_lbs = (
+    _rows.compute_loss_lbs, _rows.resolve_source_for_name, _rows.to_lbs,
 )
 
 
@@ -115,13 +115,17 @@ def to_comparable(row: Dict[str, Any]) -> Dict[str, Any]:
     Reduce an extracted_features-shaped row to the values downstream consumers read.
 
     weight_loss_lbs_view is what the site shows today (start minus end weight, in the
-    materialized view). weight_loss_lbs also uses the weight_lost column, which only
-    reaches the site once the view reads it. drug_source goes through the same
-    brand/compounded rule for every run, so no variant is scored on it alone.
+    materialized view). weight_loss_lbs is the weight_lost column, else the loss
+    derived from start and end weights as the pipeline derives it (mixed units included,
+    gains excluded); it only reaches the site once the view reads weight_lost.
+    drug_source goes through the brand/compounded rule for every run, so every run is
+    scored on the same footing (v1's figure is with the rule applied, not what v1 stores).
     """
     primary = row.get("primary_drug")
     primary = _DRUG_BY_LOWER.get(primary.strip().lower(), primary) if isinstance(primary, str) else None
     lost = _weight_to_lbs(row.get("weight_lost"))
+    if lost is None:
+        lost = compute_loss_lbs(_weight_to_lbs(row.get("beginning_weight")), _weight_to_lbs(row.get("end_weight")))
     view_loss = _compute_view_weight_loss(row.get("beginning_weight"), row.get("end_weight"))
     side_effects = sorted({
         to_canonical_side_effect(s.get("name", "")) for s in row.get("side_effects") or [] if isinstance(s, dict)
@@ -134,7 +138,7 @@ def to_comparable(row: Dict[str, Any]) -> Dict[str, Any]:
         "beginning_weight_lbs": _weight_to_lbs(row.get("beginning_weight")),
         "end_weight_lbs": _weight_to_lbs(row.get("end_weight")),
         "weight_loss_lbs_view": view_loss,
-        "weight_loss_lbs": lost if lost is not None else view_loss,
+        "weight_loss_lbs": lost,
         "duration_weeks": row.get("duration_weeks"),
         "cost_per_month": row.get("cost_per_month"),
         "has_insurance": row.get("has_insurance"),

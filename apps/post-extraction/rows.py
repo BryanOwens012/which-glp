@@ -2,8 +2,8 @@
 Deterministic post-processing between the model's PostExtraction and the database.
 
 Kept out of the prompt because each has one right answer:
-- ground_extraction: null any quoted number whose quote is not in the post, which
-  catches invented values mechanically.
+- ground_extraction: null any quoted value whose quote is not in the post or is too
+  short to ground anything, and any weight whose quote does not state its number.
 - has_weight_conflict: flag a stated weight_lost that disagrees with the start and end
   weights (logged, not corrected).
 - to_feature_row: shape an extraction into an `extracted_features` row, deriving the
@@ -15,7 +15,7 @@ import re
 import unicodedata
 from typing import Any, Dict, List, Optional
 
-from schema import DrugUse, PostExtraction, Weight
+from schema import DrugUse, PostExtraction, SideEffect, Weight
 from vocab import BRAND_DRUGS, COMPOUNDED_DRUGS, KG_TO_LBS, TAKEN_RELATIONS
 
 EXTRACTION_VERSION = "post-v2"
@@ -39,7 +39,17 @@ def _normalize(text: str) -> str:
 
 # A quote shorter than this matches almost any post, so it grounds nothing.
 MIN_QUOTE_CHARS = 3
-_STONE = re.compile(r"\d\s*st\b|\bstones?\b")
+# "13st 5lb", "13 stone 5": the prompt converts stone to lbs, so the quoted number differs.
+_STONE = re.compile(r"(\d+)\s*(?:st|stone)s?\b(?:\s*(\d+)\s*(?:lbs?|pounds?)?\b)?")
+# A thousands separator ("1,086"), as opposed to a decimal comma ("85,5").
+_THOUSANDS_COMMA = re.compile(r"(?<=\d),(?=\d{3}\b)")
+# A duration quote must name a number, a time ("since January", "a couple of months"),
+# or the start of treatment ("just did my first shot" is 0 weeks).
+_TIME_WORDS = re.compile(
+    r"\d|\b(?:day|week|month|year|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|"
+    r"spring|summer|fall|autumn|winter|christmas|today|yesterday|ago|since|"
+    r"first|dose|shot|injection|jab|start)",
+)
 
 
 def _is_quote_found(quote: Optional[str], source: str) -> bool:
@@ -48,16 +58,21 @@ def _is_quote_found(quote: Optional[str], source: str) -> bool:
 
 
 def _is_number_in_quote(value: float, quote: Optional[str]) -> bool:
-    """True when the quote states the value's whole number, or states it in stone (converted to lbs)."""
-    text = (quote or "").replace(",", "").casefold()
-    return str(int(value)) in re.findall(r"\d+", text) or bool(_STONE.search(text))
+    """True when the quote states the value's whole number, or the same weight in stone."""
+    text = _THOUSANDS_COMMA.sub("", (quote or "").casefold()).replace(",", ".")
+    if str(int(value)) in re.findall(r"\d+", text):
+        return True
+    return any(
+        abs(int(st) * 14 + int(lb or 0) - value) <= 1 for st, lb in _STONE.findall(text)
+    )
 
 
 def ground_extraction(extraction: PostExtraction, source_text: str) -> List[str]:
     """
     Null every quoted value whose quote does not appear in `source_text`, whose quote is
-    too short to ground anything, or (for weights) that does not state the number, and
-    every cost whose quote states no amount.
+    too short to ground anything, or (for weights) that does not state the number; every
+    duration whose quote names no number or time; and every cost whose quote states no
+    amount.
 
     Args:
         extraction: The validated model output; modified in place.
@@ -76,7 +91,10 @@ def ground_extraction(extraction: PostExtraction, source_text: str) -> List[str]
         ):
             setattr(extraction, field, None)
             dropped.append(field)
-    if extraction.duration_weeks is not None and not _is_quote_found(extraction.duration_quote, source):
+    if extraction.duration_weeks is not None and not (
+        _is_quote_found(extraction.duration_quote, source)
+        and _TIME_WORDS.search((extraction.duration_quote or "").casefold())
+    ):
         extraction.duration_weeks = None
         dropped.append("duration_weeks")
     # A cost may be converted to a monthly figure ("$900 for 3 months" is 300), so its
@@ -97,6 +115,14 @@ def to_lbs(value: float, unit: Optional[str]) -> Optional[float]:
     return value if unit == "lbs" else None
 
 
+def compute_loss_lbs(start_lbs: Optional[float], end_lbs: Optional[float]) -> Optional[float]:
+    """Start minus end weight in lbs; None when either is unknown or there was no loss."""
+    if start_lbs is None or end_lbs is None:
+        return None
+    lost = start_lbs - end_lbs
+    return lost if lost > 0 else None
+
+
 def derive_weight_lost(extraction: PostExtraction) -> Optional[Dict[str, Any]]:
     """
     Return the weight_lost column value: the stated loss, else start minus end weight.
@@ -109,8 +135,8 @@ def derive_weight_lost(extraction: PostExtraction) -> Optional[Dict[str, Any]]:
     start, end = extraction.beginning_weight, extraction.end_weight
     if start is None or end is None:
         return None
-    lost_lbs = to_lbs(start.value, start.unit) - to_lbs(end.value, end.unit)
-    if lost_lbs <= 0:
+    lost_lbs = compute_loss_lbs(to_lbs(start.value, start.unit), to_lbs(end.value, end.unit))
+    if lost_lbs is None:
         return None
     if start.unit == end.unit:
         value, unit = start.value - end.value, start.unit
@@ -145,6 +171,9 @@ def _resolve_drug_source(extraction: PostExtraction) -> Optional[str]:
     taken = [d for d in extraction.drugs if d.relation in TAKEN_RELATIONS]
     if extraction.primary_drug is None:
         return next((s for d in taken if (s := resolve_source_for_name(d.name, d.source))), None)
+    if extraction.primary_drug == "Other":
+        chosen = _choose_other_primary(extraction)
+        return chosen.source if chosen else None
     stated = next((d.source for d in extraction.drugs if d.name == extraction.primary_drug and d.source), None)
     return resolve_source_for_name(extraction.primary_drug, stated)
 
@@ -156,18 +185,24 @@ def _format_display_name(drug: DrugUse) -> Optional[str]:
     return (drug.other_name or "").strip().title() or None
 
 
-def _resolve_primary_drug(extraction: PostExtraction) -> Optional[str]:
-    """The primary drug as stored: "Other" is replaced by the drug's written name."""
-    if extraction.primary_drug != "Other":
-        return extraction.primary_drug
+def _choose_other_primary(extraction: PostExtraction) -> Optional[DrugUse]:
+    """The "Other" drug a primary_drug of "Other" refers to: a taken one first, and named."""
     others = sorted(
         (d for d in extraction.drugs if d.name == "Other"),
         key=lambda d: d.relation not in TAKEN_RELATIONS,
     )
-    return next((name for d in others if (name := _format_display_name(d))), None)
+    return next((d for d in others if _format_display_name(d)), None)
 
 
-def _to_legacy_side_effect(effect) -> Optional[Dict[str, Any]]:
+def _resolve_primary_drug(extraction: PostExtraction) -> Optional[str]:
+    """The primary drug as stored: "Other" is replaced by the drug's written name."""
+    if extraction.primary_drug != "Other":
+        return extraction.primary_drug
+    chosen = _choose_other_primary(extraction)
+    return _format_display_name(chosen) if chosen else None
+
+
+def _to_legacy_side_effect(effect: SideEffect) -> Optional[Dict[str, Any]]:
     """
     The side_effects column entry. Downstream counts by name, so an "other" effect is
     stored under the author's wording, and dropped when there is none.

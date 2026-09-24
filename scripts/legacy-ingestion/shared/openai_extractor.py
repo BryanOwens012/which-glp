@@ -13,8 +13,9 @@ with OpenRouter's base URL. OpenRouter-only fields go through `extra_body`.
 
 Reasoning is mandatory on Muse Spark: OpenRouter rejects effort "none" and
 defaults to "medium", so each client sends its REASONING_EFFORT explicitly
-(default "minimal", the lowest accepted). Muse Spark has no implicit prompt caching, so the system prompt
-carries an explicit `cache_control` breakpoint (see _build_messages).
+(default "minimal", the lowest accepted). Muse Spark has no implicit prompt
+caching, so the system prompt carries an explicit `cache_control` breakpoint (see
+_build_messages).
 
 The Contributor tier trains on prompts. The OpenRouter account's privacy
 settings must allow training providers for paid models, or every request fails
@@ -328,12 +329,12 @@ class BaseOpenAIExtractor:
                 return result, metadata
 
             except ValidationError as e:
-                # Out of validation repairs (or none configured): a plain retry would
-                # resend the same request, so fail fast.
+                # Out of validation repairs or attempts: a plain retry would resend the
+                # same request, so fail fast.
                 raise OpenAIExtractionError(f"Pydantic validation failed: {e}") from e
 
             except Exception as e:
-                if response is not None and getattr(response, "usage", None) is not None:
+                if response is not None:
                     count_unused(response, processing_time_ms)
                 is_rate_limit = "429" in str(e) or "rate limit" in str(e).lower()
                 wait_time = (RATE_LIMIT_BACKOFF_SECONDS if is_rate_limit else ERROR_BACKOFF_SECONDS) * (attempt + 1)
@@ -358,6 +359,8 @@ class BaseOpenAIExtractor:
         written (cache_write_tokens, None or absent on models that bill writes as plain
         input) to the uncached remainder, so cost and hit rate stay consistent.
         """
+        if usage is None:
+            return UsageTokens(0, 0, 0, 0)
         details = getattr(usage, "prompt_tokens_details", None)
         prompt = usage.prompt_tokens
         cached = min(getattr(details, "cached_tokens", 0) or 0, prompt)

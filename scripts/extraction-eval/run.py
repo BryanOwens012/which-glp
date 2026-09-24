@@ -76,6 +76,8 @@ def main() -> None:
     parser.add_argument("--workers", type=int, default=6)
     parser.add_argument("--limit", type=int)
     args = parser.parse_args()
+    if args.no_grounding and args.variant != "v2":
+        parser.error("--no-grounding applies to v2 only")
 
     posts = read_json("posts.json")[: args.limit]
     if not posts:

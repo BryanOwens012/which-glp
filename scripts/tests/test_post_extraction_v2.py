@@ -133,7 +133,7 @@ def test_ungrounded_values_are_nulled():
 def test_grounding_ignores_case_whitespace_curly_quotes_and_markdown():
     extraction = make_extraction(
         weight_lost={"value": 31, "unit": "lbs", "quote": "DOWN 31  lbs"},
-        duration_quote="I don't want",
+        duration_quote="since January so I don't want",
     )
     text = POST_TEXT.replace("I don't", "I **don’t**")
     assert ground_extraction(extraction, text) == []
@@ -167,6 +167,35 @@ def test_a_converted_monthly_cost_is_kept_and_an_amountless_cost_quote_is_not():
     amountless = make_extraction(weight_lost=None, cost_quote="way better than", duration_quote=None, duration_weeks=None)
     assert ground_extraction(amountless, POST_TEXT) == ["cost_per_month"]
 
+
+
+@pytest.mark.parametrize(
+    "value, quote, is_kept",
+    [
+        (196, "down to 14st", True),
+        (187, "13st 5lb", True),
+        (999, "13st 5lb", False),
+        (240, "1st weigh in was 250", False),  # an ordinal is not stone
+        (85.5, "now 85,5 kg", True),  # decimal comma
+    ],
+)
+def test_weight_number_checks(value, quote, is_kept):
+    extraction = make_extraction(weight_lost={"value": value, "unit": "lbs", "quote": quote})
+    assert ("weight_lost" not in ground_extraction(extraction, quote)) is is_kept
+
+
+def test_a_thousands_separator_is_not_a_decimal_comma():
+    assert _rows._is_number_in_quote(1086, "$1,086 retail")
+    assert not _rows._is_number_in_quote(1.086, "$1,086 retail")
+
+
+@pytest.mark.parametrize(
+    "quote, is_kept",
+    [("since January", True), ("for 3 wks", True), ("Just did my first shot", True), ("and the", False)],
+)
+def test_duration_quote_must_name_a_number_or_time(quote, is_kept):
+    extraction = make_extraction(weight_lost=None, cost_per_month=None, cost_quote=None, duration_quote=quote)
+    assert (ground_extraction(extraction, f"I have been on it {quote} now") == []) is is_kept
 
 # --------------------------------------------------------------------------
 # Row mapping
@@ -283,6 +312,18 @@ def test_other_primary_drug_is_stored_under_its_written_name():
     assert row["drugs_mentioned"] == []
 
 
+
+def test_other_primary_drug_takes_its_source_from_the_same_drug():
+    extraction = make_extraction(
+        primary_drug="Other",
+        drugs=[
+            _drug("Other", "mentioned_only", source="compounded", other_name="foo"),
+            _drug("Other", other_name="bar"),
+        ],
+    )
+    row = to_feature_row(extraction)
+    assert (row["primary_drug"], row["drug_source"]) == ("Bar", None)
+
 def test_other_side_effect_is_stored_under_its_detail_or_dropped():
     extraction = make_extraction(side_effects=[
         {"name": "other", "detail": "Tinnitus", "severity": "mild", "resolved": None},
@@ -308,8 +349,9 @@ def test_extra_key_in_a_side_effect_is_rejected():
 
 def test_build_source_text_skips_missing_parts_and_quotes_can_span_them():
     assert build_source_text("Title", None, "") == "Title"
-    extraction = make_extraction(duration_quote="Title My last")
-    assert ground_extraction(extraction, build_source_text("Title", None, "My last vial")) == ["weight_lost", "cost_per_month"]
+    assert build_source_text("T", "SW:220", "B") == "T\nSW:220\nB"
+    extraction = make_extraction(duration_quote="Title since January")
+    assert ground_extraction(extraction, build_source_text("Title", None, "since January")) == ["weight_lost", "cost_per_month"]
     assert extraction.duration_weeks == 20
 
 
@@ -428,7 +470,43 @@ def test_every_billed_call_counts_toward_cost_tokens_and_time():
         [_response(bad, cost=0.001), _response("not json", cost=0.002), _response(json.dumps(_EXAMPLE_2_OUTPUT), cost=0.004)],
         VALIDATION_REPAIRS=1,
     )
-    _, meta = ex.extract(("SYSTEM", "USER"), PostExtraction)
+    ticks = iter(range(0, 60, 1))  # each time.time() call advances one second
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(oe.time, "time", lambda: float(next(ticks)))
+        _, meta = ex.extract(("SYSTEM", "USER"), PostExtraction)
+    assert meta["processing_time_ms"] == 3000  # three calls, one second each
     assert meta["cost_usd"] == pytest.approx(0.007)
     assert meta["tokens_input"] == 300 and meta["tokens_output"] == 60
     assert meta["raw_response"]["usage"]["prompt_tokens"] == 100  # the returned response's own usage
+
+
+def test_a_response_without_usage_is_still_used():
+    response = _response(json.dumps(_EXAMPLE_2_OUTPUT))
+    response.usage = None
+    result, meta = _extractor([response]).extract(("SYSTEM", "USER"), PostExtraction)
+    assert result.post_type == "question"
+    assert meta["tokens_input"] == 0
+
+
+def test_pipeline_grounds_against_title_flair_and_body():
+    pipeline = importlib.import_module("pipeline")
+    flair_weights = copy.deepcopy(_EXAMPLE_2_OUTPUT)
+    flair_weights.update(
+        beginning_weight={"value": 220, "unit": "lbs", "quote": "SW:220"},
+        end_weight={"value": 189, "unit": "lbs", "quote": "CW:189"},
+        duration_quote="Units question since January",
+    )
+    client = OpenAIClient(api_key="sk-test")
+    client.client = types.SimpleNamespace(chat=types.SimpleNamespace(completions=_Completions(
+        [_response(json.dumps(flair_weights)), _response(json.dumps(flair_weights))]
+    )))
+    post = dict(subreddit="tirzepatidecompound", title="Units question since January", flair="SW:220 CW:189",
+                body="Down 31 lbs since January. $249/mo.", created_at="2026-05-20T01:00:00+00:00")
+    result = pipeline.extract_post_row(client, **post)
+    assert result.dropped == []  # flair and title quotes are grounded
+    assert result.row["beginning_weight"]["value"] == 220
+    assert result.row["extraction_version"] == "post-v2"
+    assert result.has_weight_conflict is False  # 220 - 189 = 31, as stated
+    assert pipeline.extract_post_row(client, **post, is_grounded=False).dropped is None
+    user_message = client.client.chat.completions.calls[0]["messages"][-1]["content"]
+    assert "POSTED: 2026-05-20" in user_message and "AUTHOR FLAIR: SW:220 CW:189" in user_message

@@ -133,11 +133,12 @@ async def trigger_extraction(
 
             # Process each post with two-stage filtering
             for i, post in enumerate(posts, 1):
-                post_id, title, body = post["post_id"], post["title"], post["body"]
-                subreddit, flair = post["subreddit"], post["author_flair_text"]
-                # The filters take reddit_posts rows as tuples.
-                post_row = (post_id, title, body, subreddit, flair)
+                post_id = post.get("post_id")
                 try:
+                    title, body = post["title"], post["body"]
+                    subreddit, flair = post["subreddit"], post["author_flair_text"]
+                    # The filters take reddit_posts rows as tuples.
+                    post_row = (post_id, title, body, subreddit, flair)
                     logger.info(
                         f"📝 Processing post {i}/{len(posts)}: {post_id} from r/{subreddit}"
                     )

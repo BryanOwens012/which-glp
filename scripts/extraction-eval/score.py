@@ -3,7 +3,7 @@
 Score extraction runs against the gold labels, field by field.
 
 Gold labels are backups/extraction-eval/gold-chunks/gold_*.json: one object per post
-with the comparable fields (see eval_lib.comparable), labeled by a stronger model
+with the comparable fields (see eval_lib.to_comparable), labeled by a stronger model
 applying the definitions in apps/post-extraction/prompts.py.
 
 For each field, over every post:
@@ -24,7 +24,7 @@ import glob
 import sys
 from typing import Any, Callable, Dict, List, Optional
 
-from eval_lib import DATA_DIR, read_json, to_comparable, to_lbs
+from eval_lib import DATA_DIR, read_json, to_comparable
 
 COUNTRY_ALIASES = {"us": "USA", "united states": "USA", "usa": "USA", "united kingdom": "UK", "uk": "UK", "england": "UK"}
 
@@ -35,13 +35,6 @@ def load_gold() -> Dict[str, Dict[str, Any]]:
         for label in read_json(path):
             row = dict(label)
             row["side_effects"] = [{"name": n} for n in label.get("side_effects") or []]
-            # Gold states only a total the post gives, as the pipeline does; derive the
-            # rest from start and end weights the same way rows.derive_weight_lost does.
-            start, end = row.get("beginning_weight"), row.get("end_weight")
-            if row.get("weight_lost") is None and start and end:
-                lost_lbs = to_lbs(start["value"], start["unit"]) - to_lbs(end["value"], end["unit"])
-                if lost_lbs > 0:
-                    row["weight_lost"] = {"value": lost_lbs, "unit": "lbs"}
             gold[label["post_id"]] = to_comparable(row)
     return gold
 

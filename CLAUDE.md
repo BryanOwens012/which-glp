@@ -494,7 +494,8 @@ The service owns `vocab.py`, `schema.py`, `prompts.py`, `rows.py`, and `pipeline
 Two symlinks still reach into the legacy tree: `keyword_filters.py`
 (→ `scripts/legacy-ingestion/extraction/filters.py`) and `shared/`
 (→ `scripts/legacy-ingestion/shared/`, home of the shared extractor client). The legacy
-`extraction/schema.py` and `prompts.py` survive only as the eval's v1 baseline.
+`extraction/schema.py` and `prompts.py` belong to the legacy batch pipeline and double as
+the eval's v1 baseline; the service does not import them.
 
 - **`vocab.py`** holds the controlled vocabularies: canonical drug names, side-effect
   names and the synonyms each absorbs, post types, treatment statuses, and the subreddit

@@ -123,9 +123,12 @@ def test_item_context_reads_praw_like_objects_in_utc():
         def __str__(self):
             return "Mounjaro"
 
-    late_utc = datetime(2026, 4, 2, 23, 30, tzinfo=timezone.utc).timestamp()
-    item = types.SimpleNamespace(subreddit=Subreddit(), created_utc=late_utc, author_flair_text=None)
-    assert prompts_module.build_item_context(item) == {"subreddit": "Mounjaro", "created": "2026-04-02", "flair": ""}
+    # Either side of midnight UTC, so a local-time conversion lands on the wrong date in
+    # every timezone, east or west of UTC.
+    for hour, minute, day in ((0, 30, "2026-04-02"), (23, 30, "2026-04-02")):
+        created = datetime(2026, 4, 2, hour, minute, tzinfo=timezone.utc).timestamp()
+        item = types.SimpleNamespace(subreddit=Subreddit(), created_utc=created, author_flair_text=None)
+        assert prompts_module.build_item_context(item) == {"subreddit": "Mounjaro", "created": day, "flair": ""}
 
 
 def test_item_context_tolerates_missing_attributes():

@@ -6,6 +6,9 @@ cache; the user's history goes in the user message built by build_user_prompt. N
 interpolate a date, username, or other per-user value into SYSTEM_PROMPT.
 """
 
+from datetime import datetime, timezone
+from typing import Any, Dict
+
 SYSTEM_PROMPT = """You extract a demographic profile of one Reddit user from their recent posts and comments. The profile personalizes WhichGLP, a site that compares GLP-1 weight-loss medications (Ozempic, Wegovy, Mounjaro, Zepbound, and compounded semaglutide and tirzepatide) using real-world experiences.
 
 # How the data is used, and why nulls matter
@@ -60,9 +63,6 @@ Output:
 Type 2 diabetes is the mother's, so it is not a comorbidity. The newest weight (193, from the comment) is end_weight_lbs, not the post's CW:195.
 
 Return only the JSON object."""
-
-from datetime import datetime, timezone
-from typing import Any, Dict
 
 MAX_ITEMS = 20
 

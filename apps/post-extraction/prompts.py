@@ -149,7 +149,7 @@ Each post comes with its subreddit, the date it was posted, its title, the autho
   - Compounded drugs: vials, drawing "units", a compounding pharmacy, a telehealth or med-spa source (Hims/Hers, Ro, Henry Meds, Mochi, Found, Eden, Remedy Meds, and similar), or the word "compounded" mean Compounded Semaglutide or Compounded Tirzepatide.
   - Use plain "Semaglutide" or "Tirzepatide" only when the post names the generic and gives no way to tell brand from compounded.
   - Oral semaglutide: the Wegovy pill (daily tablets titrated 1.5 -> 4 -> 9 -> 25 mg) is "Wegovy Pill"; Rybelsus (3/7/14 mg) is "Rybelsus". An oral semaglutide the author calls something else (such as the "Ozempic pill") is Rybelsus at 3/7/14 mg and Wegovy Pill otherwise.
-  - Research-peptide or gray-market sources keep the molecule's name with source "other".
+  - Research-peptide or gray-market sources keep the molecule's name ("Tirzepatide", "Semaglutide", "Retatrutide") with source "other", even when drawn from vials in units; this overrides the compounded rule above.
   - "GLP-1" or "the shot" alone is not a drug entry; use the subreddit hint below if the post is clearly about one drug.
   - Non-GLP-1 medications (metformin, phentermine, and so on) are "Other" with other_name set, and only when the author takes them alongside the GLP-1 or the post is about them.
 - relation: current (taking now, including paused), previous (took before, stopped or switched), planned (about to start or considering), mentioned_only (named but never taken by the author).
@@ -167,7 +167,7 @@ The subreddit also settles brand versus compounded: in r/tirzepatidecompound, a 
 **dosage_progression**: the dose path as short text, e.g. "2.5mg -> 5mg -> 7.5mg", or "currently 10mg".
 **switching_drugs**: a switch between GLP-1s and why, e.g. "Ozempic -> Mounjaro for cost"; else null.
 
-**Weights**: each is {{value, unit, quote}}; value and unit exactly as stated, quote the shortest verbatim span (flair counts) that states the number.
+**Weights**: each is {{value, unit, quote}}; value and unit as stated (stone is converted, below), quote the shortest verbatim span (flair counts) that states the number.
 - beginning_weight: weight when they started the GLP-1 (flair SW, "started at 240").
 - end_weight: their most recent weight (flair CW, "now 215"). Goal weight is never end_weight.
 - weight_lost: the total they say they have lost since starting ("down 26 lbs", "lost 12kg"). Record it only when the post states it; do not compute it from beginning and end weights.
@@ -176,7 +176,7 @@ The subreddit also settles brand versus compounded: in r/tirzepatidecompound, a 
 
 **duration_weeks**: weeks since the author started GLP-1 treatment, counting across switches. Round to whole weeks (1 month = 4.3 weeks). duration_quote is the verbatim span it comes from. A first dose taken on the posted date is 0; a first dose still to come leaves it null. Null if the post does not say when they started.
 
-**cost_per_month**: what the author pays per month for the drug (after insurance and savings cards). Convert other billing periods: $499 every 4 weeks is 499; $900 for 3 months is 300. A price someone else pays, or a price the author was quoted and did not pay, is not their cost. currency: USD, CAD, GBP, EUR, or AUD. A cost in any other currency is not recorded: leave cost_per_month, currency, and cost_quote null. cost_quote: the verbatim span.
+**cost_per_month**: what the author pays per month for the drug (after insurance and savings cards). Convert other billing periods: $499 every 4 weeks is 499; $900 for 3 months is 300. A price someone else pays, or a price the author was quoted and did not pay, is not their cost. currency: USD, CAD, GBP, EUR, or AUD; null when there is no cost. A cost in any other currency is not recorded: leave cost_per_month, currency, and cost_quote null. cost_quote: the verbatim span.
 
 **has_insurance**: true when insurance covers the drug for the author (a copay, approved prior authorization, "covered"); false when it does not (denied, not covered, paying cash or out of pocket, compounded bought without insurance); null when the post does not say. insurance_provider: the named insurer, expanded ("BCBS" = Blue Cross Blue Shield, "UHC" = UnitedHealthcare).
 
@@ -184,7 +184,7 @@ The subreddit also settles brand versus compounded: in r/tirzepatidecompound, a 
 
 **side_effects**: effects the author attributes to their own GLP-1 use. Not pre-existing conditions (those are comorbidities), not effects they only fear, and not other people's. One entry per canonical name; merge synonyms. Names:
 {_SIDE_EFFECT_LINES}
-detail: the author's wording when the name is "other" or when it adds something the name loses (e.g. "sulfur burps"). severity: mild (noticeable, not disruptive), moderate (affects some activities), severe (disrupts daily life, missed work, sought medical care); null if they give no sense of it. resolved: true if it went away, false if it is still happening, null if not said.
+detail: the author's wording when the name is "other" or when it adds something the name loses (e.g. "sulfur burps"). severity: mild (noticeable, not disruptive), moderate (affects some activities), severe (disrupts daily life, missed work, sought medical care). Judge by impact, not adjectives: "terrible" or "awful" with no effect on daily life described is moderate; null if they give no sense of it. resolved: true if it went away, false if it is still happening, null if not said.
 side_effect_timing: when effects happen ("first 2 weeks", "day after each shot", "after going up to 7.5").
 food_intolerances: specific foods they can no longer tolerate.
 

@@ -12,6 +12,7 @@ Uses Muse Spark through the shared extractor (the `openai` Python SDK pointed at
 - `schema.py`: `PostExtraction`, sent as a strict JSON schema so those vocabularies are enforced while decoding
 - `prompts.py`: the system prompt (field definitions and two examples) and the per-post user message, which carries the subreddit and posted date
 - `rows.py`: quote grounding and the mapping from an extraction to an `extracted_features` row
+- `pipeline.py`: `extract_post_row`, one post through prompt, model, grounding, and row mapping; `api.py` and the eval both call it
 - `api.py`: the batch endpoint that filters, extracts, grounds, and upserts
 
 Measure any change to these with `scripts/extraction-eval/` before shipping.
