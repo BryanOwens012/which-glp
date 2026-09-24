@@ -103,3 +103,13 @@ def test_posts_and_comments_capped_at_twenty():
     _, user_prompt = build_user_prompt("tester", posts, comments)
     assert "PTitle 19" in user_prompt and "PTitle 20" not in user_prompt
     assert "CBody 19" in user_prompt and "CBody 20" not in user_prompt
+
+
+def test_items_carry_subreddit_date_and_flair_when_known():
+    posts = [{"title": "T", "body": "B", "subreddit": "Mounjaro", "created": "2026-04-02T10:00:00", "flair": "35F SW:220"}]
+    comments = [{"body": "C", "subreddit": "", "created": None, "flair": None}]
+    _, user_prompt = build_user_prompt("tester", posts, comments)
+    assert "## Post 1 | r/Mounjaro | 2026-04-02 | FLAIR: 35F SW:220\nT\nB" in user_prompt
+    assert "## Comment 1\nC" in user_prompt  # missing parts are left out, never "None"
+    assert "None" not in user_prompt
+    assert "newest first" in user_prompt

@@ -25,6 +25,7 @@ Docs: https://openrouter.ai/meta/muse-spark-1.3-contributor
       https://openrouter.ai/docs/guides/best-practices/reasoning-tokens
 """
 
+import copy
 import os
 import json
 import math
@@ -64,6 +65,10 @@ DEFAULT_MODEL = "meta/muse-spark-1.3-contributor"
 # "none" is rejected); it keeps latency and cost low for extraction.
 DEFAULT_REASONING_EFFORT = "minimal"
 
+# Most validation errors listed in one repair request; the rest are left out to keep
+# the follow-up message short.
+MAX_VALIDATION_ERRORS_SHOWN = 20
+
 # Retry backoff: wait grows linearly with each attempt (K * (attempt + 1)).
 RATE_LIMIT_BACKOFF_SECONDS = 30
 ERROR_BACKOFF_SECONDS = 5
@@ -90,6 +95,16 @@ class BaseOpenAIExtractor:
 
     # Per-service sticky-routing key (override in subclasses).
     PROMPT_CACHE_KEY: Optional[str] = None
+    # Reasoning effort sent to OpenRouter; subclasses raise it when accuracy is worth
+    # the extra (billed) reasoning tokens.
+    REASONING_EFFORT: str = DEFAULT_REASONING_EFFORT
+    # When True, response_model is sent as a strict JSON schema, so enums, required
+    # fields, and types are enforced while the model decodes. The model must be
+    # strict-compatible: no defaults, no free-form dicts, extra="forbid".
+    STRUCTURED_OUTPUT: bool = False
+    # Validation failures answered with the errors and a request for corrected JSON.
+    # 0 fails fast on the first ValidationError.
+    VALIDATION_REPAIRS: int = 0
 
     def __init__(self, api_key: Optional[str] = None, prompt_cache_key: Optional[str] = None):
         """
@@ -171,12 +186,27 @@ class BaseOpenAIExtractor:
         # model is not a per-call choice.
         model = DEFAULT_MODEL
 
-        messages = self._build_messages(prompts, default_system_prompt)
+        base_messages = self._build_messages(prompts, default_system_prompt)
+        messages = base_messages
 
         # Keep same-prefix requests on the provider holding the cache when a key is set.
         cache_kwargs: Dict[str, Any] = (
             {"prompt_cache_key": self.prompt_cache_key} if self.prompt_cache_key else {}
         )
+        response_format: Dict[str, Any] = (
+            {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": response_model.__name__,
+                    "strict": True,
+                    "schema": strict_json_schema(response_model),
+                },
+            }
+            if self.STRUCTURED_OUTPUT
+            else {"type": "json_object"}
+        )
+        repairs_left = self.VALIDATION_REPAIRS
+        repair_cost_usd = 0.0
 
         for attempt in range(max_retries):
             try:
@@ -184,11 +214,11 @@ class BaseOpenAIExtractor:
                 response = self.client.chat.completions.create(
                     model=model,
                     messages=messages,
-                    response_format={"type": "json_object"},
+                    response_format=response_format,
                     # OpenRouter's unified reasoning control. exclude=True drops the
                     # reasoning text from the response; its tokens are still billed.
                     extra_body={
-                        "reasoning": {"effort": DEFAULT_REASONING_EFFORT, "exclude": True}
+                        "reasoning": {"effort": self.REASONING_EFFORT, "exclude": True}
                     },
                     **cache_kwargs,
                 )
@@ -201,7 +231,16 @@ class BaseOpenAIExtractor:
                     raise ValueError("Empty response content from model")
 
                 extracted_data = self._parse_json(response_text)
-                result = response_model(**extracted_data)
+                try:
+                    result = response_model(**extracted_data)
+                except ValidationError as e:
+                    if repairs_left <= 0 or attempt == max_retries - 1:
+                        raise
+                    repairs_left -= 1
+                    repair_cost_usd += self._response_cost(model, response)[0]
+                    logger.warning(f"Validation failed, asking the model to repair: {e.error_count()} error(s)")
+                    messages = self._repair_messages(base_messages, response_text, e)
+                    continue
 
                 tokens_input = response.usage.prompt_tokens
                 tokens_output = response.usage.completion_tokens
@@ -220,18 +259,8 @@ class BaseOpenAIExtractor:
                     getattr(prompt_details, "cache_write_tokens", 0) or 0,
                     tokens_input - tokens_input_cached,
                 )
-                # OpenRouter reports the amount actually charged in usage.cost (USD
-                # credits); the SDK keeps it as an extra field. Fall back to the
-                # price table when it is missing or not a usable amount.
-                reported_cost = getattr(response.usage, "cost", None)
-                if self._is_billable_amount(reported_cost):
-                    cost_usd = float(reported_cost)
-                    cost_source = "openrouter"
-                else:
-                    cost_usd = self.calculate_cost(
-                        model, tokens_input, tokens_output, tokens_input_cached, tokens_input_cache_write
-                    )
-                    cost_source = "estimated"
+                cost_usd, cost_source = self._response_cost(model, response)
+                cost_usd += repair_cost_usd
                 cache_hit_rate = (tokens_input_cached / tokens_input) if tokens_input else 0.0
 
                 metadata = {
@@ -243,6 +272,7 @@ class BaseOpenAIExtractor:
                     "tokens_input_cache_write": tokens_input_cache_write,
                     "tokens_output": tokens_output,
                     "processing_time_ms": processing_time_ms,
+                    "validation_repairs": self.VALIDATION_REPAIRS - repairs_left,
                     "raw_response": {
                         "id": response.id,
                         "model": response.model,
@@ -287,6 +317,46 @@ class BaseOpenAIExtractor:
 
         # Unreachable: the loop above always returns or raises on the last attempt.
         raise OpenAIExtractionError(f"Extraction failed after {max_retries} retries")
+
+    def _response_cost(self, model: str, response: Any) -> Tuple[float, str]:
+        """
+        Return (USD cost, source) for one response.
+
+        OpenRouter reports the amount actually charged in usage.cost (USD credits); the
+        SDK keeps it as an extra field. Falls back to the price table when it is missing
+        or not a usable amount.
+        """
+        usage = response.usage
+        reported_cost = getattr(usage, "cost", None)
+        if self._is_billable_amount(reported_cost):
+            return float(reported_cost), "openrouter"
+        tokens_input = usage.prompt_tokens
+        prompt_details = getattr(usage, "prompt_tokens_details", None)
+        cached = min(getattr(prompt_details, "cached_tokens", 0) or 0, tokens_input)
+        written = min(getattr(prompt_details, "cache_write_tokens", 0) or 0, tokens_input - cached)
+        return (
+            self.calculate_cost(model, tokens_input, usage.completion_tokens, cached, written),
+            "estimated",
+        )
+
+    @staticmethod
+    def _repair_messages(base_messages: list, response_text: str, error: ValidationError) -> list:
+        """The original conversation plus the invalid answer and its validation errors."""
+        errors = "\n".join(
+            f"- {'.'.join(str(p) for p in err['loc']) or '(root)'}: {err['msg']}"
+            for err in error.errors()[:MAX_VALIDATION_ERRORS_SHOWN]
+        )
+        return base_messages + [
+            {"role": "assistant", "content": response_text},
+            {
+                "role": "user",
+                "content": (
+                    "That JSON failed validation:\n"
+                    f"{errors}\n"
+                    "Return the complete corrected JSON object, changing only what the errors require."
+                ),
+            },
+        ]
 
     @staticmethod
     def _is_billable_amount(value: Any) -> bool:
@@ -345,3 +415,28 @@ class BaseOpenAIExtractor:
             raise OpenAIExtractionError(
                 f"Failed to parse JSON response: {e}\nResponse: {response_text[:200]}..."
             ) from e
+
+
+def strict_json_schema(model: Type[BaseModel]) -> Dict[str, Any]:
+    """
+    Return `model`'s JSON schema with every $ref inlined, for a strict response_format.
+
+    Pydantic already emits what strict mode needs when the model has no defaults and
+    forbids extra keys (every property required, additionalProperties false); this only
+    removes the $defs indirection, which not every OpenRouter provider resolves.
+    """
+    schema = model.model_json_schema()
+    defs = schema.pop("$defs", {})
+
+    def inline(node: Any) -> Any:
+        if isinstance(node, dict):
+            if "$ref" in node:
+                target = copy.deepcopy(defs[node["$ref"].split("/")[-1]])
+                extra = {k: v for k, v in node.items() if k != "$ref"}
+                return inline({**target, **extra})
+            return {k: inline(v) for k, v in node.items()}
+        if isinstance(node, list):
+            return [inline(v) for v in node]
+        return node
+
+    return inline(schema)

@@ -21,15 +21,17 @@ def main() -> int:
     root = Path(__file__).resolve().parents[2]
     sys.path.insert(0, str(root / "apps" / "post-extraction"))
     from openai_client import OpenAIClient
-    from prompts import SYSTEM_PROMPT
+    from prompts import SYSTEM_PROMPT, build_post_prompt
 
     client = OpenAIClient()
     print(f"System prompt: {len(SYSTEM_PROMPT)} characters")
 
     for attempt in (1, 2):
-        user_prompt = f"Post {attempt}: Started Zepbound 2.5mg, down 4 lbs in two weeks. Reply in JSON."
+        prompts = build_post_prompt(
+            "zepbound", f"Week 2 update {attempt}", "Started Zepbound 2.5mg, down 4 lbs in two weeks.", "", "2026-09-01"
+        )
         try:
-            _, metadata = client.extract((SYSTEM_PROMPT, user_prompt), lambda **kw: kw, max_retries=1)
+            _, metadata = client.extract_features(prompts, max_retries=1)
         except Exception as e:
             print(f"Call {attempt} failed: {e}")
             return 1

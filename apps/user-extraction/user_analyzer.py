@@ -14,7 +14,7 @@ import os
 import time
 from typing import List, Dict, Any, Optional
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -96,6 +96,16 @@ class RedditUserAnalyzer:
         logger.info(f"Found {len(unanalyzed)} unanalyzed users (from extracted_features)")
         return unanalyzed
 
+    @staticmethod
+    def _item_context(item) -> Dict[str, str]:
+        """Subreddit, date, and the author's flair in that subreddit, for the prompt."""
+        created = getattr(item, 'created_utc', None)
+        return {
+            'subreddit': str(getattr(item, 'subreddit', '') or ''),
+            'created': datetime.fromtimestamp(created, tz=timezone.utc).date().isoformat() if created else '',
+            'flair': getattr(item, 'author_flair_text', None) or '',
+        }
+
     def fetch_user_history(
         self,
         username: str,
@@ -119,17 +129,19 @@ class RedditUserAnalyzer:
         try:
             redditor = self.reddit.redditor(username)
 
-            # Fetch posts
+            # Newest first (.new()); the prompt tells the model so, which is how it
+            # knows which stated weight is the most recent.
             for submission in redditor.submissions.new(limit=posts_limit):
                 posts.append({
                     'title': submission.title,
                     'body': submission.selftext or '',
+                    **self._item_context(submission),
                 })
 
-            # Fetch comments
             for comment in redditor.comments.new(limit=comments_limit):
                 comments.append({
                     'body': comment.body or '',
+                    **self._item_context(comment),
                 })
 
             logger.info(f"Fetched {len(posts)} posts, {len(comments)} comments for u/{username}")
