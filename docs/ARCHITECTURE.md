@@ -51,7 +51,7 @@ which-glp/
 ### 2. API Service (`apps/api`)
 
 **Tech Stack:**
-- Node.js 22+
+- Node.js 24+
 - TypeScript (strict mode)
 - tRPC (type-safe API)
 - Supabase client
