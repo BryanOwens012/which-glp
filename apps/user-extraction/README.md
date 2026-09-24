@@ -20,7 +20,7 @@ user-extraction/
 ├── schema.py           # Pydantic models (UserDemographics)
 ├── api.py              # FastAPI service
 ├── start.sh            # Local dev start script (Railway uses the start command in .railway/railway.ts)
-└── shared/             # Symlink to ../data-ingestion/shared
+└── shared/             # Symlink to ../../scripts/legacy-ingestion/shared
 ```
 
 ## Database Schema
@@ -31,7 +31,7 @@ user-extraction/
 - `start_weight_lbs` - Starting weight before GLP-1
 - `end_weight_lbs` - Current/most recent weight
 - `state` - US state
-- `country` - Country (default USA)
+- `country` - Country when stated or implied; null otherwise (the extractor always sends it, so the column's `DEFAULT 'USA'` never applies)
 - `age` - Age in years
 - `sex` - Gender (male/female/other/unknown)
 - `comorbidities` - Medical conditions array
@@ -120,9 +120,11 @@ no separate cache-write rate, so a cache-writing call bills as plain input. Bill
 read from OpenRouter's `usage.cost` on each response; `MODEL_PRICING` is only the fallback
 estimate when OpenRouter doesn't return one.
 
-Cost per user has not been measured on Muse Spark. Each call sends a ~4,000-token
-static system prompt (cached after the first call) plus the user's 20 posts and
-20 comments. The `cost_usd` field in each extraction's metadata is the real figure.
+Each call sends a static system prompt of about 4,100 characters plus the user's 20
+posts and 20 comments, each labeled with subreddit, date, and flair. Whether a prompt
+that short reaches the provider's minimum cacheable prefix is unmeasured; check
+`cached_tokens` before assuming it caches. The `cost_usd` field in each extraction's
+metadata is the real per-user figure.
 
 ## Railway Deployment
 

@@ -1,19 +1,23 @@
 #!/usr/bin/env python3
 """
 Test script to verify that primary_drug and drugs_mentioned are converted to Title Case
-by the schema validators.
+by the legacy pipeline's schema validators (scripts/legacy-ingestion/extraction). The
+post-extraction service constrains drug names to canonical values instead.
 
 This tests the Pydantic validation without making any API calls.
 """
 
+import importlib.util
 import sys
 from pathlib import Path
 
-# Add apps/post-extraction to path
-repo_root = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(repo_root / "apps" / "post-extraction"))
-
-from schema import ExtractedFeatures
+# Loaded by path under its own name: the service's schema module is also called "schema",
+# and whichever test imports first would otherwise win.
+_path = Path(__file__).resolve().parents[2] / "scripts" / "legacy-ingestion" / "extraction" / "schema.py"
+_spec = importlib.util.spec_from_file_location("legacy_extraction_schema", _path)
+_legacy_schema = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_legacy_schema)
+ExtractedFeatures = _legacy_schema.ExtractedFeatures
 
 def test_title_case_validation():
     """Test that lowercase drug names are converted to Title Case"""

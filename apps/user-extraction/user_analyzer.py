@@ -22,7 +22,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from shared.database import DatabaseManager
 from shared.config import get_logger
 from openai_client import get_client
-from prompts import build_user_prompt
+from prompts import build_item_context, build_user_prompt
 
 # Import PRAW
 try:
@@ -119,17 +119,19 @@ class RedditUserAnalyzer:
         try:
             redditor = self.reddit.redditor(username)
 
-            # Fetch posts
+            # Newest first (.new()); the prompt tells the model so, which is how it
+            # knows which stated weight is the most recent.
             for submission in redditor.submissions.new(limit=posts_limit):
                 posts.append({
                     'title': submission.title,
                     'body': submission.selftext or '',
+                    **build_item_context(submission),
                 })
 
-            # Fetch comments
             for comment in redditor.comments.new(limit=comments_limit):
                 comments.append({
                     'body': comment.body or '',
+                    **build_item_context(comment),
                 })
 
             logger.info(f"Fetched {len(posts)} posts, {len(comments)} comments for u/{username}")

@@ -243,6 +243,9 @@ python3 -m reddit_ingestion.upload_from_backup /path/to/backup/dir
 
 ## AI Extraction Pipeline
 
+This section describes the legacy batch pipeline (`scripts/legacy-ingestion/extraction/`).
+The deployed extractor is `apps/post-extraction`; see Post Extraction below.
+
 ### Extraction Architecture
 
 **Hybrid Approach** (minimize database queries, maximize in-memory processing):
@@ -466,8 +469,9 @@ The Database class creates a new connection per operation (no pooling yet). For 
 
 Extraction runs on Muse Spark 1.3 Contributor (`meta/muse-spark-1.3-contributor`) through
 OpenRouter, using the `openai` Python SDK pointed at `https://openrouter.ai/api/v1`.
-Reasoning is mandatory on this model — OpenRouter rejects effort `"none"` — so the client
-sends `reasoning: {effort: "minimal", exclude: true}` via `extra_body`. Pricing per million
+Reasoning is mandatory on this model — OpenRouter rejects effort `"none"`. Each client sets
+`REASONING_EFFORT` (post extraction uses `"low"`, user extraction `"minimal"`), sent as
+`reasoning: {effort, exclude: true}` via `extra_body`. Pricing per million
 tokens, and the pricing table the code bills against, live in
 `scripts/legacy-ingestion/shared/openai_extractor.py` (`MODEL_PRICING`) — read the rates
 there. Muse Spark lists no separate cache-write rate; a cache-writing call bills as plain
@@ -475,14 +479,50 @@ input. Billed cost is read from OpenRouter's `usage.cost` on each response
 (`cost_source: "openrouter"`); `MODEL_PRICING` is only the fallback estimate
 (`cost_source: "estimated"`) for when OpenRouter doesn't return one.
 
-A post extraction sends ~9,500 input tokens, nearly all of them the static system prompt,
-and gets ~800 output tokens back (reasoning included, billed as output). It costs about
-$0.0003 on average: ~$0.00018 when the system prompt is a cache hit (mostly output) and
-~$0.001 when it misses, so the cache hit rate drives cost. Hits are intermittent even with the breakpoint.
+A post extraction sends ~6,500 input tokens, nearly all of them the static system prompt,
+and gets ~1,600 output tokens back (reasoning included, billed as output). It costs about
+$0.00035 when the system prompt is a cache hit and ~$0.001 when it misses, so the cache hit
+rate drives cost.
 `scripts/tests/test_openai_minimal.py` is a live smoke test that sends the real system
 prompt twice and prints cached/written tokens and billed cost. A static prefix that differs
 between calls (a timestamp or ID in it) defeats the cache entirely — see the prompt-caching
 section above.
+
+### Post Extraction (`apps/post-extraction`)
+
+The service owns `vocab.py`, `schema.py`, `prompts.py`, `rows.py`, and `pipeline.py`.
+Two symlinks still reach into the legacy tree: `keyword_filters.py`
+(→ `scripts/legacy-ingestion/extraction/filters.py`) and `shared/`
+(→ `scripts/legacy-ingestion/shared/`, home of the shared extractor client). The legacy
+`extraction/schema.py` and `prompts.py` belong to the legacy batch pipeline and double as
+the eval's v1 baseline; the service does not import them.
+
+- **`vocab.py`** holds the controlled vocabularies: canonical drug names, side-effect
+  names and the synonyms each absorbs, post types, treatment statuses, and the subreddit
+  → drug hints. Add a value here rather than normalizing a new spelling downstream.
+- **`schema.py`** (`PostExtraction`) is sent to OpenRouter as a strict JSON schema
+  (`STRUCTURED_OUTPUT = True`), so enums are enforced while the model decodes. Keep it
+  strict-compatible: every field required, `extra="forbid"`, no free-form dicts.
+- **`prompts.py`** defines every field once. Nulls are preferred to guesses because every
+  numeric field is averaged downstream; sentiment is null when no opinion is expressed.
+  Quoted numbers carry a verbatim quote (`quote` on weights, `duration_quote`,
+  `cost_quote`).
+- **`rows.py`** is the deterministic layer: `ground_extraction` nulls any quoted value
+  whose quote is not in the post (or, for a weight, does not state the number),
+  `derive_weight_lost` fills `weight_lost` from start and end weights, and
+  brand/compounded canonical names settle `drug_source`. Logic with one right answer
+  goes here, not in the prompt.
+- **`pipeline.py`** (`extract_post_row`) runs one post through prompt, model, grounding,
+  and row mapping. The service and the eval both call it; never re-implement the steps.
+- A validation failure is sent back to the model once with the errors
+  (`VALIDATION_REPAIRS = 1`) before the post is marked failed.
+
+**Measure every prompt, schema, model, or effort change** with the eval harness in
+`scripts/extraction-eval/` (see its README): it scores a variant against gold labels on
+real posts, field by field, the way downstream consumers read the fields. Its data lives
+in `backups/extraction-eval/` (gitignored, since it holds Reddit text). The pipeline's
+OpenRouter key has a small daily cap shared with production, so gold labels come from a
+separate labeling pass, not from a large model on that key.
 
 ### Backup File Sizes
 
@@ -522,11 +562,11 @@ python3 -m reddit_ingestion.upload_from_backup backups/ingestion/historical_run_
 
 ### Adding New Extracted Features
 
-1. Create migration file: `apps/shared/migrations/NNN_add_new_field.up.sql` (`NNN` = the next unused prefix) and its `.down.sql`
-2. Run migration: `python3 apps/shared/migrations/run_migration.py apps/shared/migrations/NNN_add_new_field.up.sql`
-3. Update `extraction/schema.py` to include new field
-4. Update `extraction/prompts.py` to instruct the model to extract new field
-5. Re-run extraction for updated posts
+1. Create migration file: `apps/shared/migrations/NNN_add_new_field.up.sql` (`NNN` = the next unused prefix) and its `.down.sql`, verified on a local throwaway database; Bryan applies it
+2. Add the field to `PostExtraction` in `apps/post-extraction/schema.py` (required with no default, since the schema is sent in strict mode: nullable for a scalar, `[]` when empty for a list)
+3. Define it under `# Fields` in `apps/post-extraction/prompts.py`, and add it to both examples there
+4. Map it to its column in `apps/post-extraction/rows.py`
+5. Measure the change with the extraction eval (see Post Extraction above) before shipping
 
 ## Troubleshooting
 

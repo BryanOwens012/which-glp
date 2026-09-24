@@ -54,8 +54,8 @@ class UserDemographics(BaseModel):
     )
 
     country: Optional[str] = Field(
-        default="USA",
-        description="Country of residence. Extract if mentioned explicitly, otherwise default to USA."
+        default=None,
+        description="Country of residence when stated or implied (a US state, NHS, £); null otherwise."
     )
 
     # Medical conditions

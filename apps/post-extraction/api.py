@@ -104,7 +104,7 @@ async def trigger_extraction(
 
             # Import here to avoid circular dependencies
             from shared.database import DatabaseManager
-            from prompts import build_post_prompt
+            from pipeline import extract_post_row
             from keyword_filters import should_process_post
             from minimum_field_filters import filter_post, diagnose_post
 
@@ -127,33 +127,24 @@ async def trigger_extraction(
                 {"p_subreddit": request.subreddit, "p_limit": request.limit},
             ).execute()
 
-            all_posts = response.data if response.data else []
-
-            # Convert to tuple format for processing
-            posts = [
-                (
-                    p["post_id"],
-                    p["title"],
-                    p["body"],
-                    p["subreddit"],
-                    p["author_flair_text"],
-                )
-                for p in all_posts
-            ]
+            posts = response.data if response.data else []
 
             logger.info(f"📊 Found {len(posts)} unprocessed posts")
 
             # Process each post with two-stage filtering
-            for i, (post_id, title, body, subreddit, flair) in enumerate(posts, 1):
+            for i, post in enumerate(posts, 1):
+                post_id = post.get("post_id")
                 try:
+                    title, body = post["title"], post["body"]
+                    subreddit, flair = post["subreddit"], post["author_flair_text"]
+                    # The filters take reddit_posts rows as tuples.
+                    post_row = (post_id, title, body, subreddit, flair)
                     logger.info(
                         f"📝 Processing post {i}/{len(posts)}: {post_id} from r/{subreddit}"
                     )
 
                     # Stage 1: Keyword-based filter (fast, checks drug/topic relevance)
-                    if not should_process_post(
-                        (post_id, title, body, subreddit, flair), subreddit
-                    ):
+                    if not should_process_post(post_row, subreddit):
                         log_message = "keyword_filter: not drug-related"
                         logger.info(f"⏭️  Skipping post {post_id} ({log_message})")
 
@@ -170,7 +161,6 @@ async def trigger_extraction(
                         continue
 
                     # Stage 2: Minimum data filter (checks for required fields)
-                    post_row = (post_id, title, body, subreddit, flair)
                     if not filter_post(post_row):
                         diagnosis = diagnose_post(
                             title or "", body or "", flair or "", subreddit
@@ -190,78 +180,35 @@ async def trigger_extraction(
                         skipped += 1
                         continue
 
-                    prompt = build_post_prompt(
-                        subreddit, title, body or "", flair or ""
-                    )
                     logger.debug(f"🤖 Sending to {DEFAULT_MODEL} for extraction: {post_id}")
-
-                    features, metadata = ai_client.extract_features(prompt)
+                    result = extract_post_row(
+                        ai_client,
+                        subreddit=subreddit,
+                        title=title,
+                        body=body,
+                        flair=flair,
+                        created_at=post.get("created_at"),
+                    )
+                    metadata = result.metadata
+                    if result.dropped:
+                        logger.warning(f"⚠️  {post_id}: dropped ungrounded {', '.join(result.dropped)}")
+                    if result.has_weight_conflict:
+                        logger.warning(f"⚠️  {post_id}: stated weight_lost disagrees with start/end weights")
 
                     cost = metadata.get("cost_usd", 0)
                     total_cost += cost
 
-                    # Prepare data for database insertion
                     feature_data = {
                         "post_id": post_id,
                         "comment_id": None,
-                        "summary": features.summary,
-                        "beginning_weight": (
-                            features.beginning_weight.model_dump()
-                            if features.beginning_weight
-                            else None
-                        ),
-                        "end_weight": (
-                            features.end_weight.model_dump()
-                            if features.end_weight
-                            else None
-                        ),
-                        "duration_weeks": features.duration_weeks,
-                        "cost_per_month": features.cost_per_month,
-                        "currency": features.currency,
-                        "drugs_mentioned": features.drugs_mentioned,
-                        "primary_drug": features.primary_drug.strip().title() if features.primary_drug else None,
-                        "drug_sentiments": features.drug_sentiments,
-                        "sentiment_pre": features.sentiment_pre,
-                        "sentiment_post": features.sentiment_post,
-                        "has_insurance": features.has_insurance,
-                        "insurance_provider": features.insurance_provider,
-                        "comorbidities": features.comorbidities,
-                        "location": features.location,
-                        "age": features.age,
-                        "sex": features.sex,
-                        "state": features.state,
-                        "country": features.country,
+                        **result.row,
                         "model_used": metadata.get("model"),
-                        "confidence_score": features.confidence_score,
                         "processing_cost_usd": cost,
                         "tokens_input": metadata.get("tokens_input"),
                         "tokens_output": metadata.get("tokens_output"),
                         "processing_time_ms": metadata.get("processing_time_ms"),
                         "processed_at": datetime.now().isoformat(),  # Supabase client handles datetime serialization
                         "raw_response": metadata.get("raw_response"),
-                        "side_effects": (
-                            [se.model_dump() for se in features.side_effects]
-                            if features.side_effects
-                            else []
-                        ),
-                        "dosage_progression": features.dosage_progression,
-                        "exercise_frequency": features.exercise_frequency,
-                        "dietary_changes": features.dietary_changes,
-                        "previous_weight_loss_attempts": features.previous_weight_loss_attempts,
-                        "drug_source": features.drug_source,
-                        "switching_drugs": features.switching_drugs,
-                        "side_effect_timing": features.side_effect_timing,
-                        "food_intolerances": features.food_intolerances,
-                        "plateau_mentioned": features.plateau_mentioned,
-                        "rebound_weight_gain": features.rebound_weight_gain,
-                        "labs_improvement": features.labs_improvement,
-                        "medication_reduction": features.medication_reduction,
-                        "nsv_mentioned": features.nsv_mentioned,
-                        "support_system": features.support_system,
-                        "pharmacy_access_issues": features.pharmacy_access_issues,
-                        "mental_health_impact": features.mental_health_impact,
-                        "side_effect_resolution": features.side_effect_resolution,
-                        "recommendation_score": features.recommendation_score,
                     }
 
                     # Insert to database

@@ -450,4 +450,4 @@
 - Side effects (nausea, vomiting, fatigue, constipation, etc.)
 - Demographics (age, sex, location if mentioned)
 - Insurance provider
-- Sentiment (positive, negative, neutral)
+- Sentiment (0-1; null when the post expresses no opinion)
