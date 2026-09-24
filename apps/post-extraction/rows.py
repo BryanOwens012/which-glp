@@ -3,7 +3,9 @@ Deterministic post-processing between the model's PostExtraction and the databas
 
 Kept out of the prompt because each has one right answer:
 - ground_extraction: null any quoted value whose quote is not in the post or is too
-  short to ground anything, and any weight whose quote does not state its number.
+  short to ground anything, any weight whose quote does not state its number, any
+  duration whose quote names no number, time, or treatment start, and any cost whose
+  quote states no amount.
 - has_weight_conflict: flag a stated weight_lost that disagrees with the start and end
   weights (logged, not corrected).
 - to_feature_row: shape an extraction into an `extracted_features` row, deriving the
@@ -40,15 +42,21 @@ def _normalize(text: str) -> str:
 # A quote shorter than this matches almost any post, so it grounds nothing.
 MIN_QUOTE_CHARS = 3
 # "13st 5lb", "13 stone 5": the prompt converts stone to lbs, so the quoted number differs.
-_STONE = re.compile(r"(\d+)\s*(?:st|stone)s?\b(?:\s*(\d+)\s*(?:lbs?|pounds?)?\b)?")
+# The pounds part counts only with a unit or at the end of the quote, so "18 stone 10
+# weeks ago" is 18 stone, not 18 stone 10 lb.
+_STONE = re.compile(
+    r"(\d+(?:\.\d+)?)\s*(?:st|stone)s?\b(?:\s*(\d+)(?=\s*(?:lbs?|pounds?)\b|\s*$))?"
+)
 # A thousands separator ("1,086"), as opposed to a decimal comma ("85,5").
 _THOUSANDS_COMMA = re.compile(r"(?<=\d),(?=\d{3}\b)")
 # A duration quote must name a number, a time ("since January", "a couple of months"),
 # or the start of treatment ("just did my first shot" is 0 weeks).
 _TIME_WORDS = re.compile(
-    r"\d|\b(?:day|week|month|year|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|"
+    r"\d|\b(?:days?|weeks?|wks?|months?|mos?|years?|yrs?|fortnights?|"
+    r"jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|"
+    r"sept?(?:ember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?|"
     r"spring|summer|fall|autumn|winter|christmas|today|yesterday|ago|since|"
-    r"first|dose|shot|injection|jab|start)",
+    r"first|doses?|shots?|injections?|jabs?|start(?:ed|ing|s)?)\b",
 )
 
 
@@ -59,11 +67,13 @@ def _is_quote_found(quote: Optional[str], source: str) -> bool:
 
 def _is_number_in_quote(value: float, quote: Optional[str]) -> bool:
     """True when the quote states the value's whole number, or the same weight in stone."""
-    text = _THOUSANDS_COMMA.sub("", (quote or "").casefold()).replace(",", ".")
+    # Only thousands separators are removed; a decimal comma ("85,5") stays a separator,
+    # so its whole-number part is compared like "85.5".
+    text = _THOUSANDS_COMMA.sub("", (quote or "").casefold())
     if str(int(value)) in re.findall(r"\d+", text):
         return True
     return any(
-        abs(int(st) * 14 + int(lb or 0) - value) <= 1 for st, lb in _STONE.findall(text)
+        abs(float(st) * 14 + int(lb or 0) - value) <= 1 for st, lb in _STONE.findall(text)
     )
 
 
@@ -71,7 +81,7 @@ def ground_extraction(extraction: PostExtraction, source_text: str) -> List[str]
     """
     Null every quoted value whose quote does not appear in `source_text`, whose quote is
     too short to ground anything, or (for weights) that does not state the number; every
-    duration whose quote names no number or time; and every cost whose quote states no
+    duration whose quote names no number, time, or treatment start; and every cost whose quote states no
     amount.
 
     Args:
@@ -150,6 +160,7 @@ def has_weight_conflict(extraction: PostExtraction) -> bool:
     start, end, lost = extraction.beginning_weight, extraction.end_weight, extraction.weight_lost
     if start is None or end is None or lost is None:
         return False
+    # Signed on purpose (not compute_loss_lbs): a gain against a stated loss is a conflict.
     implied = to_lbs(start.value, start.unit) - to_lbs(end.value, end.unit)
     return abs(implied - to_lbs(lost.value, lost.unit)) > WEIGHT_LOST_TOLERANCE_LBS
 
@@ -186,7 +197,10 @@ def _format_display_name(drug: DrugUse) -> Optional[str]:
 
 
 def _choose_other_primary(extraction: PostExtraction) -> Optional[DrugUse]:
-    """The "Other" drug a primary_drug of "Other" refers to: a taken one first, and named."""
+    """
+    The drug a primary_drug of "Other" refers to: the first "Other" entry with a written
+    name, preferring one the author takes.
+    """
     others = sorted(
         (d for d in extraction.drugs if d.name == "Other"),
         key=lambda d: d.relation not in TAKEN_RELATIONS,

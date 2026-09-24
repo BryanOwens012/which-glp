@@ -242,7 +242,9 @@ class BaseOpenAIExtractor:
         def count_unused(response: Any, elapsed_ms: int) -> None:
             nonlocal unused_cost_usd, unused_tokens, unused_time_ms
             unused_cost_usd += self._compute_response_cost(model, response)[0]
-            unused_tokens = UsageTokens(*(a + b for a, b in zip(unused_tokens, self._read_usage(response.usage))))
+            unused_tokens = UsageTokens(
+                *(a + b for a, b in zip(unused_tokens, self._read_usage(getattr(response, "usage", None))))
+            )
             unused_time_ms += elapsed_ms
 
         for attempt in range(max_retries):

@@ -175,8 +175,10 @@ def test_a_converted_monthly_cost_is_kept_and_an_amountless_cost_quote_is_not():
         (196, "down to 14st", True),
         (187, "13st 5lb", True),
         (999, "13st 5lb", False),
-        (240, "1st weigh in was 250", False),  # an ordinal is not stone
+        (240, "1st weigh in was 250", False),  # "1st" reads as 1 stone (14 lbs), which is not 240
         (85.5, "now 85,5 kg", True),  # decimal comma
+        (189, "13.5st", True),  # decimal stone
+        (252, "18 stone 10 weeks ago", True),  # "10" is weeks, not pounds
     ],
 )
 def test_weight_number_checks(value, quote, is_kept):
@@ -191,7 +193,17 @@ def test_a_thousands_separator_is_not_a_decimal_comma():
 
 @pytest.mark.parametrize(
     "quote, is_kept",
-    [("since January", True), ("for 3 wks", True), ("Just did my first shot", True), ("and the", False)],
+    [
+        ("since January", True),
+        ("for 3 wks", True),
+        ("about two wks in", True),
+        ("Just did my first shot", True),
+        ("and the", False),
+        ("I may have decided", True),  # "may" the month is indistinguishable from the verb
+        ("the market agony", False),  # month and "ago" prefixes are not time words
+        ("I decided to", False),
+        ("since then", True),
+    ],
 )
 def test_duration_quote_must_name_a_number_or_time(quote, is_kept):
     extraction = make_extraction(weight_lost=None, cost_per_month=None, cost_quote=None, duration_quote=quote)

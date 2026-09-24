@@ -119,7 +119,8 @@ def to_comparable(row: Dict[str, Any]) -> Dict[str, Any]:
     derived from start and end weights as the pipeline derives it (mixed units included,
     gains excluded); it only reaches the site once the view reads weight_lost.
     drug_source goes through the brand/compounded rule for every run, so every run is
-    scored on the same footing (v1's figure is with the rule applied, not what v1 stores).
+    scored on the same footing (v1 is scored with the rule applied, not on the source v1
+    stored).
     """
     primary = row.get("primary_drug")
     primary = _DRUG_BY_LOWER.get(primary.strip().lower(), primary) if isinstance(primary, str) else None
