@@ -57,7 +57,6 @@ async def shutdown_event():
     logger.info("=" * 80)
 
 
-
 class IngestRequest(BaseModel):
     subreddit: Optional[str] = None
     posts_limit: int = 100

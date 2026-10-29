@@ -31,9 +31,13 @@ describe('parseInternalApiKey', () => {
   it.each([
     ['missing', undefined, 'Missing INTERNAL_API_KEY'],
     ['empty', '', 'Missing INTERNAL_API_KEY'],
-    ['a trailing newline', 'abc\n', 'contains whitespace'],
-    ['a carriage return', 'abc\r', 'contains whitespace'],
-    ['an inner space', 'ab c', 'contains whitespace'],
+    ['a trailing newline', 'abc\n', 'printable ASCII'],
+    ['a carriage return', 'abc\r', 'printable ASCII'],
+    ['an inner space', 'ab c', 'printable ASCII'],
+    ['a tab', 'ab\tc', 'printable ASCII'],
+    ['a byte-order mark', '\ufeffabc', 'printable ASCII'],
+    ['a control character', 'ab\x1cc', 'printable ASCII'],
+    ['non-ASCII', 'abé', 'printable ASCII'],
   ])('refuses a key that is %s', (_label, raw, message) => {
     expect(() => parseInternalApiKey(raw)).toThrow(message)
   })

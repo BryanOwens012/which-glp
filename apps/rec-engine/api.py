@@ -103,8 +103,6 @@ class RecommendationsResponse(BaseModel):
     processingTime: Optional[float] = None
 
 
-
-
 # Initialize Supabase (cached)
 _supabase_client: Optional[Client] = None
 

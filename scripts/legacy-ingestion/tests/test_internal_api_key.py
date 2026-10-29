@@ -34,9 +34,13 @@ class TestParseInternalApiKey:
         [
             (None, "Missing INTERNAL_API_KEY"),
             ("", "Missing INTERNAL_API_KEY"),
-            ("abc\n", "contains whitespace"),
-            ("abc\r", "contains whitespace"),
-            ("ab c", "contains whitespace"),
+            ("abc\n", "printable ASCII"),
+            ("abc\r", "printable ASCII"),
+            ("ab c", "printable ASCII"),
+            ("ab\tc", "printable ASCII"),
+            ("\ufeffabc", "printable ASCII"),
+            ("ab\x1cc", "printable ASCII"),
+            ("abé", "printable ASCII"),
         ],
     )
     def test_refuses_an_unusable_key(self, raw, message):
@@ -67,8 +71,11 @@ class TestVerifier:
             {"x-internal-api-key": KEY + "x"},
             {"x-internal-api-key": KEY[:-1]},
             {"x-internal-api-key": KEY.upper()},
+            {"x-internal-api-key": " " + KEY},
+            {"x-internal-api-key": KEY + " "},
+            {"x-internal-api-key": "café".encode("utf-8")},
         ],
-        ids=["missing", "empty", "wrong", "longer", "shorter", "different-case"],
+        ids=["missing", "empty", "wrong", "longer", "shorter", "different-case", "leading-space", "trailing-space", "non-ascii"],
     )
     def test_denies_anything_else(self, headers):
         response = make_client().get("/guarded", headers=headers)

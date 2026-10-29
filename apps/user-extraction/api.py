@@ -78,8 +78,6 @@ async def shutdown_event():
     logger.info("=" * 80)
 
 
-
-
 # Request/Response models
 class AnalyzeRequest(BaseModel):
     limit: Optional[int] = 10

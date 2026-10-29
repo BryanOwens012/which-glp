@@ -93,6 +93,8 @@ export const recommendationsRouter = router({
             'x-internal-api-key': internalApiKey,
           },
           body: JSON.stringify(input),
+          // Never follow a redirect, so the key only goes to the rec engine.
+          redirect: 'error',
         })
 
         if (!response.ok) {

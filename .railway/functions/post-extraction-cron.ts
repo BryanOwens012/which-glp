@@ -18,20 +18,7 @@ const extractPosts = async () => {
     console.log(`   Method: POST`);
     console.log(`   Query: limit=1000`);
 
-    // Fail closed: never call a service without a usable key.
-    const internalApiKey = process.env.INTERNAL_API_KEY;
-    if (!internalApiKey || /\s/.test(internalApiKey)) {
-      throw new Error("INTERNAL_API_KEY is missing or contains whitespace; refusing to call the service");
-    }
-
-    const response = await fetch(`${SERVICE_URL}${ENDPOINT}?limit=1000`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-internal-api-key": internalApiKey,
-      },
-      body: JSON.stringify({}),
-    });
+    const response = await callInternalService(`${SERVICE_URL}${ENDPOINT}?limit=1000`, {});
 
     console.log(
       `📥 Response Status: ${response.status} ${response.statusText}`
@@ -40,9 +27,6 @@ const extractPosts = async () => {
       `   Headers: ${JSON.stringify(Object.fromEntries(response.headers))}`
     );
 
-    if (!response.ok) {
-      throw new Error(`Service responded ${response.status} ${response.statusText}`);
-    }
     const data = await response.json();
 
     console.log("✅ Request successful!");

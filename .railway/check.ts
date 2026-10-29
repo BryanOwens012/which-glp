@@ -18,7 +18,7 @@ import { stripTypeScriptTypes } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createRailwayContext, project, type ResourceNode } from "railway/iac";
-import program, { buildFunctionSource, SHARED_VARIABLES } from "./railway.ts";
+import program, { buildFunctionSource, FUNCTION_PRELUDES, SHARED_VARIABLES } from "./railway.ts";
 
 const EXPECTED_BRANCH = "develop";
 const SECRET_NAME = /KEY|SECRET|PASSWORD|TOKEN/;
@@ -105,14 +105,24 @@ const stripComments = (text: string, isPython: boolean): string =>
  * cannot require top level. Python calls it at module level, not inside a function
  * that may never run.
  */
-/** A Python service's fail-closed INTERNAL_API_KEY verifier, built at module level. */
-const INTERNAL_API_KEY_VERIFIER =
-  /^verify_internal_api_key = make_internal_api_key_verifier\(require_internal_api_key\(\)\)$/m;
-
 const LOADER_CALL_RULES = {
   python: { pattern: /^load_doppler_secrets\(DOPPLER_SECRETS\)/m, rule: "call load_doppler_secrets(DOPPLER_SECRETS) at module level" },
   typescript: { pattern: /\bawait\s+loadDopplerSecrets\(DOPPLER_SECRETS\)/, rule: "await loadDopplerSecrets(DOPPLER_SECRETS)" },
 } as const;
+
+/**
+ * A FastAPI route and its handler's parameter list: the decorator's path, then the
+ * parameters up to the closing parenthesis that ends the signature.
+ */
+const PYTHON_ROUTE =
+  /^@app\.(?:get|post|put|patch|delete)\(\s*"([^"]+)"[^\n]*\n(?:@[^\n]*\n)*(?:async\s+)?def\s+\w+\(([\s\S]*?)\)\s*(?:->[^\n]*)?:\s*$/gm;
+
+/** Routes a Python service serves without INTERNAL_API_KEY: only the health check. */
+const PUBLIC_PYTHON_ROUTES: ReadonlySet<string> = new Set(["/health"]);
+
+/** The line that builds a Python service's fail-closed INTERNAL_API_KEY verifier, at module level. */
+const INTERNAL_API_KEY_VERIFIER_LINE =
+  "verify_internal_api_key = make_internal_api_key_verifier(require_internal_api_key())";
 
 /** The file whose top-level code starts the service: a function's own file, else index.ts or api.py. */
 const entryPointOf = (resource: ResourceNode & { type: "service" }, codeRoot: string): string => {
@@ -187,7 +197,7 @@ for (const resource of resources) {
     const file = functionFileOf(resource);
     const expected = buildFunctionSource(file);
     if (!encoded || Buffer.from(encoded, "base64").compare(expected) !== 0) {
-      fail(`${resource.address} start command does not encode functions/_doppler-secrets.ts + functions/${file}`);
+      fail(`${resource.address} start command does not encode ${[...FUNCTION_PRELUDES, file].map((name) => `functions/${name}`).join(" + ")}`);
     }
     if (!resource.deploy?.cronSchedule) {
       fail(`${resource.address} has no cron schedule`);
@@ -224,7 +234,7 @@ for (const resource of resources) {
   const pythonEntry = join(codeRoot, "api.py");
   const source =
     resource.kind === "function"
-      ? { text: buildFunctionSource(functionFileOf(resource)).toString("utf8"), files: 2 }
+      ? { text: buildFunctionSource(functionFileOf(resource)).toString("utf8"), files: FUNCTION_PRELUDES.length + 1 }
       : existsSync(pythonEntry)
         ? readPythonClosure(pythonEntry)
         : readSourceTree(codeRoot);
@@ -257,9 +267,20 @@ for (const resource of resources) {
   // closed: it builds the shared verifier at module level, after the Doppler load, so a
   // missing key stops the boot instead of leaving the endpoints open.
   if (isPython && call) {
-    const verifier = INTERNAL_API_KEY_VERIFIER.exec(entryText);
-    if (!verifier || verifier.index < call.index) {
-      fail(`${resource.address} must build verify_internal_api_key with make_internal_api_key_verifier(require_internal_api_key()) at module level, after its Doppler load (${entry})`);
+    const verifierIndex = entryText.split("\n").findIndex((line) => line === INTERNAL_API_KEY_VERIFIER_LINE);
+    const verifierOffset = verifierIndex === -1 ? -1 : entryText.split("\n").slice(0, verifierIndex).join("\n").length;
+    if (verifierOffset === -1 || verifierOffset < call.index) {
+      fail(`${resource.address} must have \`${INTERNAL_API_KEY_VERIFIER_LINE}\` at module level, after its Doppler load (${entry})`);
+    }
+    // ...and every route but the health check depends on it, so a new endpoint cannot ship open.
+    const routes = [...entryText.matchAll(PYTHON_ROUTE)];
+    if (routes.length === 0) {
+      fail(`${resource.address} has no @app routes the INTERNAL_API_KEY rule could check (${entry})`);
+    }
+    for (const [, path, params] of routes) {
+      if (!PUBLIC_PYTHON_ROUTES.has(path) && !/Depends\(\s*verify_internal_api_key\s*\)/.test(params)) {
+        fail(`${resource.address} route ${path} must take \`_: None = Depends(verify_internal_api_key)\` (${entry})`);
+      }
     }
   }
   const listed = parseDopplerSecrets(entryText);

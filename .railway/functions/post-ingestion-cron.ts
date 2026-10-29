@@ -18,28 +18,12 @@ const ingestPosts = async () => {
   try {
     console.log("📡 Sending request to post-ingestion service...");
 
-    // Fail closed: never call a service without a usable key.
-    const internalApiKey = process.env.INTERNAL_API_KEY;
-    if (!internalApiKey || /\s/.test(internalApiKey)) {
-      throw new Error("INTERNAL_API_KEY is missing or contains whitespace; refusing to call the service");
-    }
-
-    const response = await fetch(`${SERVICE_URL}${ENDPOINT}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-internal-api-key": internalApiKey,
-      },
-      body: JSON.stringify({
-        tier1: true,
-        tier2: true,
-        posts_limit: 100,
-      }),
+    const response = await callInternalService(`${SERVICE_URL}${ENDPOINT}`, {
+      tier1: true,
+      tier2: true,
+      posts_limit: 100,
     });
 
-    if (!response.ok) {
-      throw new Error(`Service responded ${response.status} ${response.statusText}`);
-    }
     const data = await response.json();
 
     console.log("✅ Request successful!");

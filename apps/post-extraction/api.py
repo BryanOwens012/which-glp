@@ -63,8 +63,6 @@ async def shutdown_event():
     logger.info("=" * 80)
 
 
-
-
 class ExtractionRequest(BaseModel):
     subreddit: str | None = None
     limit: int | None = None
