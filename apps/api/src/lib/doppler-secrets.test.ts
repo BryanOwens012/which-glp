@@ -24,6 +24,7 @@ const makeFetch = (script: Record<string, Reply[]>) => {
 
 const noSleep = async () => {}
 
+// DOPPLER_PROJECT and DOPPLER_CONFIG stay set on purpose: the loaders must never send them.
 const baseEnv = (): Record<string, string | undefined> => ({
   DOPPLER_TOKEN: 'dp.st.prd.test-token',
   DOPPLER_PROJECT: 'whichglp',
@@ -59,8 +60,10 @@ describe('loadDopplerSecrets', () => {
     expect(env.MISSING_ONE).toBeUndefined()
     expect(requests.map((r) => r.name).sort()).toEqual(['INTERNAL_API_KEY', 'MISSING_ONE', 'SUPABASE_URL'])
     expect(requests.every((r) => r.auth === 'Bearer dp.st.prd.test-token')).toBe(true)
-    expect(requests[0].url.searchParams.get('project')).toBe('whichglp')
-    expect(requests[0].url.searchParams.get('config')).toBe('prd')
+    // The service token names its own project and config; stale ones in env are never sent.
+    expect(requests.every((r) => [...r.url.searchParams.keys()].join() === 'name')).toBe(true)
+    expect(requests.some((r) => r.url.searchParams.has('project'))).toBe(false)
+    expect(requests.some((r) => r.url.searchParams.has('config'))).toBe(false)
   })
 
   it('requests only the enumerated names, never another secret', async () => {
@@ -198,6 +201,21 @@ describe('loadDopplerSecrets hardening', () => {
 
     expect(delays[0]).toBeGreaterThanOrEqual(250)
     expect(inits.every((init) => init?.redirect === 'error')).toBe(true)
+  })
+
+  it('refuses a token that is not a service token', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const { fetchFn, requests } = makeFetch({ A: [{ status: 200, computed: 'a' }] })
+    const env = { DOPPLER_TOKEN: 'dp.pt.personal' }
+
+    const report = await loadDopplerSecrets(['A'], { env, fetchFn, sleep: noSleep })
+
+    expect(report).toBeNull()
+    expect(requests).toEqual([])
+    expect(warn.mock.calls).toEqual([
+      ['[doppler] DOPPLER_TOKEN is not a service token (dp.st.); skipping the Doppler load (running on existing environment values)'],
+    ])
+    expect(env).toEqual({ DOPPLER_TOKEN: 'dp.pt.personal' })
   })
 
   it('warns when DOPPLER_TOKEN is missing on Railway', async () => {

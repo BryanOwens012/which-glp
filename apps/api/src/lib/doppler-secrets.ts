@@ -2,10 +2,11 @@
  * Load this service's secrets from Doppler at boot, and report what arrived.
  *
  * Each backend service fetches only the secret names it enumerates, one request per
- * name, with the environment's single DOPPLER_TOKEN (plus DOPPLER_PROJECT and
- * DOPPLER_CONFIG). Pulled values are written into `process.env` for this process
- * only, overriding any Railway-provided copy; nothing outside the enumerated list is
- * requested or accepted. The boot log gives how many were pulled and how many failed,
+ * name, with the environment's single DOPPLER_TOKEN: a service token, bound to one
+ * project and config, so none is sent. Any other kind of token is refused. Pulled
+ * values are written into `process.env` for this process only, overriding any
+ * Railway-provided copy; nothing outside the enumerated list is requested or
+ * accepted. The boot log gives how many were pulled and how many failed,
  * with both name lists and a reason per failure, never a value. Without
  * DOPPLER_TOKEN (local development) the load is skipped and `.env` applies as before.
  *
@@ -70,16 +71,7 @@ const getRetryDelayMs = (attempt: number, retryAfter: string | null): number => 
   return RETRY_BASE_DELAY_MS * 4 ** (attempt - 1) * (1 + Math.random() * 0.5)
 }
 
-const buildSecretUrl = (name: string, env: LoadDeps['env']): string => {
-  const params = new URLSearchParams({ name })
-  if (env.DOPPLER_PROJECT) {
-    params.set('project', env.DOPPLER_PROJECT)
-  }
-  if (env.DOPPLER_CONFIG) {
-    params.set('config', env.DOPPLER_CONFIG)
-  }
-  return `${DOPPLER_SECRET_URL}?${params.toString()}`
-}
+const buildSecretUrl = (name: string): string => `${DOPPLER_SECRET_URL}?${new URLSearchParams({ name }).toString()}`
 
 /** Fetch one secret: its computed value, or why it could not be pulled. */
 const fetchSecret = async (name: string, token: string, deps: LoadDeps): Promise<FetchOutcome> => {
@@ -87,7 +79,7 @@ const fetchSecret = async (name: string, token: string, deps: LoadDeps): Promise
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     let retryAfter: string | null = null
     try {
-      const response = await deps.fetchFn(buildSecretUrl(name, deps.env), {
+      const response = await deps.fetchFn(buildSecretUrl(name), {
         headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
         // Never follow a redirect, so the token is only ever sent to Doppler.
@@ -129,7 +121,7 @@ export const formatDopplerReport = (report: DopplerLoadReport): string => {
 /**
  * Fetch `names` from Doppler, write the pulled values into `deps.env`, and log the
  * report: info when every secret arrived, warn when any failed. Returns null, after
- * logging a skip, when DOPPLER_TOKEN is not set.
+ * logging a skip, when DOPPLER_TOKEN is not set or is not a service token.
  */
 export const loadDopplerSecrets = async (
   names: readonly string[],
@@ -144,6 +136,11 @@ export const loadDopplerSecrets = async (
     } else {
       console.info('[doppler] DOPPLER_TOKEN is not set; skipping the Doppler load (local .env applies)')
     }
+    return null
+  }
+  // We send no project or config, so only a service token, which is bound to one, can name what to read.
+  if (!token.startsWith('dp.st.')) {
+    console.warn('[doppler] DOPPLER_TOKEN is not a service token (dp.st.); skipping the Doppler load (running on existing environment values)')
     return null
   }
 

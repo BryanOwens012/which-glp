@@ -5,9 +5,9 @@
 // `apps/api/src/lib/doppler-secrets.ts` and
 // `scripts/legacy-ingestion/shared/doppler_secrets.py`; keep the three in sync.
 //
-// Fetches only the enumerated names, one request each, with DOPPLER_TOKEN (and
-// DOPPLER_PROJECT / DOPPLER_CONFIG); writes pulled values into process.env for this
-// run only; logs pulled and failed names with reasons, never a value.
+// Fetches only the enumerated names, one request each, with DOPPLER_TOKEN (a service
+// token, bound to one project and config, so none is sent); writes pulled values into
+// process.env for this run only; logs pulled and failed names with reasons, never a value.
 
 const DOPPLER_SECRET_URL = "https://api.doppler.com/v3/configs/config/secret";
 const DOPPLER_SECRET_NAME_PATTERN = /^[A-Z][A-Z0-9_]*$/;
@@ -27,6 +27,11 @@ async function loadDopplerSecrets(names: readonly string[]): Promise<void> {
     }
     return;
   }
+  // We send no project or config, so only a service token, which is bound to one, can name what to read.
+  if (!token.startsWith("dp.st.")) {
+    console.warn("[doppler] DOPPLER_TOKEN is not a service token (dp.st.); skipping the Doppler load (running on existing environment values)");
+    return;
+  }
 
   const getRetryDelayMs = (attempt: number, retryAfter: string | null): number => {
     // An empty header would read as 0 seconds; treat it like a missing one.
@@ -39,12 +44,6 @@ async function loadDopplerSecrets(names: readonly string[]): Promise<void> {
 
   const fetchSecret = async (name: string): Promise<{ name: string; value?: string; reason?: string }> => {
     const params = new URLSearchParams({ name });
-    if (process.env.DOPPLER_PROJECT) {
-      params.set("project", process.env.DOPPLER_PROJECT);
-    }
-    if (process.env.DOPPLER_CONFIG) {
-      params.set("config", process.env.DOPPLER_CONFIG);
-    }
     let lastReason = "error network";
     for (let attempt = 1; attempt <= DOPPLER_MAX_ATTEMPTS; attempt++) {
       let retryAfter: string | null = null;
