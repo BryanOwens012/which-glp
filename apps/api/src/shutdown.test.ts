@@ -71,7 +71,7 @@ const startServer = async (): Promise<RunningServer> => {
         // Nothing here touches the database; a bad URL only affects procedure
         // results, which these tests never read.
         SUPABASE_URL: 'https://example.supabase.co',
-        SUPABASE_SERVICE_KEY: 'test-key',
+        SUPABASE_SECRET_KEY: 'sb_secret_test-key',
         // Point at a closed port so the run never depends on a live Redis and
         // never mutates a real one. The service degrades gracefully.
         REDIS_URL: 'redis://127.0.0.1:1',

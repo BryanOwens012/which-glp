@@ -114,7 +114,7 @@ the only non-`/trpc` path the service answers; everything else returns 404.
 - Start command: `npm start`
 - Environment variables:
   - `SUPABASE_URL`
-  - `SUPABASE_SERVICE_KEY`
+  - `SUPABASE_SECRET_KEY`
   - `REDIS_URL`
   - `REC_ENGINE_URL`
   - `ALLOWED_ORIGINS` (optional) - extra CORS origins beyond the built-in allowlist
@@ -154,7 +154,7 @@ the only non-`/trpc` path the service answers; everything else returns 404.
 - Start command: `cd apps/rec-engine && python3 api.py`
 - Environment variables:
   - `SUPABASE_URL`
-  - `SUPABASE_SERVICE_KEY`
+  - `SUPABASE_SECRET_KEY`
   - `PORT`
 
 ---
@@ -491,8 +491,7 @@ redis-server  # Port 6379
 ```bash
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_DB_PASSWORD=your-db-password
-SUPABASE_SERVICE_KEY=your-service-key
-SUPABASE_SERVICE_KEY=your-service-key
+SUPABASE_SECRET_KEY=sb_secret_...
 REDDIT_CLIENT_ID=your-client-id
 REDDIT_CLIENT_SECRET=your-client-secret
 REDDIT_USER_AGENT=whichglp-ingestion/0.1
@@ -508,7 +507,7 @@ NEXT_PUBLIC_GA_TAG=your-ga-tag
 3. **`apps/api/.env`**:
 ```bash
 SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_SERVICE_KEY=your-service-key
+SUPABASE_SECRET_KEY=sb_secret_...
 REDIS_URL=redis://localhost:6379
 REC_ENGINE_URL=http://localhost:8001
 ```

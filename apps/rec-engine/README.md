@@ -139,7 +139,7 @@ apps/rec-engine/
 
 Required:
 - `SUPABASE_URL` - Supabase project URL
-- `SUPABASE_ANON_KEY` or `SUPABASE_SERVICE_KEY` - Supabase credentials
+- `SUPABASE_SECRET_KEY` - Supabase secret key (`sb_secret_...`)
 
 Optional:
 - `REC_ENGINE_PORT` - Port to run on (default: 8001)
@@ -152,7 +152,7 @@ The `Rec-Engine` service is declared in [`.railway/railway.ts`](../../.railway/r
 
 ```
 SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_SERVICE_KEY=your-service-key
+SUPABASE_SECRET_KEY=sb_secret_...
 ```
 
 ### Step 2: Update Backend Service

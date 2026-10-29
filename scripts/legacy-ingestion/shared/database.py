@@ -21,6 +21,10 @@ from datetime import datetime
 from dotenv import load_dotenv
 from supabase import create_client, Client
 
+from shared.supabase_key import SupabaseKeyError, install_log_redaction, require_supabase_secret_key
+
+# This module holds the key; mask it even for a caller that never imports shared.config.
+install_log_redaction()
 logger = logging.getLogger(__name__)
 
 # Batch size for bulk inserts
@@ -97,7 +101,7 @@ class Database:
             pass
 
         # Validate required environment variables
-        required_vars = ["SUPABASE_URL", "SUPABASE_SERVICE_KEY"]
+        required_vars = ["SUPABASE_URL", "SUPABASE_SECRET_KEY"]
         missing_vars = [var for var in required_vars if var not in os.environ or not os.environ[var]]
 
         if missing_vars:
@@ -106,11 +110,14 @@ class Database:
                 f"{', '.join(missing_vars)}\n"
                 f"Please add these credentials to your environment.\n"
                 f"Get your Supabase credentials from: https://app.supabase.com/project/_/settings/api\n"
-                f"Note: Use SUPABASE_SERVICE_KEY for write operations (not SUPABASE_ANON_KEY)"
+                "Note: Use the secret key (sb_secret_...), not the publishable key"
             )
 
         supabase_url = os.getenv("SUPABASE_URL")
-        supabase_key = os.getenv("SUPABASE_SERVICE_KEY")
+        try:
+            supabase_key = require_supabase_secret_key(os.getenv("SUPABASE_SECRET_KEY"))
+        except SupabaseKeyError as e:
+            raise DatabaseConfigurationError(str(e)) from e
 
         # Validate URL format
         if not supabase_url or not supabase_url.startswith("https://") or ".supabase.co" not in supabase_url:

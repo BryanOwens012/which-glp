@@ -1,0 +1,1 @@
+../../scripts/legacy-ingestion/shared/supabase_key.py
