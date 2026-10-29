@@ -264,6 +264,25 @@ describe('cron Doppler loader', () => {
     expect(requests).toEqual([])
   })
 
+  it.each(['RAILWAY_ENVIRONMENT_ID', 'RAILWAY_PROJECT_ID', 'RAILWAY_SERVICE_ID'])(
+    'treats %s alone as running on Railway',
+    async (identifier) => {
+      const { load } = buildLoader({}, { [identifier]: 'x' })
+
+      await expect(load(['A'])).rejects.toThrow('refusing to run')
+    },
+  )
+
+  it('drops the token once the load finishes', async () => {
+    captureLog()
+    const { load, env } = buildLoader({ A: [{ status: 200, computed: 'a' }] })
+
+    await load(['A'])
+
+    expect(env.A).toBe('a')
+    expect(env.DOPPLER_TOKEN).toBeUndefined()
+  })
+
   it('logs the report, then refuses to run on Railway when any variable fails to load', async () => {
     const { lines } = captureLog()
     const { load } = buildLoader({ A: [{ status: 404 }] }, { ...baseEnv(), RAILWAY_ENVIRONMENT_NAME: 'production' })

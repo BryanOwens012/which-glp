@@ -259,14 +259,26 @@ describe('loadDopplerSecrets on Railway fails closed', () => {
     expect(warn.mock.calls).toEqual([['[doppler] pulled 1 of 2 secrets, 1 failed; pulled=["A"] failed=["B (not_found)"]']])
   })
 
-  it('starts when every variable loads', async () => {
+  it('starts when every variable loads, and drops the token afterward', async () => {
     vi.spyOn(console, 'info').mockImplementation(() => {})
     const { fetchFn } = makeFetch({ A: [{ status: 200, computed: 'a' }] })
     const env = railway(baseEnv())
 
     await expect(loadDopplerSecrets(['A'], { env, fetchFn, sleep: noSleep })).resolves.toEqual({ pulled: ['A'], failed: [] })
     expect(env.A).toBe('a')
+    expect(env.DOPPLER_TOKEN).toBeUndefined()
   })
+
+  it.each(['RAILWAY_ENVIRONMENT_ID', 'RAILWAY_PROJECT_ID', 'RAILWAY_SERVICE_ID'])(
+    'treats %s alone as running on Railway',
+    async (identifier) => {
+      const { fetchFn } = makeFetch({})
+
+      await expect(loadDopplerSecrets(['A'], { env: { [identifier]: 'x' }, fetchFn, sleep: noSleep })).rejects.toThrow(
+        'refusing to start',
+      )
+    },
+  )
 })
 
 /** Shared with the Python suite, so both loaders are held to one log format. */

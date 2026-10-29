@@ -216,3 +216,32 @@ describe('graceful shutdown', () => {
     expect(shutdownLines).toHaveLength(1)
   }, 45_000)
 })
+
+describe('API bootstrap on Railway', () => {
+  it('refuses to start without a Doppler token, before the server is imported', async () => {
+    const port = await reservePort()
+    let output = ''
+    const child = spawn(process.execPath, TSX_LOADER_ARGS, {
+      env: {
+        ...process.env,
+        PORT: String(port),
+        RAILWAY_ENVIRONMENT_NAME: 'production',
+        DOPPLER_TOKEN: '',
+        REDIS_URL: 'redis://127.0.0.1:1',
+      },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    })
+    child.stdout?.on('data', (chunk) => {
+      output += String(chunk)
+    })
+    child.stderr?.on('data', (chunk) => {
+      output += String(chunk)
+    })
+
+    const code = await waitForExit(child, 20_000)
+
+    expect(code).not.toBe(0)
+    expect(output).toContain('DOPPLER_TOKEN is not set; refusing to start')
+    await expect(fetch(`http://127.0.0.1:${port}/health`)).rejects.toThrow()
+  }, 30_000)
+})

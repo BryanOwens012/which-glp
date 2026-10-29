@@ -21,7 +21,10 @@ const DOPPLER_MAX_RETRY_AFTER_MS = 5_000; // a Retry-After header is honored up 
 async function loadDopplerSecrets(names: readonly string[]): Promise<void> {
   const token = process.env.DOPPLER_TOKEN;
   // Railway holds no copy of Doppler's variables, so there the load fails closed.
-  const isOnRailway = Boolean(process.env.RAILWAY_ENVIRONMENT_NAME);
+  // Railway sets these on every deployment; any one of them means the run is on Railway.
+  const isOnRailway = ["RAILWAY_ENVIRONMENT_NAME", "RAILWAY_ENVIRONMENT_ID", "RAILWAY_PROJECT_ID", "RAILWAY_SERVICE_ID"].some(
+    (name) => Boolean(process.env[name]),
+  );
   if (!token) {
     if (isOnRailway) {
       throw new Error("[doppler] DOPPLER_TOKEN is not set; refusing to run without the Doppler variables");
@@ -91,7 +94,10 @@ async function loadDopplerSecrets(names: readonly string[]): Promise<void> {
     failed.push({ name, reason: "invalid_name" });
     return false;
   });
-  for (const outcome of await Promise.all(requested.map(fetchSecret))) {
+  const outcomes = await Promise.all(requested.map(fetchSecret));
+  // The token reads the whole Doppler config; nothing after the load needs it, so drop it.
+  delete process.env.DOPPLER_TOKEN;
+  for (const outcome of outcomes) {
     if (outcome.value !== undefined) {
       process.env[outcome.name] = outcome.value;
       pulled.push(outcome.name);

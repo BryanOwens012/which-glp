@@ -55,6 +55,9 @@ MAX_RETRY_AFTER_SECONDS = 5  # a Retry-After header is honored up to this cap
 # TypeScript entry points never load twice.
 LOADED_MARKER = "DOPPLER_SECRETS_LOADED"
 
+# Variables Railway sets on every deployment; any one of them means the process runs on Railway.
+RAILWAY_IDENTIFIERS = ("RAILWAY_ENVIRONMENT_NAME", "RAILWAY_ENVIRONMENT_ID", "RAILWAY_PROJECT_ID", "RAILWAY_SERVICE_ID")
+
 
 @dataclass(frozen=True)
 class DopplerFailure:
@@ -196,7 +199,7 @@ def load_doppler_secrets(
         return None
     token = env.get("DOPPLER_TOKEN")
     # Railway holds no copy of Doppler's variables, so there the load fails closed.
-    on_railway = bool(env.get("RAILWAY_ENVIRONMENT_NAME"))
+    on_railway = any(env.get(name) for name in RAILWAY_IDENTIFIERS)
     if not token:
         if on_railway:
             raise RuntimeError("[doppler] DOPPLER_TOKEN is not set; refusing to start without the Doppler variables")
@@ -221,6 +224,8 @@ def load_doppler_secrets(
 
     with ThreadPoolExecutor(max_workers=max(1, len(requested))) as pool:
         outcomes = list(pool.map(lambda name: _fetch_secret(name, token, fetch, sleep), requested))
+    # The token reads the whole Doppler config; nothing after boot needs it, so drop it.
+    env.pop("DOPPLER_TOKEN", None)
 
     for name, value, reason in outcomes:
         if value is not None:
@@ -229,9 +234,9 @@ def load_doppler_secrets(
         else:
             report.failed.append(DopplerFailure(name, reason))
     report.failed.sort(key=lambda failure: failure.name)
-    env[LOADED_MARKER] = "1"
 
     logger.log(logging.WARNING if report.failed else logging.INFO, format_doppler_report(report))
     if report.failed and on_railway:
         raise RuntimeError(f"[doppler] {len(report.failed)} variable(s) failed to load; refusing to start without them")
+    env[LOADED_MARKER] = "1"
     return report

@@ -73,40 +73,15 @@ const buildLimits = (cpu: number, memoryGb: number) => ({
  */
 const DRAINING_SECONDS = 15;
 
-/*
- * Each service declares, as Railway variables, only the variables its own code reads
- * that Doppler does not hold; `npm run check` fails on a declared variable that the
- * service's code never mentions, and on one Doppler holds (see DOPPLER_VARIABLES).
- * Values are managed on Railway and preserved as-is.
- */
-
 /**
- * Every shared variable defined on the production environment, by name. A service
- * variable with one of these names must be a `${{shared.NAME}}` reference, never
- * its own copy: `buildEnv` makes it one, and `npm run check` fails on any other
- * form. This is a hand-kept mirror of Railway's shared variables (dashboard:
- * environment Settings > Shared Variables): `check` cannot see a shared variable
- * missing from it, so add the name here whenever one is created in Railway. The
- * shared variables themselves are set in Railway and are not managed by this file.
+ * The Railway shared variables a service may reference, by name. A service variable
+ * with one of these names must be a `${{shared.NAME}}` reference, never its own copy:
+ * `buildEnv` makes it one, and `npm run check` fails on any other form. Only
+ * DOPPLER_TOKEN belongs here: every other production shared variable is a name
+ * Doppler holds (DOPPLER_NAMES), which no service may declare on Railway at all. Add a
+ * name only for a shared variable Doppler does not hold.
  */
-export const SHARED_VARIABLES: ReadonlySet<string> = new Set([
-  "ANTHROPIC_API_KEY",
-  "DOPPLER_CONFIG",
-  "DOPPLER_ENVIRONMENT",
-  "DOPPLER_PROJECT",
-  "DOPPLER_TOKEN",
-  "INTERNAL_API_KEY",
-  "OPENROUTER_API_KEY",
-  "POSTHOG_API_KEY",
-  "POSTHOG_HOST",
-  "REDDIT_API_APP_ID",
-  "REDDIT_API_APP_NAME",
-  "REDDIT_API_APP_SECRET",
-  "SUPABASE_DB_PASSWORD",
-  "SUPABASE_PUBLISHABLE_KEY",
-  "SUPABASE_SECRET_KEY",
-  "SUPABASE_URL",
-]);
+export const SHARED_VARIABLES: ReadonlySet<string> = new Set(["DOPPLER_TOKEN"]);
 
 /**
  * Every variable name the production Doppler config holds, secret or not. Doppler is
@@ -118,7 +93,7 @@ export const SHARED_VARIABLES: ReadonlySet<string> = new Set([
  * name is added to or removed from Doppler (the names-only listing endpoint is
  * GET https://api.doppler.com/v3/configs/config/secrets/names with the service token).
  */
-export const DOPPLER_VARIABLES: ReadonlySet<string> = new Set([
+export const DOPPLER_NAMES: ReadonlySet<string> = new Set([
   "ANTHROPIC_API_KEY",
   "DOPPLER_CONFIG",
   "DOPPLER_ENVIRONMENT",
@@ -146,7 +121,12 @@ const DOPPLER_TOKEN_VARIABLE = "DOPPLER_TOKEN";
 
 type ServiceEnv = Record<string, string | VariableValue>;
 
-/** A service's variables (shared ones as references, the rest preserved), plus the Doppler token. */
+/**
+ * A service's Railway variables, plus the Doppler token. A service declares only the
+ * variables its own code reads that Doppler does not hold; `npm run check` fails on a
+ * declared variable the service's code never mentions, and on one Doppler holds
+ * (DOPPLER_NAMES). Shared names become references; the rest keep their Railway values.
+ */
 const buildEnv = (shared: SharedVariableRef, names: readonly string[]): ServiceEnv =>
   Object.fromEntries(
     [...new Set([...names, DOPPLER_TOKEN_VARIABLE])].map((name) => [
