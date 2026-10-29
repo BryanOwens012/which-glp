@@ -45,7 +45,10 @@ const redactError = (error: Error, copies: Map<Error, Error>): Error => {
   return copy
 }
 
-/** Redact strings and errors; pass anything else (objects included) through. */
+/**
+ * Redact strings, errors, and arrays of them (an `AggregateError`'s `errors`);
+ * pass anything else (plain objects included) through.
+ */
 const redactArg = (arg: unknown, copies: Map<Error, Error> = new Map()): unknown => {
   if (typeof arg === 'string') {
     return redactSupabaseSecrets(arg)
@@ -53,6 +56,10 @@ const redactArg = (arg: unknown, copies: Map<Error, Error> = new Map()): unknown
 
   if (arg instanceof Error) {
     return redactError(arg, copies)
+  }
+
+  if (Array.isArray(arg)) {
+    return arg.map((item) => redactArg(item, copies))
   }
 
   return arg

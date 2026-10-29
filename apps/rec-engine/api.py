@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field
 from supabase import create_client, Client
 from dotenv import load_dotenv
 from recommender import DrugRecommender, UserProfile, DrugRecommendation
-from supabase_key import install_log_redaction, require_supabase_secret_key
+from supabase_key import install_log_redaction, redact_supabase_secrets, require_supabase_secret_key
 
 # Load environment variables
 load_dotenv()
@@ -206,7 +206,7 @@ async def get_recommendations(request: RecommendationRequest, _: None = Depends(
 
     except Exception as e:
         logger.exception("[ML API] ERROR: %s: %s", type(e).__name__, e)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=redact_supabase_secrets(str(e)))
 
 
 @app.get("/api/cache/clear")

@@ -71,6 +71,18 @@ describe('installConsoleRedaction', () => {
     expect(error.message).toBe('bad key sb_secret_live123')
   })
 
+  it('masks the errors inside an AggregateError', () => {
+    const { target, calls } = makeRecordingConsole()
+    installConsoleRedaction(target)
+
+    target.error(new AggregateError([new Error('a sb_secret_zzz')], 'agg'))
+
+    const logged = calls[0].args[0] as AggregateError
+    expect(logged).toBeInstanceOf(AggregateError)
+    expect((logged.errors[0] as Error).message).toBe('a sb_secret_[REDACTED]')
+    expect((logged.errors[0] as Error).stack).not.toContain('sb_secret_zzz')
+  })
+
   it('survives a self-referencing cause', () => {
     const { target, calls } = makeRecordingConsole()
     installConsoleRedaction(target)
