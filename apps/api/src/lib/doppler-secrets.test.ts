@@ -24,6 +24,7 @@ const makeFetch = (script: Record<string, Reply[]>) => {
 
 const noSleep = async () => {}
 
+// DOPPLER_PROJECT and DOPPLER_CONFIG stay set on purpose: the loaders must never send them.
 const baseEnv = (): Record<string, string | undefined> => ({
   DOPPLER_TOKEN: 'dp.st.prd.test-token',
   DOPPLER_PROJECT: 'whichglp',
@@ -200,6 +201,19 @@ describe('loadDopplerSecrets hardening', () => {
 
     expect(delays[0]).toBeGreaterThanOrEqual(250)
     expect(inits.every((init) => init?.redirect === 'error')).toBe(true)
+  })
+
+  it('refuses a token that is not a service token', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const { fetchFn, requests } = makeFetch({ A: [{ status: 200, computed: 'a' }] })
+    const env = { DOPPLER_TOKEN: 'dp.pt.personal' }
+
+    const report = await loadDopplerSecrets(['A'], { env, fetchFn, sleep: noSleep })
+
+    expect(report).toBeNull()
+    expect(requests).toEqual([])
+    expect(warn).toHaveBeenCalledOnce()
+    expect(env).toEqual({ DOPPLER_TOKEN: 'dp.pt.personal' })
   })
 
   it('warns when DOPPLER_TOKEN is missing on Railway', async () => {

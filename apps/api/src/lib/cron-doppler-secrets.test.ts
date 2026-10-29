@@ -25,6 +25,7 @@ const GOLDEN_CASES = JSON.parse(readFileSync(GOLDEN_PATH, 'utf8')) as GoldenCase
 
 type Reply = { status: number; computed?: string; retryAfter?: string; body?: string }
 
+// DOPPLER_PROJECT and DOPPLER_CONFIG stay set on purpose: the loaders must never send them.
 const baseEnv = (): Record<string, string | undefined> => ({
   DOPPLER_TOKEN: 'dp.st.prd.test-token',
   DOPPLER_PROJECT: 'whichglp',
@@ -235,6 +236,18 @@ describe('cron Doppler loader', () => {
 
     expect(requests).toEqual([])
     expect(info).toHaveBeenCalledOnce()
+  })
+
+  it('refuses a token that is not a service token', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const { load, requests } = buildLoader({ A: [{ status: 200, computed: 'a' }] }, { DOPPLER_TOKEN: 'dp.pt.personal' })
+
+    await load(['A'])
+
+    expect(requests).toEqual([])
+    expect(warn.mock.calls).toEqual([
+      ['[doppler] DOPPLER_TOKEN is not a service token (dp.st.); skipping the Doppler load (running on existing environment values)'],
+    ])
   })
 
   it('warns when the token is missing on Railway', async () => {

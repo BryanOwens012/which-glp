@@ -34,6 +34,7 @@ def make_fetch(script):
 
 
 def base_env(**extra):
+    # DOPPLER_PROJECT and DOPPLER_CONFIG stay set on purpose: the loader must never send them.
     env = {"DOPPLER_TOKEN": "dp.st.prd.test-token", "DOPPLER_PROJECT": "whichglp", "DOPPLER_CONFIG": "prd"}
     env.update(extra)
     return env
@@ -180,6 +181,17 @@ class TestLoaderHardening:
 
         assert report.pulled == ["A"]
         assert 0.25 <= delays[0] <= 0.375 and 1.0 <= delays[1] <= 1.5
+
+    def test_refuses_a_token_that_is_not_a_service_token(self, caplog):
+        fetch, requests = make_fetch({"A": [ok("a")]})
+        env = {"DOPPLER_TOKEN": "dp.pt.personal"}
+        with caplog.at_level(logging.INFO, logger=LOGGER.name):
+            assert load_doppler_secrets(["A"], LOGGER, env, fetch, skip_sleep) is None
+
+        assert requests == []
+        assert [r.levelno for r in caplog.records] == [logging.WARNING]
+        assert "not a service token" in caplog.text
+        assert LOADED_MARKER not in env
 
     def test_missing_token_on_railway_warns(self, caplog):
         fetch, requests = make_fetch({})

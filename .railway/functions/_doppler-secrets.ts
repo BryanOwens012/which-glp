@@ -6,8 +6,8 @@
 // `scripts/legacy-ingestion/shared/doppler_secrets.py`; keep the three in sync.
 //
 // Fetches only the enumerated names, one request each, with DOPPLER_TOKEN (a service
-// token, which names its own project and config); writes pulled values into process.env for this
-// run only; logs pulled and failed names with reasons, never a value.
+// token, bound to one project and config, so none is sent); writes pulled values into
+// process.env for this run only; logs pulled and failed names with reasons, never a value.
 
 const DOPPLER_SECRET_URL = "https://api.doppler.com/v3/configs/config/secret";
 const DOPPLER_SECRET_NAME_PATTERN = /^[A-Z][A-Z0-9_]*$/;
@@ -25,6 +25,11 @@ async function loadDopplerSecrets(names: readonly string[]): Promise<void> {
     } else {
       console.info("[doppler] DOPPLER_TOKEN is not set; skipping the Doppler load (local .env applies)");
     }
+    return;
+  }
+  // Only a service token is bound to one config; any other would read a config of Doppler's choosing.
+  if (!token.startsWith("dp.st.")) {
+    console.warn("[doppler] DOPPLER_TOKEN is not a service token (dp.st.); skipping the Doppler load (running on existing environment values)");
     return;
   }
 

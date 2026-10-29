@@ -110,18 +110,19 @@ export const SHARED_VARIABLES: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * Every backend service gets the environment's Doppler service token (one per
- * environment, bound to that environment's config, so no project or config is passed) and loads its own enumerated secrets from Doppler at boot; see
- * apps/api/src/lib/doppler-secrets.ts. These are shared references like any other.
+ * Every backend service gets the environment's DOPPLER_TOKEN, a shared reference like
+ * any other: a service token, bound to one project and config, so none is sent. Each
+ * service loads its own enumerated secrets with it at boot; see
+ * apps/api/src/lib/doppler-secrets.ts.
  */
-const DOPPLER_ACCESS = ["DOPPLER_TOKEN"] as const;
+const DOPPLER_TOKEN_VARIABLE = "DOPPLER_TOKEN";
 
 type ServiceEnv = Record<string, string | VariableValue>;
 
-/** A service's variables (shared ones as references, the rest preserved), plus Doppler access. */
+/** A service's variables (shared ones as references, the rest preserved), plus the Doppler token. */
 const buildEnv = (shared: SharedVariableRef, names: readonly string[]): ServiceEnv =>
   Object.fromEntries(
-    [...new Set([...names, ...DOPPLER_ACCESS])].map((name) => [
+    [...new Set([...names, DOPPLER_TOKEN_VARIABLE])].map((name) => [
       name,
       SHARED_VARIABLES.has(name) ? shared[name] : preserve(),
     ]),

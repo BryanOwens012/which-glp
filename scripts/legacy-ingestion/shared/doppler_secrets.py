@@ -2,8 +2,9 @@
 Load a service's secrets from Doppler at boot, and report what arrived.
 
 Each backend service fetches only the secret names it enumerates, one request per
-name, with the environment's single DOPPLER_TOKEN, a service token that names its
-own project and config. Pulled values are written into `os.environ` for this process only,
+name, with the environment's single DOPPLER_TOKEN: a service token, bound to one
+project and config, so none is sent. Any other kind of token is refused. Pulled values
+are written into `os.environ` for this process only,
 overriding any Railway-provided copy; nothing outside the enumerated list is
 requested or accepted. The boot log gives how many were pulled and how many failed,
 with both name lists and a reason per failure, never a value. Without DOPPLER_TOKEN
@@ -179,8 +180,8 @@ def load_doppler_secrets(
     Fetch `names` from Doppler, write the pulled values into `env`, and log the report:
     INFO when every secret arrived, WARNING when any failed.
 
-    Returns None, after logging why, when DOPPLER_TOKEN is not set or this environment
-    already holds a load (a re-import or an inheriting child process).
+    Returns None, after logging why, when DOPPLER_TOKEN is not set or is not a service
+    token, or this environment already holds a load (a re-import or an inheriting child process).
     """
     env = os.environ if env is None else env
     logger = ensure_report_logger() if logger is None else logger
@@ -196,6 +197,10 @@ def load_doppler_secrets(
             "[doppler] DOPPLER_TOKEN is not set; skipping the Doppler load (%s)",
             "running on existing environment values" if on_railway else "local .env applies",
         )
+        return None
+    # Only a service token is bound to one config; any other would read a config of Doppler's choosing.
+    if not token.startswith("dp.st."):
+        logger.warning("[doppler] DOPPLER_TOKEN is not a service token (dp.st.); skipping the Doppler load (running on existing environment values)")
         return None
 
     report = DopplerLoadReport()
