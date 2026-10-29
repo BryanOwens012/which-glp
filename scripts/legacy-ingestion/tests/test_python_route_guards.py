@@ -103,7 +103,18 @@ def test_guarded_routes_pass():
         ("a second app via the module", 'import fastapi\nother = fastapi.FastAPI()\n', "builds a FastAPI app other than"),
         ("a second app via an alias", 'from fastapi import FastAPI as F\nother = F()\n', "builds a FastAPI app other than"),
         ("app rebound", 'app = make_app()\n', "rebinds `app`"),
+        ("app rebound by an import", "from other import app\n", "rebinds `app`"),
+        ("app rebound by import as", "import other as app\n", "rebinds `app`"),
+        ("app rebound by a def", "def app():\n    return None\n", "rebinds `app`"),
+        ("app rebound by a class", "class app:\n    pass\n", "rebinds `app`"),
+        ("app rebound by except", "try:\n    pass\nexcept Exception as app:\n    pass\n", "rebinds `app`"),
+        ("app deleted", "del app\n", "rebinds `app`"),
         ("a local verifier", 'def verify_internal_api_key():\n    return None\n', "must bind `verify_internal_api_key` exactly once"),
+        ("a second verifier assignment", "verify_internal_api_key = lambda: None\n", "must bind `verify_internal_api_key` exactly once"),
+        ("an imported verifier", "from auth import verify_internal_api_key\n", "must bind `verify_internal_api_key` exactly once"),
+        ("a verifier imported as", "from auth import check as verify_internal_api_key\n", "must bind `verify_internal_api_key` exactly once"),
+        ("an async verifier", "async def verify_internal_api_key():\n    return None\n", "must bind `verify_internal_api_key` exactly once"),
+        ("a class verifier", "class verify_internal_api_key:\n    pass\n", "must bind `verify_internal_api_key` exactly once"),
         (
             "a non-literal path",
             '@app.get(PATH)\nasync def computed(_: None = Depends(verify_internal_api_key)):\n    return {}\n',
@@ -132,3 +143,21 @@ def test_fails_closed_on_no_routes_no_app_or_bad_syntax():
     )
     assert any("must bind `app` exactly once" in problem for problem in route_guards.find_problems("x = 1\n"))
     assert route_guards.find_problems("def broken(:\n")[0].startswith("does not parse")
+
+
+GUARDED_ROUTE = '@app.post("/api/run")\nasync def run(_: None = Depends(verify_internal_api_key)):\n    return {}\n'
+
+
+def test_an_app_from_a_factory_is_not_the_checked_app():
+    source = "app = create_app()\nverify_internal_api_key = make_internal_api_key_verifier(require_internal_api_key())\n" + GUARDED_ROUTE
+    assert any("must bind `app` exactly once" in problem for problem in route_guards.find_problems(source))
+
+
+def test_a_def_only_verifier_is_refused():
+    source = "app = FastAPI()\ndef verify_internal_api_key():\n    return None\n\n" + GUARDED_ROUTE
+    assert any("must bind `verify_internal_api_key` exactly once" in p for p in route_guards.find_problems(source))
+
+
+def test_two_module_level_apps_are_refused():
+    source = "app = FastAPI()\napp = FastAPI()\nverify_internal_api_key = make_internal_api_key_verifier(require_internal_api_key())\n" + GUARDED_ROUTE
+    assert any("must bind `app` exactly once" in problem for problem in route_guards.find_problems(source))

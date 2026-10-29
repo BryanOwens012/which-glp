@@ -39,6 +39,20 @@ def is_fastapi_constructor(node: ast.AST, aliases: set) -> bool:
     )
 
 
+def find_bindings(tree: ast.Module, name: str) -> list:
+    """Every node that binds `name`: assignment, deletion, def, class, import, except or match."""
+    return [
+        node
+        for node in ast.walk(tree)
+        if (isinstance(node, ast.Name) and node.id == name and isinstance(node.ctx, (ast.Store, ast.Del)))
+        or (isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) and node.name == name)
+        or (isinstance(node, ast.alias) and (node.asname or node.name.split(".")[0]) == name)
+        or (isinstance(node, ast.ExceptHandler) and node.name == name)
+        or (isinstance(node, (ast.MatchAs, ast.MatchStar)) and node.name == name)
+        or (isinstance(node, ast.MatchMapping) and node.rest == name)
+    ]
+
+
 def find_app_problems(tree: ast.Module) -> list:
     """`app` must be bound once, at module level, by `app = FastAPI(...)`; no other app may exist."""
     aliases = {"FastAPI"} | {
@@ -64,22 +78,16 @@ def find_app_problems(tree: ast.Module) -> list:
     for node in ast.walk(tree):
         if is_fastapi_constructor(node, aliases) and node is not allowed_constructor:
             problems.append("builds a FastAPI app other than the module-level `app`, which this check cannot verify")
-        if isinstance(node, ast.Name) and node.id == APP and isinstance(node.ctx, (ast.Store, ast.Del)):
-            if not (plain and node is plain[0].targets[0]):
-                problems.append(f"rebinds `{APP}`, which this check cannot verify")
+    for binding in find_bindings(tree, APP):
+        if not (len(plain) == 1 and binding is plain[0].targets[0]):
+            problems.append(f"rebinds `{APP}`, which this check cannot verify")
     return problems
 
 
 def find_verifier_problems(tree: ast.Module) -> list:
     """`verify_internal_api_key` is bound exactly once, by an assignment (the shared verifier line)."""
-    bindings = [
-        node
-        for node in ast.walk(tree)
-        if (isinstance(node, ast.Name) and node.id == VERIFIER and isinstance(node.ctx, ast.Store))
-        or (isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) and node.name == VERIFIER)
-        or (isinstance(node, ast.alias) and (node.asname or node.name) == VERIFIER)
-    ]
-    if len(bindings) != 1 or not isinstance(bindings[0], ast.Name):
+    bindings = find_bindings(tree, VERIFIER)
+    if len(bindings) != 1 or not (isinstance(bindings[0], ast.Name) and isinstance(bindings[0].ctx, ast.Store)):
         return [f"must bind `{VERIFIER}` exactly once, by assigning the shared verifier"]
     return []
 
