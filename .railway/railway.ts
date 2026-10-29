@@ -85,9 +85,10 @@ const redditApi = ["REDDIT_API_APP_ID", "REDDIT_API_APP_NAME", "REDDIT_API_APP_S
  * Every shared variable defined on the production environment, by name. A service
  * variable with one of these names must be a `${{shared.NAME}}` reference, never
  * its own copy: `buildEnv` makes it one, and `npm run check` fails on any other
- * form. Keep this list equal to Railway's shared variables (dashboard: environment
- * Settings > Shared Variables); the shared variables themselves are set in Railway
- * and are not managed by this file.
+ * form. This is a hand-kept mirror of Railway's shared variables (dashboard:
+ * environment Settings > Shared Variables): `check` cannot see a shared variable
+ * missing from it, so add the name here whenever one is created in Railway. The
+ * shared variables themselves are set in Railway and are not managed by this file.
  */
 export const SHARED_VARIABLES: ReadonlySet<string> = new Set(["SUPABASE_SECRET_KEY"]);
 
