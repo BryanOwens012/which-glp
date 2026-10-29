@@ -6,8 +6,9 @@
  * unique resources, every runnable service has a start command, GitHub sources
  * pin the production branch, function bodies round-trip to ./functions, no
  * secret-looking variable is committed as a literal value, a variable named like
- * a shared variable is a `${{shared.NAME}}` reference to it, and every variable a
- * service declares is mentioned somewhere in the code that service runs.
+ * a shared variable is a `${{shared.NAME}}` reference to it, every variable a
+ * service declares is mentioned somewhere in the code that service runs, and every
+ * service loads its enumerated secrets from Doppler at boot.
  *
  * Run from this directory: npm run check
  */
@@ -15,7 +16,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { createRailwayContext, project, type ResourceNode } from "railway/iac";
-import program, { SHARED_VARIABLES } from "./railway.ts";
+import program, { buildFunctionSource, SHARED_VARIABLES } from "./railway.ts";
 
 const EXPECTED_BRANCH = "develop";
 const SECRET_NAME = /KEY|SECRET|PASSWORD|TOKEN/;
@@ -112,9 +113,9 @@ for (const resource of resources) {
   if (resource.kind === "function") {
     const encoded = start?.startsWith("./run.sh ") ? start.slice("./run.sh ".length) : "";
     const file = `${resource.name.toLowerCase()}.ts`;
-    const expected = readFileSync(join(import.meta.dirname, "functions", file));
+    const expected = buildFunctionSource(file);
     if (!encoded || Buffer.from(encoded, "base64").compare(expected) !== 0) {
-      fail(`${resource.address} start command does not encode functions/${file}`);
+      fail(`${resource.address} start command does not encode functions/_doppler-secrets.ts + functions/${file}`);
     }
     if (!resource.deploy?.cronSchedule) {
       fail(`${resource.address} has no cron schedule`);
@@ -139,29 +140,18 @@ for (const resource of resources) {
     }
   }
 
-  // DOPPLER_VARIABLE_NAMES is what each service's boot report checks against, so it
-  // must name exactly the service's shared references, sorted.
-  const variables = resource.variables ?? {};
-  const sharedNames = Object.entries(variables)
-    .filter(([, value]) => value.type === "sharedReference")
-    .map(([name]) => name)
-    .sort()
-    .join(",");
-  const dopplerNames = variables.DOPPLER_VARIABLE_NAMES;
-  const declaredNames = dopplerNames?.type === "literal" ? dopplerNames.value : undefined;
-  if ((declaredNames ?? "") !== sharedNames) {
-    fail(
-      `${resource.address} DOPPLER_VARIABLE_NAMES is "${declaredNames ?? "(unset)"}", expected "${sharedNames}" (its shared references)`,
-    );
-  }
-
   const codeRoot = codeRootOf(resource);
   if (!codeRoot) {
     fail(`${resource.address} has no code location (watch pattern or function file) to check its variables against`);
     continue;
   }
   const pythonEntry = join(codeRoot, "api.py");
-  const source = existsSync(pythonEntry) ? readPythonClosure(pythonEntry) : readSourceTree(codeRoot);
+  const source =
+    resource.kind === "function"
+      ? { text: buildFunctionSource(`${resource.name.toLowerCase()}.ts`).toString("utf8"), files: 2 }
+      : existsSync(pythonEntry)
+        ? readPythonClosure(pythonEntry)
+        : readSourceTree(codeRoot);
   if (source.files === 0) {
     fail(`${resource.address} code location ${codeRoot} holds no files`);
     continue;
@@ -170,6 +160,15 @@ for (const resource of resources) {
     if (!RUNTIME_VARIABLES.has(name) && !new RegExp(`\\b${name}\\b`).test(source.text)) {
       fail(`${resource.address} declares ${name}, which its code (${codeRoot}) never reads; remove it`);
     }
+  }
+  // Every backend service loads its own enumerated secrets from Doppler at boot. A
+  // function's own file must make the call: the prepended loader only defines it.
+  const callerText =
+    resource.kind === "function"
+      ? readFileSync(join(import.meta.dirname, "functions", `${resource.name.toLowerCase()}.ts`), "utf8")
+      : source.text;
+  if (!/\bload(DopplerSecrets|_doppler_secrets)\(DOPPLER_SECRETS\)/.test(callerText)) {
+    fail(`${resource.address} never calls the Doppler loader with its DOPPLER_SECRETS list (${codeRoot})`);
   }
 }
 

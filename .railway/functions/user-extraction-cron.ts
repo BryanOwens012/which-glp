@@ -1,19 +1,5 @@
-// Doppler secrets report at start: how many of this function's Doppler secrets arrived,
-// with both name lists and never a value. Keep in sync with apps/api/src/lib/doppler-report.ts.
-{
-  const expected = process.env.DOPPLER_VARIABLE_NAMES;
-  if (expected === undefined) {
-    console.log("[doppler] DOPPLER_VARIABLE_NAMES is not set; skipping the secrets report");
-  } else {
-    const names = [...new Set(expected.split(",").map((name) => name.trim()).filter(Boolean))].sort();
-    const pulled = names.filter((name) => process.env[name]);
-    const failed = names
-      .filter((name) => !process.env[name])
-      .map((name) => `${name} (${process.env[name] === undefined ? "unset" : "empty"})`);
-    const line = `[doppler] pulled ${pulled.length} of ${names.length} secrets, ${failed.length} failed; pulled=${JSON.stringify(pulled)} failed=${JSON.stringify(failed)}`;
-    (failed.length > 0 ? console.warn : console.log)(line);
-  }
-}
+// The secrets this function reads; loaded from Doppler before it runs.
+const DOPPLER_SECRETS = ["INTERNAL_API_KEY"];
 
 const SERVICE_URL = process.env.USER_EXTRACTION_URL
   ? `https://${process.env.USER_EXTRACTION_URL}`
@@ -72,4 +58,5 @@ const analyzeUsers = async () => {
   }
 };
 
+await loadDopplerSecrets(DOPPLER_SECRETS);
 analyzeUsers();
