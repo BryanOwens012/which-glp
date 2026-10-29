@@ -63,16 +63,19 @@ const buildLoader = (script: Record<string, Reply[]>, env: Record<string, string
   return { load, requests, delays, env }
 }
 
-/** Collects the report lines the loader logs, at either level. */
-const captureLog = (): string[] => {
+/** Collects the report lines the loader logs, and the level each was logged at. */
+const captureLog = () => {
   const lines: string[] = []
+  const levels: ('warn' | 'info')[] = []
   vi.spyOn(console, 'warn').mockImplementation((message: string) => {
     lines.push(message)
+    levels.push('warn')
   })
   vi.spyOn(console, 'info').mockImplementation((message: string) => {
     lines.push(message)
+    levels.push('info')
   })
-  return lines
+  return { lines, levels }
 }
 
 describe('cron Doppler loader', () => {
@@ -81,7 +84,7 @@ describe('cron Doppler loader', () => {
   })
 
   it('pulls, retries a 5xx, reports a 404, and logs the shared format without a value', async () => {
-    const lines = captureLog()
+    const { lines } = captureLog()
     const { load, requests, env } = buildLoader({
       INTERNAL_API_KEY: [{ status: 503, retryAfter: '0' }, { status: 200, computed: 'secret-value' }],
       SUPABASE_URL: [{ status: 404 }],
@@ -105,7 +108,7 @@ describe('cron Doppler loader', () => {
   })
 
   it.each(GOLDEN_CASES)('logs the golden line $line', async ({ pulled, failed, line }) => {
-    const lines = captureLog()
+    const { lines, levels } = captureLog()
     const script: Record<string, Reply[]> = {}
     for (const name of pulled) {
       script[name] = [{ status: 200, computed: 'v' }]
@@ -121,17 +124,20 @@ describe('cron Doppler loader', () => {
       // not_found is the fake fetch's default reply; an invalid_name is never requested.
     }
 
-    await buildLoader(script).load([...failed.map((f) => f.name), ...pulled])
+    // Reverse the input so only the loader's own sort produces the golden order.
+    await buildLoader(script).load([...failed.map((f) => f.name), ...pulled].reverse())
 
     expect(lines).toEqual([line])
+    expect(levels).toEqual([failed.length > 0 ? 'warn' : 'info'])
   })
 
   it.each([
     ['an empty object', '{}'],
     ['a null body', 'null'],
     ['a value with no computed field', '{"value":{}}'],
+    ['an empty string value', '{"value":{"computed":""}}'],
   ])('counts %s as empty without retrying', async (_label, body) => {
-    const lines = captureLog()
+    const { lines } = captureLog()
     const { load, requests } = buildLoader({ A: [{ status: 200, body }] })
 
     await load(['A'])
@@ -140,8 +146,26 @@ describe('cron Doppler loader', () => {
     expect(lines).toEqual(['[doppler] pulled 0 of 1 secrets, 1 failed; pulled=[] failed=["A (empty)"]'])
   })
 
+  it('retries a 500, the lowest server error', async () => {
+    captureLog()
+    const { load, requests } = buildLoader({ A: [{ status: 500, retryAfter: '0' }, { status: 200, computed: 'a' }] })
+
+    await load(['A'])
+
+    expect(requests).toHaveLength(2)
+  })
+
+  it('sends neither project nor config when they are unset', async () => {
+    captureLog()
+    const { load, requests } = buildLoader({ A: [{ status: 200, computed: 'a' }] }, { DOPPLER_TOKEN: 'dp.st.prd.t' })
+
+    await load(['A'])
+
+    expect([...requests[0].url.searchParams.keys()]).toEqual(['name'])
+  })
+
   it('does not retry a client error', async () => {
-    const lines = captureLog()
+    const { lines } = captureLog()
     const { load, requests } = buildLoader({ A: [{ status: 401 }, { status: 200, computed: 'a' }] })
 
     await load(['A'])
@@ -181,8 +205,25 @@ describe('cron Doppler loader', () => {
     expect(delays.filter((ms) => ms >= 250 && ms <= 1500)).toHaveLength(2)
   })
 
+  it('retries a fetch that throws, then reports a network error', async () => {
+    const { lines } = captureLog()
+    const fetchFn = vi.fn(async () => {
+      throw new TypeError('fetch failed')
+    })
+    const load = new Function('fetch', 'process', 'setTimeout', `${LOADER_SOURCE}\nreturn loadDopplerSecrets;`)(
+      fetchFn,
+      { env: baseEnv() },
+      (callback: () => void) => callback(),
+    ) as CronLoader
+
+    await load(['A'])
+
+    expect(fetchFn).toHaveBeenCalledTimes(3)
+    expect(lines).toEqual(['[doppler] pulled 0 of 1 secrets, 1 failed; pulled=[] failed=["A (error network)"]'])
+  })
+
   it('requests each name once, and never an invalid one', async () => {
-    const lines = captureLog()
+    const { lines } = captureLog()
     const { load, requests } = buildLoader({ A: [{ status: 200, computed: 'a' }] })
 
     await load(['A', 'A', 'bad name'])

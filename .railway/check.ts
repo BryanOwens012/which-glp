@@ -235,7 +235,7 @@ for (const resource of resources) {
   }
   // Every backend service loads its own enumerated secrets from Doppler at boot, in
   // its entry point (comments stripped), with a non-empty DOPPLER_SECRETS list that
-  // equals the shared secrets Railway gives it (minus the Doppler access variables).
+  // equals its shared references, secret or not (minus the Doppler access variables).
   const entry = entryPointOf(resource, codeRoot);
   const isPython = entry.endsWith(".py");
   const entryText = stripComments(readFileSync(entry, "utf8"), isPython);
@@ -257,7 +257,7 @@ for (const resource of resources) {
   if (listed === null || listed.length === 0) {
     fail(`${resource.address} has no non-empty DOPPLER_SECRETS list (${entry})`);
   } else if (listed.join(",") !== expected.join(",")) {
-    fail(`${resource.address} DOPPLER_SECRETS is [${listed.join(", ")}], expected [${expected.join(", ")}] (its shared secrets)`);
+    fail(`${resource.address} DOPPLER_SECRETS is [${listed.join(", ")}], expected [${expected.join(", ")}] (its shared references)`);
   }
 }
 
