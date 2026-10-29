@@ -4,8 +4,9 @@
  * Each backend service fetches only the secret names it enumerates, one request per
  * name, with the environment's single DOPPLER_TOKEN: a service token, bound to one
  * project and config, so none is sent. Any other kind of token is refused. Pulled
- * values are written into `process.env` for this process only, overriding any Railway-provided copy; nothing outside the enumerated list is
- * requested or accepted. The boot log gives how many were pulled and how many failed,
+ * values are written into `process.env` for this process only, overriding any
+ * Railway-provided copy; nothing outside the enumerated list is requested or
+ * accepted. The boot log gives how many were pulled and how many failed,
  * with both name lists and a reason per failure, never a value. Without
  * DOPPLER_TOKEN (local development) the load is skipped and `.env` applies as before.
  *
@@ -137,7 +138,7 @@ export const loadDopplerSecrets = async (
     }
     return null
   }
-  // Only a service token is bound to one config; any other would read a config of Doppler's choosing.
+  // We send no project or config, so only a service token, which is bound to one, can name what to read.
   if (!token.startsWith('dp.st.')) {
     console.warn('[doppler] DOPPLER_TOKEN is not a service token (dp.st.); skipping the Doppler load (running on existing environment values)')
     return null

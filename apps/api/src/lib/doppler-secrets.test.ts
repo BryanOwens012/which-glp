@@ -212,7 +212,9 @@ describe('loadDopplerSecrets hardening', () => {
 
     expect(report).toBeNull()
     expect(requests).toEqual([])
-    expect(warn).toHaveBeenCalledOnce()
+    expect(warn.mock.calls).toEqual([
+      ['[doppler] DOPPLER_TOKEN is not a service token (dp.st.); skipping the Doppler load (running on existing environment values)'],
+    ])
     expect(env).toEqual({ DOPPLER_TOKEN: 'dp.pt.personal' })
   })
 

@@ -27,7 +27,7 @@ async function loadDopplerSecrets(names: readonly string[]): Promise<void> {
     }
     return;
   }
-  // Only a service token is bound to one config; any other would read a config of Doppler's choosing.
+  // We send no project or config, so only a service token, which is bound to one, can name what to read.
   if (!token.startsWith("dp.st.")) {
     console.warn("[doppler] DOPPLER_TOKEN is not a service token (dp.st.); skipping the Doppler load (running on existing environment values)");
     return;

@@ -3,11 +3,11 @@ Load a service's secrets from Doppler at boot, and report what arrived.
 
 Each backend service fetches only the secret names it enumerates, one request per
 name, with the environment's single DOPPLER_TOKEN: a service token, bound to one
-project and config, so none is sent. Any other kind of token is refused. Pulled values
-are written into `os.environ` for this process only,
-overriding any Railway-provided copy; nothing outside the enumerated list is
-requested or accepted. The boot log gives how many were pulled and how many failed,
-with both name lists and a reason per failure, never a value. Without DOPPLER_TOKEN
+project and config, so none is sent. Any other kind of token is refused. Pulled
+values are written into `os.environ` for this process only, overriding any
+Railway-provided copy; nothing outside the enumerated list is requested or accepted.
+The boot log gives how many were pulled and how many failed, with both name lists
+and a reason per failure, never a value. Without DOPPLER_TOKEN
 (local development) the load is skipped and `.env` applies as before.
 
 Backend only: the frontend reads public `NEXT_PUBLIC_*` config from ordinary
@@ -181,7 +181,8 @@ def load_doppler_secrets(
     INFO when every secret arrived, WARNING when any failed.
 
     Returns None, after logging why, when DOPPLER_TOKEN is not set or is not a service
-    token, or this environment already holds a load (a re-import or an inheriting child process).
+    token, or when this environment already holds a load (a re-import or an
+    inheriting child process).
     """
     env = os.environ if env is None else env
     logger = ensure_report_logger() if logger is None else logger
@@ -198,7 +199,7 @@ def load_doppler_secrets(
             "running on existing environment values" if on_railway else "local .env applies",
         )
         return None
-    # Only a service token is bound to one config; any other would read a config of Doppler's choosing.
+    # We send no project or config, so only a service token, which is bound to one, can name what to read.
     if not token.startswith("dp.st."):
         logger.warning("[doppler] DOPPLER_TOKEN is not a service token (dp.st.); skipping the Doppler load (running on existing environment values)")
         return None
