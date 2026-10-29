@@ -64,6 +64,8 @@ class TestLoadDopplerSecrets:
         assert all(r["auth"] == "Bearer dp.st.prd.test-token" for r in requests)
         # The service token names its own project and config; stale ones in env are never sent.
         assert all(set(r["query"]) == {"name"} for r in requests)
+        assert not any("project" in r["query"] for r in requests)
+        assert not any("config" in r["query"] for r in requests)
 
     def test_retries_429_and_5xx_then_succeeds(self):
         fetch, requests = make_fetch({"A": [(429, None), (503, None), ok("a")]})

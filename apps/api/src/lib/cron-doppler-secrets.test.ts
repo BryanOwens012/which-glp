@@ -97,7 +97,9 @@ describe('cron Doppler loader', () => {
     expect(requests.filter((r) => r.name === 'INTERNAL_API_KEY')).toHaveLength(2)
     expect(requests.every((r) => r.auth === 'Bearer dp.st.prd.test-token' && r.redirect === 'error')).toBe(true)
     // The service token names its own project and config; stale ones in env are never sent.
-    expect([...requests[0].url.searchParams.keys()]).toEqual(['name'])
+    expect(requests.every((r) => [...r.url.searchParams.keys()].join() === 'name')).toBe(true)
+    expect(requests.some((r) => r.url.searchParams.has('project'))).toBe(false)
+    expect(requests.some((r) => r.url.searchParams.has('config'))).toBe(false)
     expect(lines).toEqual([
       '[doppler] pulled 1 of 2 secrets, 1 failed; pulled=["INTERNAL_API_KEY"] failed=["SUPABASE_URL (not_found)"]',
     ])
