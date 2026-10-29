@@ -51,9 +51,15 @@ describe.each(CRONS)('%s', (file) => {
     expect(calls).toEqual([])
   })
 
-  it('refuses a key containing whitespace', async () => {
+  it.each([
+    ['a trailing newline', 'key\n'],
+    ['a tab', 'ab\tc'],
+    ['a byte-order mark', '\ufeffabc'],
+    ['a control character', 'ab\x1cc'],
+    ['non-ASCII', 'abé'],
+  ])('refuses a key with %s, the same rule as the API and Python', async (_label, key) => {
     quiet()
-    const { exitCode, calls } = await runCron(file, { INTERNAL_API_KEY: 'key\n' }, 200)
+    const { exitCode, calls } = await runCron(file, { INTERNAL_API_KEY: key }, 200)
 
     expect(exitCode).toBe(1)
     expect(calls).toEqual([])

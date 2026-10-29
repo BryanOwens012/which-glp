@@ -110,12 +110,41 @@ const LOADER_CALL_RULES = {
   typescript: { pattern: /\bawait\s+loadDopplerSecrets\(DOPPLER_SECRETS\)/, rule: "await loadDopplerSecrets(DOPPLER_SECRETS)" },
 } as const;
 
+/** Any FastAPI route decorator, at the start of a line. */
+const PYTHON_ROUTE_DECORATOR = /^@(?:app|router)\.(?:get|post|put|patch|delete|head|options|api_route|route|websocket)\b/gm;
+
+/** Ways to register a route that the decorator scan below would not see. */
+const UNCHECKED_PYTHON_ROUTING = /\badd_api_route\(|\binclude_router\(|\bAPIRouter\(/;
+
 /**
- * A FastAPI route and its handler's parameter list: the decorator's path, then the
- * parameters up to the closing parenthesis that ends the signature.
+ * Each route in a Python entry file: its path (either quote style) and its handler's
+ * parameter list, read up to the parenthesis that closes the signature. The file is
+ * split at each decorator, so one route's handler can never borrow the next one's
+ * parameters. A field is null when it cannot be read, which the caller treats as a
+ * failure.
  */
-const PYTHON_ROUTE =
-  /^@app\.(?:get|post|put|patch|delete)\(\s*"([^"]+)"[^\n]*\n(?:@[^\n]*\n)*(?:async\s+)?def\s+\w+\(([\s\S]*?)\)\s*(?:->[^\n]*)?:\s*$/gm;
+const parsePythonRoutes = (text: string): { path: string | null; params: string | null }[] => {
+  const starts = [...text.matchAll(PYTHON_ROUTE_DECORATOR)].map((match) => match.index);
+  return starts.map((start, i) => {
+    const route = text.slice(start, starts[i + 1] ?? text.length);
+    const path = /^@\w+\.\w+\(\s*(["'])(.+?)\1/.exec(route)?.[2] ?? null;
+    const def = /^(?:async\s+)?def\s+\w+\(/m.exec(route);
+    if (!def) {
+      return { path, params: null };
+    }
+    const open = def.index + def[0].length;
+    let depth = 1;
+    let close = open;
+    for (; close < route.length && depth > 0; close++) {
+      if (route[close] === "(") {
+        depth++;
+      } else if (route[close] === ")") {
+        depth--;
+      }
+    }
+    return { path, params: depth === 0 ? route.slice(open, close - 1) : null };
+  });
+};
 
 /** Routes a Python service serves without INTERNAL_API_KEY: only the health check. */
 const PUBLIC_PYTHON_ROUTES: ReadonlySet<string> = new Set(["/health"]);
@@ -267,20 +296,31 @@ for (const resource of resources) {
   // closed: it builds the shared verifier at module level, after the Doppler load, so a
   // missing key stops the boot instead of leaving the endpoints open.
   if (isPython && call) {
-    const verifierIndex = entryText.split("\n").findIndex((line) => line === INTERNAL_API_KEY_VERIFIER_LINE);
-    const verifierOffset = verifierIndex === -1 ? -1 : entryText.split("\n").slice(0, verifierIndex).join("\n").length;
+    const verifierOffset = entryText.indexOf(`\n${INTERNAL_API_KEY_VERIFIER_LINE}\n`);
     if (verifierOffset === -1 || verifierOffset < call.index) {
       fail(`${resource.address} must have \`${INTERNAL_API_KEY_VERIFIER_LINE}\` at module level, after its Doppler load (${entry})`);
     }
     // ...and every route but the health check depends on it, so a new endpoint cannot ship open.
-    const routes = [...entryText.matchAll(PYTHON_ROUTE)];
+    const routes = parsePythonRoutes(entryText);
     if (routes.length === 0) {
       fail(`${resource.address} has no @app routes the INTERNAL_API_KEY rule could check (${entry})`);
     }
-    for (const [, path, params] of routes) {
-      if (!PUBLIC_PYTHON_ROUTES.has(path) && !/Depends\(\s*verify_internal_api_key\s*\)/.test(params)) {
+    if (UNCHECKED_PYTHON_ROUTING.test(entryText)) {
+      fail(`${resource.address} registers routes outside @app decorators, which this rule cannot check (${entry})`);
+    }
+    for (const { path, params } of routes) {
+      if (path === null || params === null) {
+        fail(`${resource.address} has a route whose path or handler signature cannot be read (${entry})`);
+      } else if (!PUBLIC_PYTHON_ROUTES.has(path) && !/Depends\(\s*verify_internal_api_key\s*\)/.test(params)) {
         fail(`${resource.address} route ${path} must take \`_: None = Depends(verify_internal_api_key)\` (${entry})`);
       }
+    }
+  }
+  // A function that sends INTERNAL_API_KEY calls its service only through the fail-closed
+  // prelude caller, never a bare fetch that could skip the key check.
+  if (resource.kind === "function" && entryText.includes("INTERNAL_API_KEY")) {
+    if (!/\bcallInternalService\(/.test(entryText) || /\bfetch\(/.test(entryText)) {
+      fail(`${resource.address} must call its service with callInternalService (functions/_internal-service.ts), not fetch (${entry})`);
     }
   }
   const listed = parseDopplerSecrets(entryText);

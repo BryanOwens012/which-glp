@@ -20,6 +20,12 @@ const extractPosts = async () => {
 
     const response = await callInternalService(`${SERVICE_URL}${ENDPOINT}?limit=1000`, {});
 
+    if (response.status === 409) {
+      console.log("⏭️  The service is already running this job; skipping until the next schedule.");
+      process.exit(0);
+      return;
+    }
+
     console.log(
       `📥 Response Status: ${response.status} ${response.statusText}`
     );

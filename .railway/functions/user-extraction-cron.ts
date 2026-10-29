@@ -25,6 +25,12 @@ const analyzeUsers = async () => {
       rate_limit_delay: 2.0,
     });
 
+    if (response.status === 409) {
+      console.log("⏭️  The service is already running this job; skipping until the next schedule.");
+      process.exit(0);
+      return;
+    }
+
     console.log(
       `📥 Response Status: ${response.status} ${response.statusText}`
     );
