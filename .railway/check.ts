@@ -134,7 +134,7 @@ for (const resource of resources) {
       }
     } else if (SHARED_VARIABLES.has(name)) {
       fail(
-        `${resource.address} declares ${name} as a ${value.type} value; it is a shared variable, so reference it as \${{shared.${name}}}`,
+        `${resource.address} declares ${name} as ${value.type}; it is a shared variable, so reference it as \${{shared.${name}}}`,
       );
     }
   }
