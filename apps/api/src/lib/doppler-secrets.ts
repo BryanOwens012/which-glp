@@ -32,6 +32,9 @@ const MAX_ATTEMPTS = 3
 
 const RETRY_BASE_DELAY_MS = 250
 
+/** A Retry-After header is honored up to this cap. */
+const MAX_RETRY_AFTER_MS = 5_000
+
 export type DopplerFailure = { name: string; reason: string }
 
 export type DopplerLoadReport = {
@@ -57,6 +60,15 @@ const defaultDeps: LoadDeps = {
 
 const isRetryable = (status: number): boolean => status === 429 || status >= 500
 
+/** Exponential backoff with jitter, or the server's Retry-After (seconds) up to a cap. */
+const getRetryDelayMs = (attempt: number, retryAfter: string | null): number => {
+  const seconds = retryAfter === null ? Number.NaN : Number(retryAfter)
+  if (Number.isFinite(seconds)) {
+    return Math.min(Math.max(seconds * 1000, 0), MAX_RETRY_AFTER_MS)
+  }
+  return RETRY_BASE_DELAY_MS * 4 ** (attempt - 1) * (1 + Math.random() * 0.5)
+}
+
 const buildSecretUrl = (name: string, env: LoadDeps['env']): string => {
   const params = new URLSearchParams({ name })
   if (env.DOPPLER_PROJECT) {
@@ -72,6 +84,7 @@ const buildSecretUrl = (name: string, env: LoadDeps['env']): string => {
 const fetchSecret = async (name: string, token: string, deps: LoadDeps): Promise<FetchOutcome> => {
   let lastReason = 'error network'
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    let retryAfter: string | null = null
     try {
       const response = await deps.fetchFn(buildSecretUrl(name, deps.env), {
         headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
@@ -92,11 +105,12 @@ const fetchSecret = async (name: string, token: string, deps: LoadDeps): Promise
       if (!isRetryable(response.status)) {
         return { name, reason: lastReason }
       }
+      retryAfter = response.headers.get('retry-after')
     } catch {
       lastReason = 'error network'
     }
     if (attempt < MAX_ATTEMPTS) {
-      await deps.sleep(RETRY_BASE_DELAY_MS * 4 ** (attempt - 1))
+      await deps.sleep(getRetryDelayMs(attempt, retryAfter))
     }
   }
   return { name, reason: lastReason }
@@ -121,7 +135,12 @@ export const loadDopplerSecrets = async (
   const resolved: LoadDeps = { ...defaultDeps, ...deps }
   const token = resolved.env.DOPPLER_TOKEN
   if (!token) {
-    console.info('[doppler] DOPPLER_TOKEN is not set; skipping the Doppler load (local .env applies)')
+    // On Railway every service is given DOPPLER_TOKEN, so its absence is a misconfiguration.
+    if (resolved.env.RAILWAY_ENVIRONMENT_NAME) {
+      console.warn('[doppler] DOPPLER_TOKEN is not set; skipping the Doppler load (running on existing environment values)')
+    } else {
+      console.info('[doppler] DOPPLER_TOKEN is not set; skipping the Doppler load (local .env applies)')
+    }
     return null
   }
 
@@ -144,7 +163,8 @@ export const loadDopplerSecrets = async (
       report.failed.push(outcome)
     }
   }
-  report.failed.sort((a, b) => a.name.localeCompare(b.name))
+  // Code-point order, matching the Python loader's sort.
+  report.failed.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
 
   const line = formatDopplerReport(report)
   if (report.failed.length > 0) {

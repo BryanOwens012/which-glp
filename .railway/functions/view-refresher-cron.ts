@@ -198,5 +198,10 @@ const refreshCacheAndMaterializedView = async () => {
   }
 };
 
-await loadDopplerSecrets(DOPPLER_SECRETS);
-refreshCacheAndMaterializedView();
+// No top-level await: the function runner may wrap this file, so the load runs inside main.
+const main = async () => {
+  await loadDopplerSecrets(DOPPLER_SECRETS);
+  await refreshCacheAndMaterializedView();
+};
+
+main();

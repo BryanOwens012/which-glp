@@ -13,7 +13,9 @@
  * Run from this directory: npm run check
  */
 import { execFileSync } from "node:child_process";
-import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { stripTypeScriptTypes } from "node:module";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createRailwayContext, project, type ResourceNode } from "railway/iac";
 import program, { buildFunctionSource, SHARED_VARIABLES } from "./railway.ts";
@@ -80,6 +82,45 @@ const codeRootOf = (resource: ResourceNode & { type: "service" }): string | unde
   return pattern ? join(REPO_ROOT, pattern.replace(/^\//, "").replace(/\/\*\*$/, "")) : undefined;
 };
 
+/** Drop line, block and `#` comments, so a commented-out call never counts. */
+const stripComments = (text: string): string =>
+  text.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1").replace(/^\s*#.*$/gm, "");
+
+/** The file whose top-level code starts the service: a function's own file, else index.ts or api.py. */
+const entryPointOf = (resource: ResourceNode & { type: "service" }, codeRoot: string): string => {
+  if (resource.kind === "function") {
+    return join(import.meta.dirname, "functions", `${resource.name.toLowerCase()}.ts`);
+  }
+  const pythonEntry = join(codeRoot, "api.py");
+  return existsSync(pythonEntry) ? pythonEntry : join(codeRoot, "src", "index.ts");
+};
+
+/** The sorted names in an entry point's DOPPLER_SECRETS list or tuple, or null when there is none. */
+const parseDopplerSecrets = (text: string): string[] | null => {
+  const match = /\bDOPPLER_SECRETS\s*=\s*[[(]([^\])]*)[\])]/.exec(text);
+  return match ? [...match[1].matchAll(/["']([^"']+)["']/g)].map((m) => m[1]).sort() : null;
+};
+
+/**
+ * Parse each function as it ships (loader + file), so a syntax error or a clashing
+ * top-level name (an early SyntaxError) fails here instead of on Railway. Types are
+ * stripped first because `node --check` parses JavaScript only.
+ */
+const checkFunctionParses = (file: string): string | null => {
+  const dir = mkdtempSync(join(tmpdir(), "railway-fn-"));
+  try {
+    const path = join(dir, "function.mjs");
+    writeFileSync(path, stripTypeScriptTypes(buildFunctionSource(file).toString("utf8")));
+    execFileSync(process.execPath, ["--check", path], { stdio: "pipe" });
+    return null;
+  } catch (error) {
+    const stderr = (error as { stderr?: Buffer }).stderr?.toString() ?? "";
+    return stderr.split("\n").find((line) => line.includes("Error")) ?? String(error);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+};
+
 const definition = await program(
   createRailwayContext({ command: "check", environment: "production", projectName: "WhichGLP" }),
   project,
@@ -119,6 +160,10 @@ for (const resource of resources) {
     }
     if (!resource.deploy?.cronSchedule) {
       fail(`${resource.address} has no cron schedule`);
+    }
+    const parseError = checkFunctionParses(file);
+    if (parseError) {
+      fail(`${resource.address} does not parse as shipped (loader + functions/${file}): ${parseError}`);
     }
   }
   for (const [name, value] of Object.entries(resource.variables ?? {})) {
@@ -161,14 +206,29 @@ for (const resource of resources) {
       fail(`${resource.address} declares ${name}, which its code (${codeRoot}) never reads; remove it`);
     }
   }
-  // Every backend service loads its own enumerated secrets from Doppler at boot. A
-  // function's own file must make the call: the prepended loader only defines it.
-  const callerText =
-    resource.kind === "function"
-      ? readFileSync(join(import.meta.dirname, "functions", `${resource.name.toLowerCase()}.ts`), "utf8")
-      : source.text;
-  if (!/\bload(DopplerSecrets|_doppler_secrets)\(DOPPLER_SECRETS\)/.test(callerText)) {
-    fail(`${resource.address} never calls the Doppler loader with its DOPPLER_SECRETS list (${codeRoot})`);
+  // Every backend service loads its own enumerated secrets from Doppler at boot, in
+  // its entry point (comments stripped), with a non-empty DOPPLER_SECRETS list that
+  // equals the shared secrets Railway gives it (minus the Doppler access variables).
+  const entry = entryPointOf(resource, codeRoot);
+  const entryText = stripComments(readFileSync(entry, "utf8"));
+  const call = /\bload(DopplerSecrets|_doppler_secrets)\(DOPPLER_SECRETS\)/.exec(entryText);
+  if (!call) {
+    fail(`${resource.address} never calls the Doppler loader with its DOPPLER_SECRETS list (${entry})`);
+  } else if (resource.kind !== "function" && entry.endsWith("index.ts")) {
+    const serverImport = entryText.indexOf("import('./server");
+    if (serverImport === -1 || serverImport < call.index) {
+      fail(`${resource.address} must load its Doppler secrets before importing ./server (${entry})`);
+    }
+  }
+  const listed = parseDopplerSecrets(entryText);
+  const expected = Object.entries(resource.variables ?? {})
+    .filter(([name, value]) => value.type === "sharedReference" && !name.startsWith("DOPPLER_"))
+    .map(([name]) => name)
+    .sort();
+  if (listed === null || listed.length === 0) {
+    fail(`${resource.address} has no non-empty DOPPLER_SECRETS list (${entry})`);
+  } else if (listed.join(",") !== expected.join(",")) {
+    fail(`${resource.address} DOPPLER_SECRETS is [${listed.join(", ")}], expected [${expected.join(", ")}] (its shared secrets)`);
   }
 }
 

@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { formatDopplerReport, loadDopplerSecrets } from './doppler-secrets.js'
 
@@ -146,10 +148,106 @@ describe('loadDopplerSecrets', () => {
   })
 })
 
+describe('loadDopplerSecrets hardening', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('honors Retry-After, capped', async () => {
+    vi.spyOn(console, 'info').mockImplementation(() => {})
+    const replies = [
+      new Response('{}', { status: 429, headers: { 'Retry-After': '2' } }),
+      new Response('{}', { status: 503, headers: { 'Retry-After': '120' } }),
+      new Response(JSON.stringify({ value: { computed: 'a' } }), { status: 200 }),
+    ]
+    const fetchFn = vi.fn(async () => replies.shift() as Response) as unknown as typeof fetch
+    const delays: number[] = []
+
+    const report = await loadDopplerSecrets(['A'], {
+      env: baseEnv(),
+      fetchFn,
+      sleep: async (ms) => {
+        delays.push(ms)
+      },
+    })
+
+    expect(report?.pulled).toEqual(['A'])
+    expect(delays).toEqual([2000, 5000])
+  })
+
+  it('warns when DOPPLER_TOKEN is missing on Railway', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const { fetchFn, requests } = makeFetch({})
+
+    await loadDopplerSecrets(['A'], { env: { RAILWAY_ENVIRONMENT_NAME: 'production' }, fetchFn, sleep: noSleep })
+
+    expect(requests).toHaveLength(0)
+    expect(String(warn.mock.calls[0][0])).toContain('DOPPLER_TOKEN is not set')
+  })
+})
+
+/** Shared with the Python suite, so both loaders are held to one log format. */
+const GOLDEN_CASES = JSON.parse(
+  readFileSync(
+    fileURLToPath(new URL('../../../../scripts/legacy-ingestion/tests/fixtures/doppler-log-format.json', import.meta.url)),
+    'utf8',
+  ),
+) as { pulled: string[]; failed: { name: string; reason: string }[]; line: string }[]
+
 describe('formatDopplerReport', () => {
-  it('matches the shared log format', () => {
-    expect(formatDopplerReport({ pulled: [], failed: [] })).toBe(
-      '[doppler] pulled 0 of 0 secrets, 0 failed; pulled=[] failed=[]',
-    )
+  it.each(GOLDEN_CASES)('matches the shared golden line: $line', ({ pulled, failed, line }) => {
+    expect(formatDopplerReport({ pulled, failed })).toBe(line)
+  })
+})
+
+describe('loadDopplerSecrets ordering', () => {
+  it('sorts failures in code-point order, like the Python loader', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const { fetchFn } = makeFetch({})
+
+    const report = await loadDopplerSecrets(['Z', 'A_B', 'AB'], { env: baseEnv(), fetchFn, sleep: noSleep })
+
+    expect(report?.failed.map((f) => f.name)).toEqual(['AB', 'A_B', 'Z'])
+    vi.restoreAllMocks()
+  })
+})
+
+describe('loadDopplerSecrets timing', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('backs off with jitter between attempts and not after the last', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const { fetchFn } = makeFetch({ A: [{ status: 503 }, { status: 503 }, { status: 503 }] })
+    const delays: number[] = []
+
+    await loadDopplerSecrets(['A'], {
+      env: baseEnv(),
+      fetchFn,
+      sleep: async (ms) => {
+        delays.push(ms)
+      },
+    })
+
+    expect(delays).toHaveLength(2)
+    expect(delays[0]).toBeGreaterThanOrEqual(250)
+    expect(delays[0]).toBeLessThanOrEqual(375)
+    expect(delays[1]).toBeGreaterThanOrEqual(1000)
+    expect(delays[1]).toBeLessThanOrEqual(1500)
+  })
+
+  it('bounds every request with a timeout signal', async () => {
+    vi.spyOn(console, 'info').mockImplementation(() => {})
+    const signals: (AbortSignal | null | undefined)[] = []
+    const fetchFn = vi.fn(async (_input: string | URL | Request, init?: RequestInit) => {
+      signals.push(init?.signal)
+      return new Response(JSON.stringify({ value: { computed: 'a' } }), { status: 200 })
+    }) as unknown as typeof fetch
+
+    await loadDopplerSecrets(['A'], { env: baseEnv(), fetchFn, sleep: noSleep })
+
+    expect(signals).toHaveLength(1)
+    expect(signals[0]).toBeInstanceOf(AbortSignal)
   })
 })

@@ -22,6 +22,7 @@ API reference: https://docs.doppler.com/reference/secrets-get
 import json
 import logging
 import os
+import random
 import re
 import sys
 import time
@@ -40,9 +41,12 @@ SECRET_NAME_PATTERN = re.compile(r"[A-Z][A-Z0-9_]*")
 REQUEST_TIMEOUT_SECONDS = 5
 MAX_ATTEMPTS = 3  # 429 and 5xx responses and network errors are retried
 RETRY_BASE_DELAY_SECONDS = 0.25
+MAX_RETRY_AFTER_SECONDS = 5  # a Retry-After header is honored up to this cap
 
-# Set after a load so a re-import in the same process, or a child process that
-# inherits this environment (uvicorn's reloader), does not fetch and report again.
+# Set after a load so a second import of the same module does not fetch and report
+# again. Python-only: rec-engine starts with `python3 api.py`, whose
+# `uvicorn.run("api:app")` imports the module a second time in the same process; the
+# TypeScript entry points never load twice.
 LOADED_MARKER = "DOPPLER_SECRETS_LOADED"
 
 
@@ -60,17 +64,38 @@ class DopplerLoadReport:
     failed: List[DopplerFailure] = field(default_factory=list)
 
 
-# (name, url, headers) -> (HTTP status, parsed JSON body or None); raises OSError on a network failure.
-Fetcher = Callable[[str, dict], "tuple[int, Optional[dict]]"]
+# (url, headers) -> (HTTP status, parsed JSON body or None[, Retry-After header]); any
+# exception counts as a network failure.
+Fetcher = Callable[[str, dict], tuple]
 
 
-def _fetch_json(url: str, headers: dict) -> "tuple[int, Optional[dict]]":
+class _RefuseRedirects(urllib.request.HTTPRedirectHandler):
+    """Never follow a redirect: urllib would resend the bearer token to the new host."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+_OPENER = urllib.request.build_opener(_RefuseRedirects)
+
+
+def _fetch_json(url: str, headers: dict) -> tuple:
     request = urllib.request.Request(url, headers=headers)
     try:
-        with urllib.request.urlopen(request, timeout=REQUEST_TIMEOUT_SECONDS) as response:
+        with _OPENER.open(request, timeout=REQUEST_TIMEOUT_SECONDS) as response:
             return response.status, json.loads(response.read())
     except urllib.error.HTTPError as error:
-        return error.code, None
+        return error.code, None, error.headers.get("Retry-After")
+
+
+def _retry_delay(attempt: int, retry_after: Optional[str]) -> float:
+    """Exponential backoff with jitter, or the server's Retry-After (seconds) up to a cap."""
+    if retry_after is not None:
+        try:
+            return min(max(float(retry_after), 0.0), MAX_RETRY_AFTER_SECONDS)
+        except ValueError:
+            pass
+    return RETRY_BASE_DELAY_SECONDS * 4 ** (attempt - 1) * random.uniform(1.0, 1.5)
 
 
 def _build_secret_url(name: str, env: MutableMapping[str, str]) -> str:
@@ -87,13 +112,17 @@ def _fetch_secret(name: str, token: str, env, fetch: Fetcher, sleep) -> "tuple[s
     headers = {"Authorization": f"Bearer {token}", "Accept": "application/json"}
     last_reason = "error network"
     for attempt in range(1, MAX_ATTEMPTS + 1):
+        retry_after = None
         try:
-            status, body = fetch(_build_secret_url(name, env), headers)
-        except (OSError, ValueError):
+            result = fetch(_build_secret_url(name, env), headers)
+            status, body = result[0], result[1]
+            retry_after = result[2] if len(result) > 2 else None
+        except Exception:  # any transport or parse failure: retry, then report, never crash the boot
             last_reason = "error network"
         else:
             if 200 <= status < 300:
-                value = ((body or {}).get("value") or {}).get("computed")
+                secret = body.get("value") if isinstance(body, dict) else None
+                value = secret.get("computed") if isinstance(secret, dict) else None
                 if not isinstance(value, str) or value == "":
                     return name, None, "empty"
                 return name, value, None
@@ -103,7 +132,7 @@ def _fetch_secret(name: str, token: str, env, fetch: Fetcher, sleep) -> "tuple[s
             if not (status == 429 or status >= 500):
                 return name, None, last_reason
         if attempt < MAX_ATTEMPTS:
-            sleep(RETRY_BASE_DELAY_SECONDS * 4 ** (attempt - 1))
+            sleep(_retry_delay(attempt, retry_after))
     return name, None, last_reason
 
 
@@ -113,19 +142,21 @@ def format_doppler_report(report: DopplerLoadReport) -> str:
     expected = len(report.pulled) + len(report.failed)
     return (
         f"[doppler] pulled {len(report.pulled)} of {expected} secrets, {len(report.failed)} failed; "
-        f"pulled={json.dumps(report.pulled, separators=(',', ':'))} "
-        f"failed={json.dumps(failed, separators=(',', ':'))}"
+        f"pulled={json.dumps(report.pulled, separators=(',', ':'), ensure_ascii=False)} "
+        f"failed={json.dumps(failed, separators=(',', ':'), ensure_ascii=False)}"
     )
 
 
-def get_report_logger() -> logging.Logger:
+def ensure_report_logger() -> logging.Logger:
     """
     The `doppler` logger, made able to print at INFO.
 
     The services' own loggers have no handler at module load (only uvicorn configures
     logging), so their INFO lines are dropped. Attach a stdout handler only when no
     handler exists anywhere up this logger's chain, so a configured root (rec-engine's
-    basicConfig, pytest's capture) is used as-is and nothing prints twice.
+    basicConfig, pytest's capture) is used as-is. When it attaches its own handler it
+    stops propagating, so a root configured later cannot print the line twice. Kept
+    free of `shared.config` because rec-engine imports this module without `shared`.
     """
     report_logger = logging.getLogger("doppler")
     report_logger.setLevel(logging.INFO)
@@ -133,6 +164,7 @@ def get_report_logger() -> logging.Logger:
         handler = logging.StreamHandler(sys.stdout)
         handler.setFormatter(logging.Formatter("%(levelname)s %(name)s: %(message)s"))
         report_logger.addHandler(handler)
+        report_logger.propagate = False
     return report_logger
 
 
@@ -151,13 +183,19 @@ def load_doppler_secrets(
     already holds a load (a re-import or an inheriting child process).
     """
     env = os.environ if env is None else env
-    logger = get_report_logger() if logger is None else logger
+    logger = ensure_report_logger() if logger is None else logger
     if env.get(LOADED_MARKER) == "1":
         logger.info("[doppler] secrets already loaded in this environment; skipping")
         return None
     token = env.get("DOPPLER_TOKEN")
     if not token:
-        logger.info("[doppler] DOPPLER_TOKEN is not set; skipping the Doppler load (local .env applies)")
+        # On Railway every service is given DOPPLER_TOKEN, so its absence is a misconfiguration.
+        on_railway = bool(env.get("RAILWAY_ENVIRONMENT_NAME"))
+        logger.log(
+            logging.WARNING if on_railway else logging.INFO,
+            "[doppler] DOPPLER_TOKEN is not set; skipping the Doppler load (%s)",
+            "running on existing environment values" if on_railway else "local .env applies",
+        )
         return None
 
     report = DopplerLoadReport()

@@ -18,7 +18,7 @@ import shared.supabase_key as supabase_key
 from shared.supabase_key import (
     SupabaseKeyError,
     install_log_redaction,
-    redact_supabase_secrets,
+    redact_secrets,
     require_supabase_secret_key,
 )
 
@@ -64,16 +64,20 @@ class TestRequireSupabaseSecretKey:
 
 class TestRedaction:
     def test_masks_every_secret_key(self):
-        assert redact_supabase_secrets("a sb_secret_x-1_2 b sb_secret_y") == (
+        assert redact_secrets("a sb_secret_x-1_2 b sb_secret_y") == (
             "a sb_secret_[REDACTED] b sb_secret_[REDACTED]"
         )
 
     def test_masks_every_key_validation_accepts(self):
         # Redaction must cover the whole of anything require_supabase_secret_key accepts.
-        assert redact_supabase_secrets("k=sb_secret_ab.c+d/e= end") == "k=sb_secret_[REDACTED] end"
+        assert redact_secrets("k=sb_secret_ab.c+d/e= end") == "k=sb_secret_[REDACTED] end"
+
+    def test_masks_doppler_tokens(self):
+        assert redact_secrets("Authorization: Bearer dp.st.prd.abc123XYZ end") == "Authorization: Bearer dp.[REDACTED] end"
+        assert redact_secrets("dp.ct.x dp.pt.y") == "dp.[REDACTED] dp.[REDACTED]"
 
     def test_leaves_publishable_keys_alone(self):
-        assert redact_supabase_secrets("sb_publishable_abc") == "sb_publishable_abc"
+        assert redact_secrets("sb_publishable_abc") == "sb_publishable_abc"
 
     def test_log_records_are_masked(self, caplog, fresh_redaction):
         logger = logging.getLogger("test_supabase_key.redaction")

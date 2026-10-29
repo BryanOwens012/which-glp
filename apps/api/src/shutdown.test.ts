@@ -72,6 +72,8 @@ const startServer = async (): Promise<RunningServer> => {
         // results, which these tests never read.
         SUPABASE_URL: 'https://example.supabase.co',
         SUPABASE_SECRET_KEY: 'sb_secret_test-key',
+        // Never reach the real Doppler, even from a shell that exports a token.
+        DOPPLER_TOKEN: '',
         // Point at a closed port so the run never depends on a live Redis and
         // never mutates a real one. The service degrades gracefully.
         REDIS_URL: 'redis://127.0.0.1:1',

@@ -13,8 +13,14 @@ const SECRET_KEY_PATTERN = /sb_secret_\S*/g
 
 const REDACTED = 'sb_secret_[REDACTED]'
 
-export const redactSupabaseSecrets = (text: string): string =>
-  text.replace(SECRET_KEY_PATTERN, REDACTED)
+/** Doppler tokens: service (st), CLI (ct), personal (pt), service account (sa), SCIM and audit. */
+const DOPPLER_TOKEN_PATTERN = /dp\.(?:st|ct|pt|sa|scim|audit)\.\S+/g
+
+const DOPPLER_REDACTED = 'dp.[REDACTED]'
+
+/** Mask every Supabase secret key and Doppler token in `text`. */
+export const redactSecrets = (text: string): string =>
+  text.replace(SECRET_KEY_PATTERN, REDACTED).replace(DOPPLER_TOKEN_PATTERN, DOPPLER_REDACTED)
 
 /**
  * Copy an error with secret keys masked in its message, stack, string-valued
@@ -51,7 +57,7 @@ const redactError = (error: Error, copies: Map<Error, Error>): Error => {
  */
 const redactArg = (arg: unknown, copies: Map<Error, Error> = new Map()): unknown => {
   if (typeof arg === 'string') {
-    return redactSupabaseSecrets(arg)
+    return redactSecrets(arg)
   }
 
   if (arg instanceof Error) {

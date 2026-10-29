@@ -26,6 +26,10 @@ _VALID_SECRET_KEY = re.compile(r"sb_secret_\S+")
 _SECRET_KEY_PATTERN = re.compile(r"sb_secret_\S*")
 REDACTED = "sb_secret_[REDACTED]"
 
+# Doppler tokens: service (st), CLI (ct), personal (pt), service account (sa), SCIM and audit.
+_DOPPLER_TOKEN_PATTERN = re.compile(r"dp\.(?:st|ct|pt|sa|scim|audit)\.\S+")
+DOPPLER_REDACTED = "dp.[REDACTED]"
+
 
 class SupabaseKeyError(ValueError):
     """Raised when SUPABASE_SECRET_KEY is missing or is not a secret key."""
@@ -58,9 +62,9 @@ def require_supabase_secret_key(raw: Optional[str]) -> str:
     return raw
 
 
-def redact_supabase_secrets(text: str) -> str:
-    """Mask every Supabase secret key in ``text``."""
-    return _SECRET_KEY_PATTERN.sub(REDACTED, text)
+def redact_secrets(text: str) -> str:
+    """Mask every Supabase secret key and Doppler token in ``text``."""
+    return _DOPPLER_TOKEN_PATTERN.sub(DOPPLER_REDACTED, _SECRET_KEY_PATTERN.sub(REDACTED, text))
 
 
 def _redact_record(record: logging.LogRecord) -> logging.LogRecord:
@@ -73,7 +77,7 @@ def _redact_record(record: logging.LogRecord) -> logging.LogRecord:
         message = None
 
     if message is not None:
-        redacted = redact_supabase_secrets(message)
+        redacted = redact_secrets(message)
         if redacted != message:
             record.msg = redacted
             record.args = None
@@ -82,10 +86,10 @@ def _redact_record(record: logging.LogRecord) -> logging.LogRecord:
     # exc_text with the masked traceback is what keeps the key out of it.
     if record.exc_info and not record.exc_text:
         exc_text = "".join(traceback.format_exception(*record.exc_info)).rstrip("\n")
-        record.exc_text = redact_supabase_secrets(exc_text)
+        record.exc_text = redact_secrets(exc_text)
 
     if record.stack_info:
-        record.stack_info = redact_supabase_secrets(record.stack_info)
+        record.stack_info = redact_secrets(record.stack_info)
 
     return record
 
