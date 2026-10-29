@@ -13,7 +13,7 @@
 
 - **Omit means delete.** Every resource and every variable name must be listed. Values stay on Railway via `preserve()`; never paste a value into this file.
 - **Declare only what a service reads.** `check` fails on a variable that the code the service runs never names: a Python service's `api.py` import closure (`python-import-closure.py`), the API's watch path, or a function's file. Drop a variable here in the same PR that removes its last reader.
-- **Shared names are always references.** `SHARED_VARIABLES` lists every production shared variable. A service variable with one of those names compiles to `${{shared.NAME}}`, and `check` fails on any other form or on a reference to an unlisted name. Keep the list equal to the environment's Settings > Shared Variables. `ctx.shared` does not create or delete the shared variable itself.
+- **Shared names are always references.** `SHARED_VARIABLES` mirrors the production environment's Settings > Shared Variables by hand. A service variable with a listed name compiles to `${{shared.NAME}}`; `check` fails on any other form, on a reference to an unlisted name, and on a reference whose name differs from the variable's. `check` cannot see a shared variable missing from the list, so add the name when you create one in Railway. `ctx.shared` does not create or delete the shared variable itself.
 - **Branch is explicit.** Production tracks `develop`; the SDK's `github()` helper defaults to `main`.
 - **Dashboard edits drift.** After changing anything in the Railway UI, run `railway config pull` on a scratch branch (it overwrites `railway.ts`), read the diff, fold the change back into the real file by hand, and discard the pull.
 - **One file per project.** Do not add a `partial` export or a second language file.

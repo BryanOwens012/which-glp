@@ -124,11 +124,18 @@ for (const resource of resources) {
     if (value.type === "literal" && SECRET_NAME.test(name)) {
       fail(`${resource.address} commits ${name} as a literal; use preserve()`);
     }
-    if (SHARED_VARIABLES.has(name) && !(value.type === "sharedReference" && value.name === name)) {
-      fail(`${resource.address} declares ${name} as ${value.type}; it is a shared variable, so reference it as \${{shared.${name}}}`);
-    }
-    if (value.type === "sharedReference" && !SHARED_VARIABLES.has(value.name)) {
-      fail(`${resource.address} references shared.${value.name}, which is not in SHARED_VARIABLES`);
+    if (value.type === "sharedReference") {
+      if (value.name !== name) {
+        fail(
+          `${resource.address} sets ${name} from shared.${value.name}; a shared reference must keep the variable's own name`,
+        );
+      } else if (!SHARED_VARIABLES.has(name)) {
+        fail(`${resource.address} references shared.${name}, which is not in SHARED_VARIABLES`);
+      }
+    } else if (SHARED_VARIABLES.has(name)) {
+      fail(
+        `${resource.address} declares ${name} as ${value.type}; it is a shared variable, so reference it as \${{shared.${name}}}`,
+      );
     }
   }
 
