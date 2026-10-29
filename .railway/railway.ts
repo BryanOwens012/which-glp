@@ -82,17 +82,18 @@ const supabaseApi = ["SUPABASE_SECRET_KEY", "SUPABASE_URL"] as const;
 const redditApi = ["REDDIT_API_APP_ID", "REDDIT_API_APP_NAME", "REDDIT_API_APP_SECRET"] as const;
 
 /**
- * Variables a service takes from the environment's shared variables, as a
- * `${{shared.NAME}}` reference. The shared variable itself is set in Railway and
- * is not managed by this file.
+ * Every shared variable defined on the production environment, by name. A service
+ * variable with one of these names must be a `${{shared.NAME}}` reference, never
+ * its own copy: `buildEnv` makes it one, and `npm run check` fails on any other
+ * form. Keep this list equal to Railway's shared variables (dashboard: environment
+ * Settings > Shared Variables); the shared variables themselves are set in Railway
+ * and are not managed by this file.
  */
-const sharedVariableReferences: ReadonlySet<string> = new Set(["SUPABASE_SECRET_KEY"]);
+export const SHARED_VARIABLES: ReadonlySet<string> = new Set(["SUPABASE_SECRET_KEY"]);
 
 /** A service's variables: shared ones as references, the rest preserved. */
 const buildEnv = (shared: SharedVariableRef, names: readonly string[]): Record<string, VariableValue> =>
-  Object.fromEntries(
-    names.map((name) => [name, sharedVariableReferences.has(name) ? shared[name] : preserve()]),
-  );
+  Object.fromEntries(names.map((name) => [name, SHARED_VARIABLES.has(name) ? shared[name] : preserve()]));
 
 /** A Railway Function's code ships base64-encoded in its start command. */
 const encodeFunction = (file: string): string => {
