@@ -47,7 +47,7 @@ const BRANCH = "develop";
 const US_EAST = "us-east4-eqdc4a";
 const US_WEST = "us-west2";
 
-const FUNCTION_IMAGE = "ghcr.io/railwayapp/function-bun:1.3.0";
+const FUNCTION_IMAGE = "ghcr.io/railwayapp/function-bun:1.4.4";
 /** Railway patches the function image daily between 02:00 and 06:00 UTC. */
 const FUNCTION_AUTO_UPDATES = {
   type: "patch",
