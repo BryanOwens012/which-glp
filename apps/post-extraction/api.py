@@ -15,6 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 # Import the extraction pipeline - reuses most code from data-ingestion
 from openai_client import get_client
 from shared.config import get_logger
+from shared.doppler_report import log_doppler_report
 from shared.openai_extractor import DEFAULT_MODEL
 
 logger = get_logger(__name__)
@@ -39,6 +40,7 @@ async def startup_event():
     logger.info(f"   Port: {os.getenv('PORT', '8004')}")
     logger.info(f"   Time: {datetime.now().isoformat()}")
     logger.info("=" * 80)
+    log_doppler_report(logger)
 
 
 @app.on_event("shutdown")

@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field
 from supabase import create_client, Client
 from dotenv import load_dotenv
 from recommender import DrugRecommender, UserProfile, DrugRecommendation
+from doppler_report import log_doppler_report
 from supabase_key import install_log_redaction, redact_supabase_secrets, require_supabase_secret_key
 
 # Load environment variables
@@ -24,6 +25,9 @@ load_dotenv()
 install_log_redaction()
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("rec-engine")
+
+# Before the checks below, so the report still prints when a missing secret stops the boot.
+log_doppler_report(logger)
 
 # Fail at boot, not at the first /recommend request, on missing Supabase config.
 SUPABASE_SECRET_KEY = require_supabase_secret_key(os.getenv("SUPABASE_SECRET_KEY"))

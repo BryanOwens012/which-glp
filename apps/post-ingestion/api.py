@@ -15,6 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from recent_ingest import ingest_recent_posts, ingest_multiple_subreddits, TIER1_SUBREDDITS, TIER2_SUBREDDITS, TIER3_SUBREDDITS
 from shared.config import get_logger
+from shared.doppler_report import log_doppler_report
 
 logger = get_logger(__name__)
 
@@ -32,6 +33,7 @@ async def startup_event():
     logger.info(f"   Tier 1 subreddits: {', '.join(TIER1_SUBREDDITS)}")
     logger.info(f"   Time: {datetime.now().isoformat()}")
     logger.info("=" * 80)
+    log_doppler_report(logger)
 
 @app.on_event("shutdown")
 async def shutdown_event():

@@ -1,6 +1,8 @@
 // Must stay the first import: masks Supabase secret keys before any other module runs.
 import './lib/install-redaction.js'
 import 'dotenv/config'
+// Before any import that reads a secret, so the report prints even when one is missing.
+import './lib/log-doppler-report.js'
 import { createServer, type IncomingMessage, type ServerResponse } from 'http'
 import { fetchRequestHandler } from '@trpc/server/adapters/fetch'
 import { resolveClientIp } from './lib/client-ip.js'

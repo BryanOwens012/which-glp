@@ -108,9 +108,26 @@ export const SHARED_VARIABLES: ReadonlySet<string> = new Set([
   "SUPABASE_URL",
 ]);
 
-/** A service's variables: shared ones as references, the rest preserved. */
-const buildEnv = (shared: SharedVariableRef, names: readonly string[]): Record<string, VariableValue> =>
-  Object.fromEntries(names.map((name) => [name, SHARED_VARIABLES.has(name) ? shared[name] : preserve()]));
+/**
+ * Names the service's Doppler-synced (shared) variables, so each service can log at
+ * boot which of them arrived. Set from the same references below, so the expected
+ * list cannot drift from what the service is given.
+ */
+const DOPPLER_VARIABLE_NAMES = "DOPPLER_VARIABLE_NAMES";
+
+type Env = Record<string, string | VariableValue>;
+
+/**
+ * A service's variables: shared ones as references, the rest preserved, plus
+ * DOPPLER_VARIABLE_NAMES listing the shared ones (sorted, comma-separated).
+ */
+const buildEnv = (shared: SharedVariableRef, names: readonly string[]): Env => {
+  const sharedNames = names.filter((name) => SHARED_VARIABLES.has(name)).sort();
+  return {
+    ...Object.fromEntries(names.map((name) => [name, SHARED_VARIABLES.has(name) ? shared[name] : preserve()])),
+    ...(sharedNames.length > 0 ? { [DOPPLER_VARIABLE_NAMES]: sharedNames.join(",") } : {}),
+  };
+};
 
 /** A Railway Function's code ships base64-encoded in its start command. */
 const encodeFunction = (file: string): string => {
@@ -142,7 +159,7 @@ type PythonServiceOptions = {
   privateEndpoint: string;
   /** Railway-generated public domain. */
   serviceDomain: string;
-  env: Record<string, VariableValue>;
+  env: Env;
 };
 
 /** The Python services build from the monorepo root (no root directory) with Railpack. */
@@ -168,7 +185,7 @@ type CronFunctionOptions = {
   /** Standard 5-field cron expression, evaluated in UTC. */
   schedule: string;
   privateEndpoint: string;
-  env: Record<string, VariableValue>;
+  env: Env;
 };
 
 const defineCronFunction = (

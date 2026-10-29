@@ -139,6 +139,22 @@ for (const resource of resources) {
     }
   }
 
+  // DOPPLER_VARIABLE_NAMES is what each service's boot report checks against, so it
+  // must name exactly the service's shared references, sorted.
+  const variables = resource.variables ?? {};
+  const sharedNames = Object.entries(variables)
+    .filter(([, value]) => value.type === "sharedReference")
+    .map(([name]) => name)
+    .sort()
+    .join(",");
+  const dopplerNames = variables.DOPPLER_VARIABLE_NAMES;
+  const declaredNames = dopplerNames?.type === "literal" ? dopplerNames.value : undefined;
+  if ((declaredNames ?? "") !== sharedNames) {
+    fail(
+      `${resource.address} DOPPLER_VARIABLE_NAMES is "${declaredNames ?? "(unset)"}", expected "${sharedNames}" (its shared references)`,
+    );
+  }
+
   const codeRoot = codeRootOf(resource);
   if (!codeRoot) {
     fail(`${resource.address} has no code location (watch pattern or function file) to check its variables against`);
