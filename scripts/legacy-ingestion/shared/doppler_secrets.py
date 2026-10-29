@@ -2,8 +2,8 @@
 Load a service's secrets from Doppler at boot, and report what arrived.
 
 Each backend service fetches only the secret names it enumerates, one request per
-name, with the environment's single DOPPLER_TOKEN (plus DOPPLER_PROJECT and
-DOPPLER_CONFIG). Pulled values are written into `os.environ` for this process only,
+name, with the environment's single DOPPLER_TOKEN, a service token that names its
+own project and config. Pulled values are written into `os.environ` for this process only,
 overriding any Railway-provided copy; nothing outside the enumerated list is
 requested or accepted. The boot log gives how many were pulled and how many failed,
 with both name lists and a reason per failure, never a value. Without DOPPLER_TOKEN
@@ -103,23 +103,18 @@ def _retry_delay(attempt: int, retry_after: Optional[str]) -> float:
     return RETRY_BASE_DELAY_SECONDS * 4 ** (attempt - 1) * random.uniform(1.0, 1.5)
 
 
-def _build_secret_url(name: str, env: MutableMapping[str, str]) -> str:
-    params = {"name": name}
-    if env.get("DOPPLER_PROJECT"):
-        params["project"] = env["DOPPLER_PROJECT"]
-    if env.get("DOPPLER_CONFIG"):
-        params["config"] = env["DOPPLER_CONFIG"]
-    return f"{DOPPLER_SECRET_URL}?{urllib.parse.urlencode(params)}"
+def _build_secret_url(name: str) -> str:
+    return f"{DOPPLER_SECRET_URL}?{urllib.parse.urlencode({'name': name})}"
 
 
-def _fetch_secret(name: str, token: str, env, fetch: Fetcher, sleep) -> "tuple[str, Optional[str], Optional[str]]":
+def _fetch_secret(name: str, token: str, fetch: Fetcher, sleep) -> "tuple[str, Optional[str], Optional[str]]":
     """Return (name, value, None) on success or (name, None, reason) on failure."""
     headers = {"Authorization": f"Bearer {token}", "Accept": "application/json"}
     last_reason = "error network"
     for attempt in range(1, MAX_ATTEMPTS + 1):
         retry_after = None
         try:
-            result = fetch(_build_secret_url(name, env), headers)
+            result = fetch(_build_secret_url(name), headers)
             status, body = result[0], result[1]
             retry_after = result[2] if len(result) > 2 else None
         except Exception:  # any transport or parse failure: retry, then report, never crash the boot
@@ -212,7 +207,7 @@ def load_doppler_secrets(
             report.failed.append(DopplerFailure(name, "invalid_name"))
 
     with ThreadPoolExecutor(max_workers=max(1, len(requested))) as pool:
-        outcomes = list(pool.map(lambda name: _fetch_secret(name, token, env, fetch, sleep), requested))
+        outcomes = list(pool.map(lambda name: _fetch_secret(name, token, fetch, sleep), requested))
 
     for name, value, reason in outcomes:
         if value is not None:

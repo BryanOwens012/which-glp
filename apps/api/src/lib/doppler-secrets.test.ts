@@ -59,8 +59,8 @@ describe('loadDopplerSecrets', () => {
     expect(env.MISSING_ONE).toBeUndefined()
     expect(requests.map((r) => r.name).sort()).toEqual(['INTERNAL_API_KEY', 'MISSING_ONE', 'SUPABASE_URL'])
     expect(requests.every((r) => r.auth === 'Bearer dp.st.prd.test-token')).toBe(true)
-    expect(requests[0].url.searchParams.get('project')).toBe('whichglp')
-    expect(requests[0].url.searchParams.get('config')).toBe('prd')
+    // The service token names its own project and config; stale ones in env are never sent.
+    expect([...requests[0].url.searchParams.keys()]).toEqual(['name'])
   })
 
   it('requests only the enumerated names, never another secret', async () => {

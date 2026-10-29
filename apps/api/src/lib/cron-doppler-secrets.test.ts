@@ -96,8 +96,8 @@ describe('cron Doppler loader', () => {
     expect(env.SUPABASE_URL).toBeUndefined()
     expect(requests.filter((r) => r.name === 'INTERNAL_API_KEY')).toHaveLength(2)
     expect(requests.every((r) => r.auth === 'Bearer dp.st.prd.test-token' && r.redirect === 'error')).toBe(true)
-    expect(requests[0].url.searchParams.get('project')).toBe('whichglp')
-    expect(requests[0].url.searchParams.get('config')).toBe('prd')
+    // The service token names its own project and config; stale ones in env are never sent.
+    expect([...requests[0].url.searchParams.keys()]).toEqual(['name'])
     expect(lines).toEqual([
       '[doppler] pulled 1 of 2 secrets, 1 failed; pulled=["INTERNAL_API_KEY"] failed=["SUPABASE_URL (not_found)"]',
     ])
@@ -153,15 +153,6 @@ describe('cron Doppler loader', () => {
     await load(['A'])
 
     expect(requests).toHaveLength(2)
-  })
-
-  it('sends neither project nor config when they are unset', async () => {
-    captureLog()
-    const { load, requests } = buildLoader({ A: [{ status: 200, computed: 'a' }] }, { DOPPLER_TOKEN: 'dp.st.prd.t' })
-
-    await load(['A'])
-
-    expect([...requests[0].url.searchParams.keys()]).toEqual(['name'])
   })
 
   it('does not retry a client error', async () => {

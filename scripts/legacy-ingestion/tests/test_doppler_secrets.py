@@ -62,8 +62,8 @@ class TestLoadDopplerSecrets:
         assert "MISSING_ONE" not in env
         assert sorted(r["name"] for r in requests) == ["INTERNAL_API_KEY", "MISSING_ONE", "SUPABASE_URL"]
         assert all(r["auth"] == "Bearer dp.st.prd.test-token" for r in requests)
-        assert requests[0]["query"]["project"] == ["whichglp"]
-        assert requests[0]["query"]["config"] == ["prd"]
+        # The service token names its own project and config; stale ones in env are never sent.
+        assert all(set(r["query"]) == {"name"} for r in requests)
 
     def test_retries_429_and_5xx_then_succeeds(self):
         fetch, requests = make_fetch({"A": [(429, None), (503, None), ok("a")]})

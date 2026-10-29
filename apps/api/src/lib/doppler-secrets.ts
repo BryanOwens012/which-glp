@@ -2,8 +2,8 @@
  * Load this service's secrets from Doppler at boot, and report what arrived.
  *
  * Each backend service fetches only the secret names it enumerates, one request per
- * name, with the environment's single DOPPLER_TOKEN (plus DOPPLER_PROJECT and
- * DOPPLER_CONFIG). Pulled values are written into `process.env` for this process
+ * name, with the environment's single DOPPLER_TOKEN, a service token that names its
+ * own project and config. Pulled values are written into `process.env` for this process
  * only, overriding any Railway-provided copy; nothing outside the enumerated list is
  * requested or accepted. The boot log gives how many were pulled and how many failed,
  * with both name lists and a reason per failure, never a value. Without
@@ -70,16 +70,7 @@ const getRetryDelayMs = (attempt: number, retryAfter: string | null): number => 
   return RETRY_BASE_DELAY_MS * 4 ** (attempt - 1) * (1 + Math.random() * 0.5)
 }
 
-const buildSecretUrl = (name: string, env: LoadDeps['env']): string => {
-  const params = new URLSearchParams({ name })
-  if (env.DOPPLER_PROJECT) {
-    params.set('project', env.DOPPLER_PROJECT)
-  }
-  if (env.DOPPLER_CONFIG) {
-    params.set('config', env.DOPPLER_CONFIG)
-  }
-  return `${DOPPLER_SECRET_URL}?${params.toString()}`
-}
+const buildSecretUrl = (name: string): string => `${DOPPLER_SECRET_URL}?${new URLSearchParams({ name }).toString()}`
 
 /** Fetch one secret: its computed value, or why it could not be pulled. */
 const fetchSecret = async (name: string, token: string, deps: LoadDeps): Promise<FetchOutcome> => {
@@ -87,7 +78,7 @@ const fetchSecret = async (name: string, token: string, deps: LoadDeps): Promise
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     let retryAfter: string | null = null
     try {
-      const response = await deps.fetchFn(buildSecretUrl(name, deps.env), {
+      const response = await deps.fetchFn(buildSecretUrl(name), {
         headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
         // Never follow a redirect, so the token is only ever sent to Doppler.

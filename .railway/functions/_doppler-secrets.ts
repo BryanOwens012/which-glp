@@ -5,8 +5,8 @@
 // `apps/api/src/lib/doppler-secrets.ts` and
 // `scripts/legacy-ingestion/shared/doppler_secrets.py`; keep the three in sync.
 //
-// Fetches only the enumerated names, one request each, with DOPPLER_TOKEN (and
-// DOPPLER_PROJECT / DOPPLER_CONFIG); writes pulled values into process.env for this
+// Fetches only the enumerated names, one request each, with DOPPLER_TOKEN (a service
+// token, which names its own project and config); writes pulled values into process.env for this
 // run only; logs pulled and failed names with reasons, never a value.
 
 const DOPPLER_SECRET_URL = "https://api.doppler.com/v3/configs/config/secret";
@@ -39,12 +39,6 @@ async function loadDopplerSecrets(names: readonly string[]): Promise<void> {
 
   const fetchSecret = async (name: string): Promise<{ name: string; value?: string; reason?: string }> => {
     const params = new URLSearchParams({ name });
-    if (process.env.DOPPLER_PROJECT) {
-      params.set("project", process.env.DOPPLER_PROJECT);
-    }
-    if (process.env.DOPPLER_CONFIG) {
-      params.set("config", process.env.DOPPLER_CONFIG);
-    }
     let lastReason = "error network";
     for (let attempt = 1; attempt <= DOPPLER_MAX_ATTEMPTS; attempt++) {
       let retryAfter: string | null = null;
