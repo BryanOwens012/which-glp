@@ -21,6 +21,7 @@ API reference: https://docs.doppler.com/reference/secrets-get
 
 import json
 import logging
+import math
 import os
 import random
 import re
@@ -85,16 +86,20 @@ def _fetch_json(url: str, headers: dict) -> tuple:
         with _OPENER.open(request, timeout=REQUEST_TIMEOUT_SECONDS) as response:
             return response.status, json.loads(response.read())
     except urllib.error.HTTPError as error:
-        return error.code, None, error.headers.get("Retry-After")
+        retry_after = error.headers.get("Retry-After")
+        error.close()
+        return error.code, None, retry_after
 
 
 def _retry_delay(attempt: int, retry_after: Optional[str]) -> float:
     """Exponential backoff with jitter, or the server's Retry-After (seconds) up to a cap."""
     if retry_after is not None:
         try:
-            return min(max(float(retry_after), 0.0), MAX_RETRY_AFTER_SECONDS)
+            seconds = float(retry_after)
         except ValueError:
-            pass
+            seconds = math.nan
+        if math.isfinite(seconds):  # "nan"/"inf" would reach time.sleep and crash the boot
+            return min(max(seconds, 0.0), MAX_RETRY_AFTER_SECONDS)
     return RETRY_BASE_DELAY_SECONDS * 4 ** (attempt - 1) * random.uniform(1.0, 1.5)
 
 

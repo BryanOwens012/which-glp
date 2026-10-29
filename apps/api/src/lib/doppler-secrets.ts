@@ -62,7 +62,8 @@ const isRetryable = (status: number): boolean => status === 429 || status >= 500
 
 /** Exponential backoff with jitter, or the server's Retry-After (seconds) up to a cap. */
 const getRetryDelayMs = (attempt: number, retryAfter: string | null): number => {
-  const seconds = retryAfter === null ? Number.NaN : Number(retryAfter)
+  // An empty header would read as 0 seconds; treat it like a missing one.
+  const seconds = retryAfter === null || retryAfter.trim() === '' ? Number.NaN : Number(retryAfter)
   if (Number.isFinite(seconds)) {
     return Math.min(Math.max(seconds * 1000, 0), MAX_RETRY_AFTER_MS)
   }
@@ -89,10 +90,12 @@ const fetchSecret = async (name: string, token: string, deps: LoadDeps): Promise
       const response = await deps.fetchFn(buildSecretUrl(name, deps.env), {
         headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        // Never follow a redirect, so the token is only ever sent to Doppler.
+        redirect: 'error',
       })
       if (response.ok) {
-        const body = (await response.json()) as { value?: { computed?: unknown } }
-        const value = body.value?.computed
+        const body = (await response.json()) as { value?: { computed?: unknown } } | null
+        const value = body?.value?.computed
         if (typeof value !== 'string' || value === '') {
           return { name, reason: 'empty' }
         }
@@ -163,7 +166,7 @@ export const loadDopplerSecrets = async (
       report.failed.push(outcome)
     }
   }
-  // Code-point order, matching the Python loader's sort.
+  // Plain string order: the same as the Python loader's sort for the ASCII names it requests.
   report.failed.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
 
   const line = formatDopplerReport(report)

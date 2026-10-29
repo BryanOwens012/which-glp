@@ -1,5 +1,6 @@
 """
-Supabase secret-key validation and log redaction for the Python services.
+Supabase secret-key validation, and log redaction of secrets (Supabase secret keys
+and Doppler tokens), for the Python services.
 
 Every Python service authenticates to Supabase with a secret key
 (``sb_secret_...``), which maps to the ``service_role`` Postgres role. A
@@ -68,7 +69,7 @@ def redact_secrets(text: str) -> str:
 
 
 def _redact_record(record: logging.LogRecord) -> logging.LogRecord:
-    """Mask secret keys in a record's message, traceback, and stack text."""
+    """Mask secrets (Supabase keys, Doppler tokens) in a record's message, traceback, and stack text."""
     try:
         message = record.getMessage()
     except Exception:
@@ -99,7 +100,7 @@ _is_installed = False
 
 def install_log_redaction() -> None:
     """
-    Mask Supabase secret keys in every log record this process creates.
+    Mask secrets (Supabase secret keys, Doppler tokens) in every log record this process creates.
 
     Installed as a log-record factory rather than a handler filter, so it covers
     records from every logger (httpx, uvicorn, third-party clients), whichever

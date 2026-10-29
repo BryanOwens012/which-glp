@@ -175,6 +175,31 @@ describe('loadDopplerSecrets hardening', () => {
     expect(delays).toEqual([2000, 5000])
   })
 
+  it('treats an empty Retry-After as missing, and never follows a redirect', async () => {
+    vi.spyOn(console, 'info').mockImplementation(() => {})
+    const inits: (RequestInit | undefined)[] = []
+    const replies = [
+      new Response('{}', { status: 429, headers: { 'Retry-After': '' } }),
+      new Response(JSON.stringify({ value: { computed: 'a' } }), { status: 200 }),
+    ]
+    const fetchFn = vi.fn(async (_input: string | URL | Request, init?: RequestInit) => {
+      inits.push(init)
+      return replies.shift() as Response
+    }) as unknown as typeof fetch
+    const delays: number[] = []
+
+    await loadDopplerSecrets(['A'], {
+      env: baseEnv(),
+      fetchFn,
+      sleep: async (ms) => {
+        delays.push(ms)
+      },
+    })
+
+    expect(delays[0]).toBeGreaterThanOrEqual(250)
+    expect(inits.every((init) => init?.redirect === 'error')).toBe(true)
+  })
+
   it('warns when DOPPLER_TOKEN is missing on Railway', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const { fetchFn, requests } = makeFetch({})
@@ -249,5 +274,34 @@ describe('loadDopplerSecrets timing', () => {
 
     expect(signals).toHaveLength(1)
     expect(signals[0]).toBeInstanceOf(AbortSignal)
+  })
+})
+
+describe('loadDopplerSecrets response bodies', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  const loadWithBody = async (body: string) => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const fetchFn = vi.fn(async () => new Response(body, { status: 200 })) as unknown as typeof fetch
+    const report = await loadDopplerSecrets(['A'], { env: baseEnv(), fetchFn, sleep: noSleep })
+    return { report, calls: (fetchFn as unknown as { mock: { calls: unknown[] } }).mock.calls.length }
+  }
+
+  it.each([
+    ['an empty object', '{}'],
+    ['a null body', 'null'],
+    ['a value with no computed field', '{"value":{}}'],
+  ])('counts %s as empty without retrying', async (_label, body) => {
+    const { report, calls } = await loadWithBody(body)
+    expect(report?.failed).toEqual([{ name: 'A', reason: 'empty' }])
+    expect(calls).toBe(1)
+  })
+
+  it('retries a body that is not JSON and reports it as a network error', async () => {
+    const { report, calls } = await loadWithBody('<html>gateway</html>')
+    expect(report?.failed).toEqual([{ name: 'A', reason: 'error network' }])
+    expect(calls).toBe(3)
   })
 })

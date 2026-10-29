@@ -170,6 +170,15 @@ class TestLoaderHardening:
         assert report.pulled == ["A"]
         assert delays == [2.0, 5]
 
+    def test_non_finite_retry_after_falls_back_to_backoff(self):
+        delays = []
+        fetch, _ = make_fetch({"A": [(429, None, "nan"), (503, None, "inf"), ok("a")]})
+
+        report = load_doppler_secrets(["A"], LOGGER, base_env(), fetch, delays.append)
+
+        assert report.pulled == ["A"]
+        assert 0.25 <= delays[0] <= 0.375 and 1.0 <= delays[1] <= 1.5
+
     def test_missing_token_on_railway_warns(self, caplog):
         fetch, requests = make_fetch({})
         with caplog.at_level(logging.INFO, logger=LOGGER.name):

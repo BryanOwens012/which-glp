@@ -1,5 +1,6 @@
 /**
- * Log redaction for Supabase secret keys (`sb_secret_...`).
+ * Log redaction for secrets: Supabase secret keys (`sb_secret_...`) and Doppler
+ * tokens (`dp.st.…` and the other `dp.*` formats).
  *
  * The Python services apply the same rule in
  * `scripts/legacy-ingestion/shared/supabase_key.py`; keep the two in sync.
@@ -23,7 +24,7 @@ export const redactSecrets = (text: string): string =>
   text.replace(SECRET_KEY_PATTERN, REDACTED).replace(DOPPLER_TOKEN_PATTERN, DOPPLER_REDACTED)
 
 /**
- * Copy an error with secret keys masked in its message, stack, string-valued
+ * Copy an error with secrets masked in its message, stack, string-valued
  * own fields (e.g. a PostgrestError's `details`), and `cause`. The copy keeps
  * the original's prototype, so its class and `instanceof` still hold. `copies`
  * maps each original to its copy, so a self-referencing `cause` chain points at
@@ -81,7 +82,7 @@ const installedTargets = new WeakSet<ConsoleLike>()
 
 /**
  * Route each `console` method through the redactor, so no log line from this
- * process (ours or a library's) carries a Supabase secret key. Objects are
+ * process (ours or a library's) carries a Supabase secret key or Doppler token. Objects are
  * passed through untouched: redacting them would mean serializing them here.
  * Idempotent per target.
  */

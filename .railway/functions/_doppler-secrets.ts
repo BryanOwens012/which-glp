@@ -29,7 +29,8 @@ async function loadDopplerSecrets(names: readonly string[]): Promise<void> {
   }
 
   const getRetryDelayMs = (attempt: number, retryAfter: string | null): number => {
-    const seconds = retryAfter === null ? Number.NaN : Number(retryAfter);
+    // An empty header would read as 0 seconds; treat it like a missing one.
+    const seconds = retryAfter === null || retryAfter.trim() === '' ? Number.NaN : Number(retryAfter);
     if (Number.isFinite(seconds)) {
       return Math.min(Math.max(seconds * 1000, 0), DOPPLER_MAX_RETRY_AFTER_MS);
     }
@@ -51,10 +52,11 @@ async function loadDopplerSecrets(names: readonly string[]): Promise<void> {
         const response = await fetch(`${DOPPLER_SECRET_URL}?${params.toString()}`, {
           headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
           signal: AbortSignal.timeout(DOPPLER_REQUEST_TIMEOUT_MS),
+          redirect: "error", // never follow a redirect, so the token is only ever sent to Doppler
         });
         if (response.ok) {
-          const body = (await response.json()) as { value?: { computed?: unknown } };
-          const value = body.value?.computed;
+          const body = (await response.json()) as { value?: { computed?: unknown } } | null;
+          const value = body?.value?.computed;
           return typeof value === "string" && value !== "" ? { name, value } : { name, reason: "empty" };
         }
         if (response.status === 404) {
@@ -93,7 +95,7 @@ async function loadDopplerSecrets(names: readonly string[]): Promise<void> {
       failed.push({ name: outcome.name, reason: outcome.reason ?? "error network" });
     }
   }
-  failed.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0)); // code-point order, as in Python
+  failed.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0)); // plain string order, as in Python for ASCII names
 
   const line = `[doppler] pulled ${pulled.length} of ${pulled.length + failed.length} secrets, ${failed.length} failed; pulled=${JSON.stringify(pulled)} failed=${JSON.stringify(failed.map(({ name, reason }) => `${name} (${reason})`))}`;
   if (failed.length > 0) {
