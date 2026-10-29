@@ -11,13 +11,14 @@ from pathlib import Path
 from typing import List, Optional
 
 import pandas as pd
-from fastapi import FastAPI, HTTPException, Depends, Header
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from supabase import create_client, Client
 from dotenv import load_dotenv
 from recommender import DrugRecommender, UserProfile, DrugRecommendation
 from doppler_secrets import load_doppler_secrets
+from internal_api_key import make_internal_api_key_verifier, require_internal_api_key
 from supabase_key import install_log_redaction, redact_secrets, require_supabase_secret_key
 
 # Load environment variables
@@ -34,6 +35,8 @@ DOPPLER_SECRETS = (
     "SUPABASE_URL",
 )
 load_doppler_secrets(DOPPLER_SECRETS)
+# Fails closed: no usable INTERNAL_API_KEY, no service; a wrong or missing header, a 403.
+verify_internal_api_key = make_internal_api_key_verifier(require_internal_api_key())
 
 # Fail at boot, not at the first /recommend request, on missing Supabase config.
 SUPABASE_SECRET_KEY = require_supabase_secret_key(os.getenv("SUPABASE_SECRET_KEY"))
@@ -100,13 +103,6 @@ class RecommendationsResponse(BaseModel):
     processingTime: Optional[float] = None
 
 
-async def verify_internal_api_key(x_internal_api_key: Optional[str] = Header(None)) -> None:
-    expected = os.getenv("INTERNAL_API_KEY")
-    if not expected:
-        logger.warning("[Auth] INTERNAL_API_KEY not configured - skipping validation")
-        return
-    if not x_internal_api_key or x_internal_api_key != expected:
-        raise HTTPException(status_code=403, detail="Forbidden")
 
 
 # Initialize Supabase (cached)

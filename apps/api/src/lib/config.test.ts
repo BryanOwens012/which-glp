@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseSupabaseSecretKey } from './config.js'
+import { parseInternalApiKey, parseSupabaseSecretKey } from './config.js'
 
 describe('parseSupabaseSecretKey', () => {
   it.each(['sb_secret_abc123', 'sb_secret_ab.c+d/e='])('accepts a Supabase secret key (%s)', (raw) => {
@@ -20,5 +20,21 @@ describe('parseSupabaseSecretKey', () => {
     ['a value with an inner tab', 'sb_secret_abc\t123'],
   ])('rejects %s', (_label, raw) => {
     expect(() => parseSupabaseSecretKey(raw)).toThrow('Invalid SUPABASE_SECRET_KEY')
+  })
+})
+
+describe('parseInternalApiKey', () => {
+  it('accepts a key with no whitespace', () => {
+    expect(parseInternalApiKey('k3y-Value_123')).toBe('k3y-Value_123')
+  })
+
+  it.each([
+    ['missing', undefined, 'Missing INTERNAL_API_KEY'],
+    ['empty', '', 'Missing INTERNAL_API_KEY'],
+    ['a trailing newline', 'abc\n', 'contains whitespace'],
+    ['a carriage return', 'abc\r', 'contains whitespace'],
+    ['an inner space', 'ab c', 'contains whitespace'],
+  ])('refuses a key that is %s', (_label, raw, message) => {
+    expect(() => parseInternalApiKey(raw)).toThrow(message)
   })
 })

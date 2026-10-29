@@ -105,6 +105,10 @@ const stripComments = (text: string, isPython: boolean): string =>
  * cannot require top level. Python calls it at module level, not inside a function
  * that may never run.
  */
+/** A Python service's fail-closed INTERNAL_API_KEY verifier, built at module level. */
+const INTERNAL_API_KEY_VERIFIER =
+  /^verify_internal_api_key = make_internal_api_key_verifier\(require_internal_api_key\(\)\)$/m;
+
 const LOADER_CALL_RULES = {
   python: { pattern: /^load_doppler_secrets\(DOPPLER_SECRETS\)/m, rule: "call load_doppler_secrets(DOPPLER_SECRETS) at module level" },
   typescript: { pattern: /\bawait\s+loadDopplerSecrets\(DOPPLER_SECRETS\)/, rule: "await loadDopplerSecrets(DOPPLER_SECRETS)" },
@@ -247,6 +251,15 @@ for (const resource of resources) {
     const serverImport = entryText.indexOf("import('./server");
     if (serverImport === -1 || serverImport < call.index) {
       fail(`${resource.address} must load its Doppler secrets before importing ./server (${entry})`);
+    }
+  }
+  // Every Python service guards its internal endpoints with INTERNAL_API_KEY and fails
+  // closed: it builds the shared verifier at module level, after the Doppler load, so a
+  // missing key stops the boot instead of leaving the endpoints open.
+  if (isPython && call) {
+    const verifier = INTERNAL_API_KEY_VERIFIER.exec(entryText);
+    if (!verifier || verifier.index < call.index) {
+      fail(`${resource.address} must build verify_internal_api_key with make_internal_api_key_verifier(require_internal_api_key()) at module level, after its Doppler load (${entry})`);
     }
   }
   const listed = parseDopplerSecrets(entryText);
