@@ -4,18 +4,64 @@
  * Evaluates the program the way the Railway CLI does (Node with type stripping)
  * and asserts the invariants a `railway config plan` cannot check for us:
  * unique resources, every runnable service has a start command, GitHub sources
- * pin the production branch, function bodies round-trip to ./functions, and no
- * secret-looking variable is committed as a literal value.
+ * pin the production branch, function bodies round-trip to ./functions, no
+ * secret-looking variable is committed as a literal value, and every variable a
+ * service declares is mentioned somewhere in that service's own code.
  *
  * Run from this directory: npm run check
  */
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { createRailwayContext, project, type ResourceNode } from "railway/iac";
 import program from "./railway.ts";
 
 const EXPECTED_BRANCH = "develop";
 const SECRET_NAME = /KEY|SECRET|PASSWORD|TOKEN/;
+const REPO_ROOT = join(import.meta.dirname, "..");
+
+/** Read by a runtime rather than by our code, so no source file names them. */
+const RUNTIME_VARIABLES: ReadonlySet<string> = new Set(["PYTHONUNBUFFERED"]);
+
+const SKIPPED_DIRS: ReadonlySet<string> = new Set(["node_modules", "__pycache__", ".next", "dist", "tests"]);
+const isSkippedFile = (name: string): boolean =>
+  name.endsWith(".md") || name.startsWith(".env") || name.endsWith(".test.ts") || name.startsWith("test_");
+
+/**
+ * Concatenated source of every file under `root`, following symlinks (the Python
+ * services reach shared code through them). Returns the file count too, so an
+ * empty scan fails instead of passing.
+ */
+const readSourceTree = (root: string): { text: string; files: number } => {
+  const visited = new Set<string>();
+  const chunks: string[] = [];
+  const walk = (path: string): void => {
+    const real = realpathSync(path);
+    if (visited.has(real)) {
+      return;
+    }
+    visited.add(real);
+    if (statSync(real).isDirectory()) {
+      for (const entry of readdirSync(real)) {
+        if (!SKIPPED_DIRS.has(entry)) {
+          walk(join(path, entry));
+        }
+      }
+    } else if (!isSkippedFile(path.split("/").pop() ?? "")) {
+      chunks.push(readFileSync(real, "utf8"));
+    }
+  };
+  walk(root);
+  return { text: chunks.join("\n"), files: chunks.length };
+};
+
+/** The code a service runs: its function file, or the directory its deploys watch. */
+const codeRootOf = (resource: ResourceNode & { type: "service" }): string | undefined => {
+  if (resource.kind === "function") {
+    return join(import.meta.dirname, "functions", `${resource.name.toLowerCase()}.ts`);
+  }
+  const pattern = resource.build?.watchPatterns?.[0];
+  return pattern ? join(REPO_ROOT, pattern.replace(/^\//, "").replace(/\/\*\*$/, "")) : undefined;
+};
 
 const definition = await program(
   createRailwayContext({ command: "check", environment: "production", projectName: "WhichGLP" }),
@@ -61,6 +107,22 @@ for (const resource of resources) {
   for (const [name, value] of Object.entries(resource.variables ?? {})) {
     if (value.type === "literal" && SECRET_NAME.test(name)) {
       fail(`${resource.address} commits ${name} as a literal; use preserve()`);
+    }
+  }
+
+  const codeRoot = codeRootOf(resource);
+  if (!codeRoot) {
+    fail(`${resource.address} has no code location (watch pattern or function file) to check its variables against`);
+    continue;
+  }
+  const source = readSourceTree(codeRoot);
+  if (source.files === 0) {
+    fail(`${resource.address} code location ${codeRoot} holds no files`);
+    continue;
+  }
+  for (const name of Object.keys(resource.variables ?? {})) {
+    if (!RUNTIME_VARIABLES.has(name) && !new RegExp(`\\b${name}\\b`).test(source.text)) {
+      fail(`${resource.address} declares ${name}, which its code (${codeRoot}) never reads; remove it`);
     }
   }
 }
