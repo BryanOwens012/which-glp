@@ -73,53 +73,26 @@ const buildLimits = (cpu: number, memoryGb: number) => ({
  */
 const DRAINING_SECONDS = 15;
 
-/**
- * Variables every service carries. Values are managed on Railway and preserved as-is.
- * SUPABASE_SERVICE_KEY is the legacy service_role JWT that SUPABASE_SECRET_KEY replaces;
- * nothing reads it once the secret-key code deploys, so drop it then.
+/*
+ * Each service declares only the variables its own code reads; `npm run check`
+ * fails on a declared variable that the service's code never mentions. Values are
+ * managed on Railway and preserved as-is.
  */
-const sharedSecrets = [
-  "ANTHROPIC_API_KEY",
-  "INTERNAL_API_KEY",
-  "POSTHOG_API_KEY",
-  "POSTHOG_HOST",
-  "REDDIT_API_APP_ID",
-  "REDDIT_API_APP_NAME",
-  "REDDIT_API_APP_SECRET",
-  "REDIS_URL",
-  "SUPABASE_DB_PASSWORD",
-  "SUPABASE_SERVICE_KEY",
-  "SUPABASE_URL",
-] as const;
+const supabaseApi = ["SUPABASE_SECRET_KEY", "SUPABASE_URL"] as const;
+const redditApi = ["REDDIT_API_APP_ID", "REDDIT_API_APP_NAME", "REDDIT_API_APP_SECRET"] as const;
 
 /**
- * Extra variables on the LLM ingestion/extraction services and their cron triggers.
- * OPENROUTER_API_KEY is what extraction reads. OPENAI_API_KEY stays declared so a revert
- * to the OpenAI client keeps working; drop it once OpenRouter extraction is settled.
+ * Variables a service takes from the environment's shared variables, as a
+ * `${{shared.NAME}}` reference. The shared variable itself is set in Railway and
+ * is not managed by this file.
  */
-const extractionSecrets = [
-  "GLM_API_KEY",
-  "GLM_API_URL",
-  "GLM_MODEL",
-  "OPENAI_API_KEY",
-  "OPENROUTER_API_KEY",
-] as const;
+const sharedVariableReferences: ReadonlySet<string> = new Set(["SUPABASE_SECRET_KEY"]);
 
-/**
- * Variables every service takes from the environment's shared variables. Each
- * service gets a `${{shared.NAME}}` reference; the shared variable itself is set
- * in Railway and is not managed by this file.
- */
-const sharedVariableReferences = ["SUPABASE_SECRET_KEY"] as const;
-
-const preserveAll = (names: readonly string[]): Record<string, VariableValue> =>
-  Object.fromEntries(names.map((name) => [name, preserve()]));
-
-/** A service's variables: the named ones preserved, plus every shared reference. */
-const buildEnv = (shared: SharedVariableRef, names: readonly string[]): Record<string, VariableValue> => ({
-  ...preserveAll(names),
-  ...Object.fromEntries(sharedVariableReferences.map((name) => [name, shared[name]])),
-});
+/** A service's variables: shared ones as references, the rest preserved. */
+const buildEnv = (shared: SharedVariableRef, names: readonly string[]): Record<string, VariableValue> =>
+  Object.fromEntries(
+    names.map((name) => [name, sharedVariableReferences.has(name) ? shared[name] : preserve()]),
+  );
 
 /** A Railway Function's code ships base64-encoded in its start command. */
 const encodeFunction = (file: string): string => {
@@ -230,7 +203,7 @@ export default defineRailway((ctx) => {
     replicas: { [US_EAST]: 1, [US_WEST]: 1 },
     domains: [{ domain: "api.whichglp.com", port: 8080 }],
     networking: buildNetworking("which-glp", "backend-production-71c7.up.railway.app"),
-    env: env([...sharedSecrets, "REC_ENGINE_URL"]),
+    env: env(["INTERNAL_API_KEY", "POSTHOG_API_KEY", "POSTHOG_HOST", "REC_ENGINE_URL", "REDIS_URL", ...supabaseApi]),
   });
 
   const postIngestion = definePythonService("Post-Ingestion", {
@@ -240,7 +213,7 @@ export default defineRailway((ctx) => {
     cpu: 4,
     privateEndpoint: "post-ingestion",
     serviceDomain: "whichglp-post-ingestion.up.railway.app",
-    env: env([...sharedSecrets, ...extractionSecrets, "PYTHONUNBUFFERED"]),
+    env: env(["INTERNAL_API_KEY", "OPENROUTER_API_KEY", "PYTHONUNBUFFERED", ...redditApi, ...supabaseApi]),
   });
 
   const postExtraction = definePythonService("Post-Extraction", {
@@ -250,7 +223,7 @@ export default defineRailway((ctx) => {
     cpu: 8,
     privateEndpoint: "post-extraction",
     serviceDomain: "whichglp-post-extraction.up.railway.app",
-    env: env([...sharedSecrets, ...extractionSecrets]),
+    env: env(["INTERNAL_API_KEY", "OPENROUTER_API_KEY", ...supabaseApi]),
   });
 
   const userExtraction = definePythonService("User-Extraction", {
@@ -260,7 +233,7 @@ export default defineRailway((ctx) => {
     cpu: 8,
     privateEndpoint: "which-glp-4741320e",
     serviceDomain: "whichglp-user-extraction.up.railway.app",
-    env: env([...sharedSecrets, ...extractionSecrets]),
+    env: env(["INTERNAL_API_KEY", "OPENROUTER_API_KEY", ...redditApi, ...supabaseApi]),
   });
 
   // FastAPI recommendation engine. The 300-second healthcheck window carries over from its railway.json.
@@ -271,7 +244,7 @@ export default defineRailway((ctx) => {
     cpu: 8,
     privateEndpoint: "ml",
     serviceDomain: "whichglp-rec-engine.up.railway.app",
-    env: env(sharedSecrets),
+    env: env(["INTERNAL_API_KEY", ...supabaseApi]),
   });
 
   // Redis cache used by the API. The volume is declared alongside so Railway keeps
@@ -290,21 +263,21 @@ export default defineRailway((ctx) => {
     file: "post-ingestion-cron.ts",
     schedule: "0 0 * * *",
     privateEndpoint: "post-ingestion-cron",
-    env: env([...sharedSecrets, ...extractionSecrets, "POST_INGESTION_URL"]),
+    env: env(["INTERNAL_API_KEY", "POST_INGESTION_URL"]),
   });
 
   const postExtractionCron = defineCronFunction("Post-Extraction-Cron", {
     file: "post-extraction-cron.ts",
     schedule: "0 6 * * *",
     privateEndpoint: "post-extraction-cron",
-    env: env([...sharedSecrets, ...extractionSecrets, "POST_EXTRACTION_URL"]),
+    env: env(["INTERNAL_API_KEY", "POST_EXTRACTION_URL"]),
   });
 
   const userExtractionCron = defineCronFunction("User-Extraction-Cron", {
     file: "user-extraction-cron.ts",
     schedule: "0 17 * * *",
     privateEndpoint: "user-extraction-cron",
-    env: env([...sharedSecrets, ...extractionSecrets, "USER_EXTRACTION_URL"]),
+    env: env(["INTERNAL_API_KEY", "USER_EXTRACTION_URL"]),
   });
 
   // Refreshes the denormalized materialized view straight against Postgres.
@@ -312,7 +285,7 @@ export default defineRailway((ctx) => {
     file: "view-refresher-cron.ts",
     schedule: "0 18 * * *",
     privateEndpoint: "function-bun",
-    env: env([...sharedSecrets, ...extractionSecrets]),
+    env: env(["REDIS_URL", "SUPABASE_DB_PASSWORD", "SUPABASE_URL"]),
   });
 
   return project("WhichGLP", {

@@ -12,6 +12,8 @@
 ## Rules
 
 - **Omit means delete.** Every resource and every variable name must be listed. Values stay on Railway via `preserve()`; never paste a value into this file.
+- **Declare only what a service reads.** `check` fails on a variable that the service's own code (its watch path, symlinks followed, or its function file) never names. Drop a variable here in the same PR that removes its last reader.
+- **Shared variables are referenced.** A Railway shared variable reaches a service only as `${{shared.NAME}}`: add the name to `sharedVariableReferences`. `ctx.shared` does not create or delete the shared variable itself.
 - **Branch is explicit.** Production tracks `develop`; the SDK's `github()` helper defaults to `main`.
 - **Dashboard edits drift.** After changing anything in the Railway UI, run `railway config pull` on a scratch branch (it overwrites `railway.ts`), read the diff, fold the change back into the real file by hand, and discard the pull.
 - **One file per project.** Do not add a `partial` export or a second language file.
