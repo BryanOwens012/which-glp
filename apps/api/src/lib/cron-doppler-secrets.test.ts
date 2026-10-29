@@ -246,17 +246,29 @@ describe('cron Doppler loader', () => {
 
     expect(requests).toEqual([])
     expect(warn.mock.calls).toEqual([
-      ['[doppler] DOPPLER_TOKEN is not a service token (dp.st.); skipping the Doppler load (running on existing environment values)'],
+      ['[doppler] DOPPLER_TOKEN is not a service token (dp.st.); skipping the Doppler load (local .env applies)'],
     ])
   })
 
-  it('warns when the token is missing on Railway', async () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
-    const { load, requests } = buildLoader({}, { RAILWAY_ENVIRONMENT_NAME: 'production' })
+  it.each([
+    ['without a token', { RAILWAY_ENVIRONMENT_NAME: 'production' }, 'DOPPLER_TOKEN is not set'],
+    [
+      'with a non-service token',
+      { RAILWAY_ENVIRONMENT_NAME: 'production', DOPPLER_TOKEN: 'dp.pt.personal' },
+      'not a service token',
+    ],
+  ])('refuses to run on Railway %s', async (_label, env, message) => {
+    const { load, requests } = buildLoader({}, env)
 
-    await load(['A'])
-
+    await expect(load(['A'])).rejects.toThrow(message)
     expect(requests).toEqual([])
-    expect(warn).toHaveBeenCalledOnce()
+  })
+
+  it('logs the report, then refuses to run on Railway when any variable fails to load', async () => {
+    const { lines } = captureLog()
+    const { load } = buildLoader({ A: [{ status: 404 }] }, { ...baseEnv(), RAILWAY_ENVIRONMENT_NAME: 'production' })
+
+    await expect(load(['A'])).rejects.toThrow('1 variable(s) failed to load')
+    expect(lines).toEqual(['[doppler] pulled 0 of 1 secrets, 1 failed; pulled=[] failed=["A (not_found)"]'])
   })
 })

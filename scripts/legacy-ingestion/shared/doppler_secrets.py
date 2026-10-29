@@ -7,8 +7,12 @@ project and config, so none is sent. Any other kind of token is refused. Pulled
 values are written into `os.environ` for this process only, overriding any
 Railway-provided copy; nothing outside the enumerated list is requested or accepted.
 The boot log gives how many were pulled and how many failed, with both name lists
-and a reason per failure, never a value. Without DOPPLER_TOKEN
-(local development) the load is skipped and `.env` applies as before.
+and a reason per failure, never a value.
+
+On Railway the load fails closed: Railway holds no copy of Doppler's variables, so a
+missing or non-service token, or any name that fails to load, raises RuntimeError and
+the service does not start. Locally, without DOPPLER_TOKEN, the load is skipped and
+`.env` applies.
 
 Backend only: the frontend reads public `NEXT_PUBLIC_*` config from ordinary
 environment variables and never talks to Doppler.
@@ -180,9 +184,10 @@ def load_doppler_secrets(
     Fetch `names` from Doppler, write the pulled values into `env`, and log the report:
     INFO when every secret arrived, WARNING when any failed.
 
-    Returns None, after logging why, when DOPPLER_TOKEN is not set or is not a service
-    token, or when this environment already holds a load (a re-import or an
-    inheriting child process).
+    Returns None, after logging why, when this environment already holds a load (a
+    re-import or an inheriting child process), or, off Railway, when DOPPLER_TOKEN is
+    not set or is not a service token. On Railway those cases, and any failed name,
+    raise RuntimeError.
     """
     env = os.environ if env is None else env
     logger = ensure_report_logger() if logger is None else logger
@@ -190,18 +195,20 @@ def load_doppler_secrets(
         logger.info("[doppler] secrets already loaded in this environment; skipping")
         return None
     token = env.get("DOPPLER_TOKEN")
+    # Railway holds no copy of Doppler's variables, so there the load fails closed.
+    on_railway = bool(env.get("RAILWAY_ENVIRONMENT_NAME"))
     if not token:
-        # On Railway every service is given DOPPLER_TOKEN, so its absence is a misconfiguration.
-        on_railway = bool(env.get("RAILWAY_ENVIRONMENT_NAME"))
-        logger.log(
-            logging.WARNING if on_railway else logging.INFO,
-            "[doppler] DOPPLER_TOKEN is not set; skipping the Doppler load (%s)",
-            "running on existing environment values" if on_railway else "local .env applies",
-        )
+        if on_railway:
+            raise RuntimeError("[doppler] DOPPLER_TOKEN is not set; refusing to start without the Doppler variables")
+        logger.info("[doppler] DOPPLER_TOKEN is not set; skipping the Doppler load (local .env applies)")
         return None
     # We send no project or config, so only a service token, which is bound to one, can name what to read.
     if not token.startswith("dp.st."):
-        logger.warning("[doppler] DOPPLER_TOKEN is not a service token (dp.st.); skipping the Doppler load (running on existing environment values)")
+        if on_railway:
+            raise RuntimeError(
+                "[doppler] DOPPLER_TOKEN is not a service token (dp.st.); refusing to start without the Doppler variables"
+            )
+        logger.warning("[doppler] DOPPLER_TOKEN is not a service token (dp.st.); skipping the Doppler load (local .env applies)")
         return None
 
     report = DopplerLoadReport()
@@ -225,4 +232,6 @@ def load_doppler_secrets(
     env[LOADED_MARKER] = "1"
 
     logger.log(logging.WARNING if report.failed else logging.INFO, format_doppler_report(report))
+    if report.failed and on_railway:
+        raise RuntimeError(f"[doppler] {len(report.failed)} variable(s) failed to load; refusing to start without them")
     return report

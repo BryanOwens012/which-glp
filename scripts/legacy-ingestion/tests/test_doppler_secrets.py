@@ -193,13 +193,37 @@ class TestLoaderHardening:
         assert "not a service token" in caplog.text
         assert LOADED_MARKER not in env
 
-    def test_missing_token_on_railway_warns(self, caplog):
+    @pytest.mark.parametrize(
+        ("env", "message"),
+        [
+            ({"RAILWAY_ENVIRONMENT_NAME": "production"}, "DOPPLER_TOKEN is not set; refusing to start"),
+            (
+                {"RAILWAY_ENVIRONMENT_NAME": "production", "DOPPLER_TOKEN": "dp.pt.personal"},
+                "not a service token \\(dp.st.\\); refusing to start",
+            ),
+        ],
+        ids=["no-token", "non-service-token"],
+    )
+    def test_refuses_to_start_on_railway_without_a_usable_token(self, env, message):
         fetch, requests = make_fetch({})
-        with caplog.at_level(logging.INFO, logger=LOGGER.name):
-            load_doppler_secrets(["A"], LOGGER, {"RAILWAY_ENVIRONMENT_NAME": "production"}, fetch, skip_sleep)
-
+        with pytest.raises(RuntimeError, match=message):
+            load_doppler_secrets(["A"], LOGGER, env, fetch, skip_sleep)
         assert requests == []
-        assert [r.levelno for r in caplog.records] == [logging.WARNING]
+        assert LOADED_MARKER not in env
+
+    def test_logs_then_refuses_to_start_on_railway_when_any_variable_fails(self, caplog):
+        env = base_env(RAILWAY_ENVIRONMENT_NAME="production")
+        fetch, _ = make_fetch({"A": [ok("a")], "B": [(404, None)]})
+        with caplog.at_level(logging.INFO, logger=LOGGER.name):
+            with pytest.raises(RuntimeError, match="1 variable\\(s\\) failed to load; refusing to start"):
+                load_doppler_secrets(["A", "B"], LOGGER, env, fetch, skip_sleep)
+        assert '[doppler] pulled 1 of 2 secrets, 1 failed; pulled=["A"] failed=["B (not_found)"]' in caplog.text
+
+    def test_starts_on_railway_when_every_variable_loads(self):
+        env = base_env(RAILWAY_ENVIRONMENT_NAME="production")
+        fetch, _ = make_fetch({"A": [ok("a")]})
+        assert load_doppler_secrets(["A"], LOGGER, env, fetch, skip_sleep).pulled == ["A"]
+        assert env["A"] == "a"
 
     def test_redirects_are_refused(self):
         from shared.doppler_secrets import _RefuseRedirects

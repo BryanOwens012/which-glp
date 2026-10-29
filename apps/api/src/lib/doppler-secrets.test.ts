@@ -213,19 +213,59 @@ describe('loadDopplerSecrets hardening', () => {
     expect(report).toBeNull()
     expect(requests).toEqual([])
     expect(warn.mock.calls).toEqual([
-      ['[doppler] DOPPLER_TOKEN is not a service token (dp.st.); skipping the Doppler load (running on existing environment values)'],
+      ['[doppler] DOPPLER_TOKEN is not a service token (dp.st.); skipping the Doppler load (local .env applies)'],
     ])
     expect(env).toEqual({ DOPPLER_TOKEN: 'dp.pt.personal' })
   })
 
-  it('warns when DOPPLER_TOKEN is missing on Railway', async () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+})
+
+describe('loadDopplerSecrets on Railway fails closed', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  const railway = (extra: Record<string, string | undefined> = {}): Record<string, string | undefined> => ({
+    RAILWAY_ENVIRONMENT_NAME: 'production',
+    ...extra,
+  })
+
+  it('refuses to start without DOPPLER_TOKEN', async () => {
     const { fetchFn, requests } = makeFetch({})
 
-    await loadDopplerSecrets(['A'], { env: { RAILWAY_ENVIRONMENT_NAME: 'production' }, fetchFn, sleep: noSleep })
+    await expect(loadDopplerSecrets(['A'], { env: railway(), fetchFn, sleep: noSleep })).rejects.toThrow(
+      'DOPPLER_TOKEN is not set; refusing to start',
+    )
+    expect(requests).toEqual([])
+  })
 
-    expect(requests).toHaveLength(0)
-    expect(String(warn.mock.calls[0][0])).toContain('DOPPLER_TOKEN is not set')
+  it('refuses to start with a token that is not a service token', async () => {
+    const { fetchFn, requests } = makeFetch({})
+
+    await expect(
+      loadDopplerSecrets(['A'], { env: railway({ DOPPLER_TOKEN: 'dp.pt.personal' }), fetchFn, sleep: noSleep }),
+    ).rejects.toThrow('not a service token (dp.st.); refusing to start')
+    expect(requests).toEqual([])
+  })
+
+  it('logs the report, then refuses to start when any variable fails to load', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const { fetchFn } = makeFetch({ A: [{ status: 200, computed: 'a' }], B: [{ status: 404 }] })
+    const env = railway(baseEnv())
+
+    await expect(loadDopplerSecrets(['A', 'B'], { env, fetchFn, sleep: noSleep })).rejects.toThrow(
+      '1 variable(s) failed to load; refusing to start',
+    )
+    expect(warn.mock.calls).toEqual([['[doppler] pulled 1 of 2 secrets, 1 failed; pulled=["A"] failed=["B (not_found)"]']])
+  })
+
+  it('starts when every variable loads', async () => {
+    vi.spyOn(console, 'info').mockImplementation(() => {})
+    const { fetchFn } = makeFetch({ A: [{ status: 200, computed: 'a' }] })
+    const env = railway(baseEnv())
+
+    await expect(loadDopplerSecrets(['A'], { env, fetchFn, sleep: noSleep })).resolves.toEqual({ pulled: ['A'], failed: [] })
+    expect(env.A).toBe('a')
   })
 })
 
