@@ -5,7 +5,8 @@
  * and asserts the invariants a `railway config plan` cannot check for us:
  * unique resources, every runnable service has a start command, GitHub sources
  * pin the production branch, function bodies round-trip to ./functions, no
- * secret-looking variable is committed as a literal value, and every variable a
+ * secret-looking variable is committed as a literal value, a variable named like
+ * a shared variable is a `${{shared.NAME}}` reference to it, and every variable a
  * service declares is mentioned somewhere in the code that service runs.
  *
  * Run from this directory: npm run check
@@ -14,7 +15,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { createRailwayContext, project, type ResourceNode } from "railway/iac";
-import program from "./railway.ts";
+import program, { SHARED_VARIABLES } from "./railway.ts";
 
 const EXPECTED_BRANCH = "develop";
 const SECRET_NAME = /KEY|SECRET|PASSWORD|TOKEN/;
@@ -122,6 +123,12 @@ for (const resource of resources) {
   for (const [name, value] of Object.entries(resource.variables ?? {})) {
     if (value.type === "literal" && SECRET_NAME.test(name)) {
       fail(`${resource.address} commits ${name} as a literal; use preserve()`);
+    }
+    if (SHARED_VARIABLES.has(name) && !(value.type === "sharedReference" && value.name === name)) {
+      fail(`${resource.address} declares ${name} as ${value.type}; it is a shared variable, so reference it as \${{shared.${name}}}`);
+    }
+    if (value.type === "sharedReference" && !SHARED_VARIABLES.has(value.name)) {
+      fail(`${resource.address} references shared.${value.name}, which is not in SHARED_VARIABLES`);
     }
   }
 
