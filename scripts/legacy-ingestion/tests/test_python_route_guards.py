@@ -80,22 +80,30 @@ def test_guarded_routes_pass():
         (
             "a route inside a function",
             'def register():\n    @app.get("/api/inner")\n    async def inner():\n        return {}\n',
-            "outside a module-level decorator",
+            "outside a module-level route decorator",
         ),
         (
             "add_api_route",
             'app.add_api_route("/api/added", handler)\n',
-            "outside a module-level decorator",
+            "outside a module-level route decorator",
         ),
         (
             "include_router",
             "app.include_router(other)\n",
-            "outside a module-level decorator",
+            "outside a module-level route decorator",
         ),
-        ("an APIRouter", "router = APIRouter()\n", "creates an APIRouter"),
-        ("mount", 'app.mount("/api/sub", sub_app)\n', "outside a module-level decorator"),
-        ("add_route", 'app.add_route("/api/added", handler)\n', "outside a module-level decorator"),
-        ("a decorator called as a function", 'app.get("/api/leak")(handler)\n', "outside a module-level decorator"),
+        ("mount", 'app.mount("/api/sub", sub_app)\n', "outside a module-level route decorator"),
+        ("add_route", 'app.add_route("/api/added", handler)\n', "outside a module-level route decorator"),
+        ("a decorator called as a function", 'app.get("/api/leak")(handler)\n', "outside a module-level route decorator"),
+        ("the app's router", 'app.router.add_api_route("/api/x", handler)\n', "uses `app.router`"),
+        ("dependency_overrides", "app.dependency_overrides[verify_internal_api_key] = lambda: None\n", "uses `app.dependency_overrides`"),
+        ("an alias of app", 'alias = app\n\n@alias.post("/api/x")\nasync def x():\n    return {}\n', "uses `app` directly"),
+        ("getattr on app", 'getattr(app, "post")("/api/x")(handler)\n', "uses `app` directly"),
+        ("a second app, annotated", 'other: FastAPI = FastAPI()\n', "builds a FastAPI app other than"),
+        ("a second app via the module", 'import fastapi\nother = fastapi.FastAPI()\n', "builds a FastAPI app other than"),
+        ("a second app via an alias", 'from fastapi import FastAPI as F\nother = F()\n', "builds a FastAPI app other than"),
+        ("app rebound", 'app = make_app()\n', "rebinds `app`"),
+        ("a local verifier", 'def verify_internal_api_key():\n    return None\n', "must bind `verify_internal_api_key` exactly once"),
         (
             "a non-literal path",
             '@app.get(PATH)\nasync def computed(_: None = Depends(verify_internal_api_key)):\n    return {}\n',
@@ -104,7 +112,7 @@ def test_guarded_routes_pass():
         (
             "api_route",
             '@app.api_route("/api/any", methods=["GET"])\nasync def any_route(_: None = Depends(verify_internal_api_key)):\n    return {}\n',
-            "which this check cannot verify",
+            "uses `app.api_route`",
         ),
     ],
 )
@@ -113,12 +121,14 @@ def test_every_way_to_ship_an_open_route_is_a_problem(label, routes, expected):
     assert any(expected in problem for problem in found), (label, found)
 
 
-def test_a_second_app_is_checked_too():
+def test_a_second_app_is_a_problem():
     found = problems_for('api = FastAPI()\n\n@api.get("/api/other")\nasync def other():\n    return {}\n')
-    assert any("route GET /api/other must take" in problem for problem in found)
+    assert any("builds a FastAPI app other than" in problem for problem in found)
 
 
 def test_fails_closed_on_no_routes_no_app_or_bad_syntax():
-    assert route_guards.find_problems("app = FastAPI()\n") == ["has no routes to check"]
-    assert route_guards.find_problems("x = 1\n") == ["defines no FastAPI app"]
+    assert "has no routes to check" in route_guards.find_problems(
+        "app = FastAPI()\nverify_internal_api_key = make_internal_api_key_verifier(require_internal_api_key())\n"
+    )
+    assert any("must bind `app` exactly once" in problem for problem in route_guards.find_problems("x = 1\n"))
     assert route_guards.find_problems("def broken(:\n")[0].startswith("does not parse")
