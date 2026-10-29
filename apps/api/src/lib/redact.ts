@@ -1,6 +1,6 @@
 /**
  * Log redaction for secrets: Supabase secret keys (`sb_secret_...`) and Doppler
- * tokens (`dp.st.…` and the other `dp.*` formats).
+ * tokens (`dp.<type>.<rest>`; the types are listed in DOPPLER_TOKEN_PATTERN).
  *
  * The Python services apply the same rule in
  * `scripts/legacy-ingestion/shared/supabase_key.py`; keep the two in sync.

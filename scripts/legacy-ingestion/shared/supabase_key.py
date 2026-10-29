@@ -1,6 +1,6 @@
 """
-Supabase secret-key validation, and log redaction of secrets (Supabase secret keys
-and Doppler tokens), for the Python services.
+Supabase secret-key validation and log redaction (Supabase secret keys and Doppler
+tokens) for the Python services.
 
 Every Python service authenticates to Supabase with a secret key
 (``sb_secret_...``), which maps to the ``service_role`` Postgres role. A

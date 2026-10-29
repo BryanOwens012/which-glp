@@ -73,31 +73,47 @@ const readPythonClosure = (entry: string): { text: string; files: number } => {
   return { text: files.map((file) => readFileSync(file, "utf8")).join("\n"), files: files.length };
 };
 
+/** A function's own source file, named after the service. */
+const functionFileOf = (resource: ResourceNode & { type: "service" }): string => `${resource.name.toLowerCase()}.ts`;
+
+/** The absolute path of a function's own source file. */
+const functionPathOf = (resource: ResourceNode & { type: "service" }): string =>
+  join(import.meta.dirname, "functions", functionFileOf(resource));
+
 /** The code a service runs: its function file, or the directory its deploys watch. */
 const codeRootOf = (resource: ResourceNode & { type: "service" }): string | undefined => {
   if (resource.kind === "function") {
-    return join(import.meta.dirname, "functions", functionFileOf(resource));
+    return functionPathOf(resource);
   }
   const pattern = resource.build?.watchPatterns?.[0];
   return pattern ? join(REPO_ROOT, pattern.replace(/^\//, "").replace(/\/\*\*$/, "")) : undefined;
 };
 
 /**
- * Best effort: drop block and line comments (and, in Python, `#` lines) so a
- * commented-out call never counts. A `//` after `:` (a URL in a string) survives.
+ * Best effort: drop comments so a commented-out call never counts. Python loses its
+ * `#` lines (docstrings stay); TS loses block and line comments, keeping a `//` after
+ * `:` (a URL in a string).
  */
-const stripComments = (text: string, isPython: boolean): string => {
-  const withoutJs = text.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
-  return isPython ? withoutJs.replace(/^\s*#.*$/gm, "") : withoutJs;
-};
+const stripComments = (text: string, isPython: boolean): string =>
+  isPython
+    ? text.replace(/^\s*#.*$/gm, "")
+    : text.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
 
-/** A function's own source file, named after the service. */
-const functionFileOf = (resource: ResourceNode & { type: "service" }): string => `${resource.name.toLowerCase()}.ts`;
+/**
+ * How each language's entry point must call its Doppler loader. TS awaits it (or the
+ * server and secret reads race it); a cron awaits it inside `main`, so the TS rule
+ * cannot require top level. Python calls it at module level, not inside a function
+ * that may never run.
+ */
+const LOADER_CALL_RULES = {
+  python: { pattern: /^load_doppler_secrets\(DOPPLER_SECRETS\)/m, rule: "call load_doppler_secrets(DOPPLER_SECRETS) at module level" },
+  typescript: { pattern: /\bawait\s+loadDopplerSecrets\(DOPPLER_SECRETS\)/, rule: "await loadDopplerSecrets(DOPPLER_SECRETS)" },
+} as const;
 
 /** The file whose top-level code starts the service: a function's own file, else index.ts or api.py. */
 const entryPointOf = (resource: ResourceNode & { type: "service" }, codeRoot: string): string => {
   if (resource.kind === "function") {
-    return join(import.meta.dirname, "functions", functionFileOf(resource));
+    return functionPathOf(resource);
   }
   const pythonEntry = join(codeRoot, "api.py");
   return existsSync(pythonEntry) ? pythonEntry : join(codeRoot, "src", "index.ts");
@@ -221,14 +237,12 @@ for (const resource of resources) {
   // its entry point (comments stripped), with a non-empty DOPPLER_SECRETS list that
   // equals the shared secrets Railway gives it (minus the Doppler access variables).
   const entry = entryPointOf(resource, codeRoot);
-  const entryText = stripComments(readFileSync(entry, "utf8"), entry.endsWith(".py"));
-  // TS must await the load (or the server and secret reads race it); Python must call
-  // it at module level, not inside a function that may never run.
-  const call = entry.endsWith(".py")
-    ? /^load_doppler_secrets\(DOPPLER_SECRETS\)/m.exec(entryText)
-    : /\bawait\s+loadDopplerSecrets\(DOPPLER_SECRETS\)/.exec(entryText);
+  const isPython = entry.endsWith(".py");
+  const entryText = stripComments(readFileSync(entry, "utf8"), isPython);
+  const { pattern, rule } = LOADER_CALL_RULES[isPython ? "python" : "typescript"];
+  const call = pattern.exec(entryText);
   if (!call) {
-    fail(`${resource.address} never awaits (TS) or calls at module level (Python) its Doppler loader with DOPPLER_SECRETS (${entry})`);
+    fail(`${resource.address} must ${rule} (${entry})`);
   } else if (resource.kind !== "function" && entry.endsWith("index.ts")) {
     const serverImport = entryText.indexOf("import('./server");
     if (serverImport === -1 || serverImport < call.index) {

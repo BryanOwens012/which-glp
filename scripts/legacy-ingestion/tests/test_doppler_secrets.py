@@ -209,8 +209,9 @@ class TestFormatDopplerReport:
 
 class TestOrdering:
     def test_sorts_failures_in_code_point_order_like_the_ts_loader(self):
-        report = load_doppler_secrets(["Z", "A_B", "AB"], LOGGER, base_env(), make_fetch({})[0], skip_sleep)
-        assert [f.name for f in report.failed] == ["AB", "A_B", "Z"]
+        # The invalid name is recorded before any fetch, so only the sort puts it last.
+        report = load_doppler_secrets(["Z", "a!", "A_B", "AB"], LOGGER, base_env(), make_fetch({})[0], skip_sleep)
+        assert [f.name for f in report.failed] == ["AB", "A_B", "Z", "a!"]
 
 
 class TestTiming:

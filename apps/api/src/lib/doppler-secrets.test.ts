@@ -230,9 +230,10 @@ describe('loadDopplerSecrets ordering', () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {})
     const { fetchFn } = makeFetch({})
 
-    const report = await loadDopplerSecrets(['Z', 'A_B', 'AB'], { env: baseEnv(), fetchFn, sleep: noSleep })
+    // The invalid name is recorded before any fetch, so only the sort puts it last.
+    const report = await loadDopplerSecrets(['Z', 'a!', 'A_B', 'AB'], { env: baseEnv(), fetchFn, sleep: noSleep })
 
-    expect(report?.failed.map((f) => f.name)).toEqual(['AB', 'A_B', 'Z'])
+    expect(report?.failed.map((f) => f.name)).toEqual(['AB', 'A_B', 'Z', 'a!'])
     vi.restoreAllMocks()
   })
 })
