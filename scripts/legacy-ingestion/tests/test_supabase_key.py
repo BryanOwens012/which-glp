@@ -14,6 +14,7 @@ import types
 
 import pytest
 
+import shared.supabase_key as supabase_key
 from shared.supabase_key import (
     SupabaseKeyError,
     install_log_redaction,
@@ -31,12 +32,24 @@ INVALID_KEYS = [
     pytest.param("sb_secret_abc 123", id="inner-space"),
     pytest.param('"sb_secret_abc123"', id="quoted"),
     pytest.param("sb_secret_", id="bare-prefix"),
+    pytest.param("sb_secret_abc\t123", id="inner-tab"),
 ]
 
 
+@pytest.fixture
+def fresh_redaction(monkeypatch):
+    """Install the redaction factory for one test, then restore logging's own."""
+    original = logging.getLogRecordFactory()
+    monkeypatch.setattr(supabase_key, "_is_installed", False)
+    install_log_redaction()
+    yield
+    logging.setLogRecordFactory(original)
+
+
 class TestRequireSupabaseSecretKey:
-    def test_accepts_secret_key(self):
-        assert require_supabase_secret_key(VALID_KEY) == VALID_KEY
+    @pytest.mark.parametrize("raw", [VALID_KEY, "sb_secret_ab.c+d/e="])
+    def test_accepts_secret_key(self, raw):
+        assert require_supabase_secret_key(raw) == raw
 
     @pytest.mark.parametrize("raw", [None, ""])
     def test_rejects_missing(self, raw):
@@ -55,11 +68,14 @@ class TestRedaction:
             "a sb_secret_[REDACTED] b sb_secret_[REDACTED]"
         )
 
+    def test_masks_every_key_validation_accepts(self):
+        # Redaction must cover the whole of anything require_supabase_secret_key accepts.
+        assert redact_supabase_secrets("k=sb_secret_ab.c+d/e= end") == "k=sb_secret_[REDACTED] end"
+
     def test_leaves_publishable_keys_alone(self):
         assert redact_supabase_secrets("sb_publishable_abc") == "sb_publishable_abc"
 
-    def test_log_records_are_masked(self, caplog):
-        install_log_redaction()
+    def test_log_records_are_masked(self, caplog, fresh_redaction):
         logger = logging.getLogger("test_supabase_key.redaction")
         with caplog.at_level(logging.INFO, logger=logger.name):
             logger.info("connecting with %s", "sb_secret_live123")
@@ -117,3 +133,35 @@ class TestDatabaseKeyCheck:
         with pytest.raises(module.DatabaseConfigurationError, match="Invalid SUPABASE_SECRET_KEY"):
             module.Database()
         assert created_with == []
+
+
+class TestLogRedactionEdges:
+    def test_tracebacks_are_masked(self, caplog, fresh_redaction):
+        logger = logging.getLogger("test_supabase_key.traceback")
+        with caplog.at_level(logging.ERROR, logger=logger.name):
+            try:
+                raise RuntimeError("bad key sb_secret_leak1")
+            except RuntimeError:
+                logger.exception("request failed")
+
+        assert "RuntimeError: bad key sb_secret_[REDACTED]" in caplog.text
+        assert "sb_secret_leak1" not in caplog.text
+
+    def test_stack_info_is_masked(self, fresh_redaction):
+        record = logging.getLogRecordFactory()(
+            "x", logging.INFO, __file__, 1, "m", None, None, None, "Stack: sb_secret_leak2"
+        )
+        assert record.stack_info == "Stack: sb_secret_[REDACTED]"
+
+    def test_malformed_format_string_still_yields_a_record(self, fresh_redaction):
+        # The handler reports the formatting error later; the factory must not raise.
+        record = logging.getLogRecordFactory()(
+            "x", logging.INFO, __file__, 1, "a %s %s", ("x",), None
+        )
+        assert record.msg == "a %s %s"
+        assert record.args == ("x",)
+
+    def test_install_is_idempotent(self, fresh_redaction):
+        factory = logging.getLogRecordFactory()
+        install_log_redaction()
+        assert logging.getLogRecordFactory() is factory

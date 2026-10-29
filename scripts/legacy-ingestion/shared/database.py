@@ -23,6 +23,7 @@ from supabase import create_client, Client
 
 from shared.supabase_key import SupabaseKeyError, install_log_redaction, require_supabase_secret_key
 
+# This module holds the key; mask it even for a caller that never imports shared.config.
 install_log_redaction()
 logger = logging.getLogger(__name__)
 

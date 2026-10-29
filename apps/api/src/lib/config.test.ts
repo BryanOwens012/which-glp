@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { parseSupabaseSecretKey } from './config.js'
 
 describe('parseSupabaseSecretKey', () => {
-  it('accepts a Supabase secret key', () => {
-    expect(parseSupabaseSecretKey('sb_secret_abc123')).toBe('sb_secret_abc123')
+  it.each(['sb_secret_abc123', 'sb_secret_ab.c+d/e='])('accepts a Supabase secret key (%s)', (raw) => {
+    expect(parseSupabaseSecretKey(raw)).toBe(raw)
   })
 
   it.each([undefined, ''])('rejects a missing key (%j)', (raw) => {
@@ -17,6 +17,7 @@ describe('parseSupabaseSecretKey', () => {
     ['a value with a trailing CR', 'sb_secret_abc123\r'],
     ['a value with inner whitespace', 'sb_secret_abc 123'],
     ['the bare prefix', 'sb_secret_'],
+    ['a value with an inner tab', 'sb_secret_abc\t123'],
   ])('rejects %s', (_label, raw) => {
     expect(() => parseSupabaseSecretKey(raw)).toThrow('Invalid SUPABASE_SECRET_KEY')
   })

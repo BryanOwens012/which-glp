@@ -97,7 +97,7 @@ export const parseSupabaseSecretKey = (raw: string | undefined): string => {
     throw new Error('Missing SUPABASE_SECRET_KEY environment variable')
   }
 
-  if (/\s/.test(raw) || !raw.startsWith('sb_secret_') || raw === 'sb_secret_') {
+  if (!/^sb_secret_\S+$/.test(raw)) {
     throw new Error(
       'Invalid SUPABASE_SECRET_KEY: expected a Supabase secret key starting with "sb_secret_" (not a publishable key or a legacy service_role JWT)',
     )

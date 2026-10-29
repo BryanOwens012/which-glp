@@ -4,6 +4,7 @@ FastAPI service for ML recommendations.
 Replaces the command-line wrapper with a proper HTTP API.
 """
 
+import logging
 import os
 import sys
 from pathlib import Path
@@ -21,9 +22,14 @@ from supabase_key import install_log_redaction, require_supabase_secret_key
 # Load environment variables
 load_dotenv()
 install_log_redaction()
+logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
+logger = logging.getLogger("rec-engine")
 
-# Fail at boot, not at the first /recommend request, on a missing or wrong key.
+# Fail at boot, not at the first /recommend request, on missing Supabase config.
 SUPABASE_SECRET_KEY = require_supabase_secret_key(os.getenv("SUPABASE_SECRET_KEY"))
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+if not SUPABASE_URL:
+    raise ValueError("Missing SUPABASE_URL environment variable")
 
 app = FastAPI(title="WhichGLP ML API", version="0.1.0")
 
@@ -87,7 +93,7 @@ class RecommendationsResponse(BaseModel):
 async def verify_internal_api_key(x_internal_api_key: Optional[str] = Header(None)) -> None:
     expected = os.getenv("INTERNAL_API_KEY")
     if not expected:
-        print("[Auth] WARNING: INTERNAL_API_KEY not configured - skipping validation")
+        logger.warning("[Auth] INTERNAL_API_KEY not configured - skipping validation")
         return
     if not x_internal_api_key or x_internal_api_key != expected:
         raise HTTPException(status_code=403, detail="Forbidden")
@@ -102,12 +108,7 @@ def get_supabase_client() -> Client:
     global _supabase_client
 
     if _supabase_client is None:
-        url = os.getenv("SUPABASE_URL")
-
-        if not url:
-            raise ValueError("Missing SUPABASE_URL environment variable")
-
-        _supabase_client = create_client(url, SUPABASE_SECRET_KEY)
+        _supabase_client = create_client(SUPABASE_URL, SUPABASE_SECRET_KEY)
 
     return _supabase_client
 
@@ -164,7 +165,7 @@ async def get_recommendations(request: RecommendationRequest, _: None = Depends(
     """
     Generate drug recommendations based on user profile.
     """
-    print(f"[ML API] Received recommendation request: {request.dict()}")
+    logger.info("[ML API] Received recommendation request: %s", request.dict())
     try:
         # Create user profile
         user = UserProfile(
@@ -204,9 +205,7 @@ async def get_recommendations(request: RecommendationRequest, _: None = Depends(
         }
 
     except Exception as e:
-        print(f"[ML API] ERROR: {type(e).__name__}: {str(e)}")
-        import traceback
-        traceback.print_exc()
+        logger.exception("[ML API] ERROR: %s: %s", type(e).__name__, e)
         raise HTTPException(status_code=500, detail=str(e))
 
 

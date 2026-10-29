@@ -1,3 +1,5 @@
+// Must stay the first import: masks Supabase secret keys before any other module runs.
+import './lib/install-redaction.js'
 import 'dotenv/config'
 import { createServer, type IncomingMessage, type ServerResponse } from 'http'
 import { fetchRequestHandler } from '@trpc/server/adapters/fetch'
@@ -14,11 +16,7 @@ import {
   isAddressBlocked,
   type RateLimitDecision,
 } from './lib/rate-limit.js'
-import { installConsoleRedaction } from './lib/redact.js'
 import { appRouter } from './routers/index.js'
-
-// First statement after the imports: no log line may carry a Supabase secret key.
-installConsoleRedaction()
 
 /**
  * Request paths are attacker-controlled strings. Truncate them and strip
