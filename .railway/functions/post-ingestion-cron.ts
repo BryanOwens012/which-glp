@@ -1,3 +1,6 @@
+// The secrets this function reads; loaded from Doppler before it runs.
+const DOPPLER_SECRETS = ["INTERNAL_API_KEY"];
+
 console.log("Starting now");
 
 const SERVICE_URL = process.env.POST_INGESTION_URL
@@ -46,4 +49,10 @@ const ingestPosts = async () => {
   }
 };
 
-ingestPosts();
+// No top-level await: the function runner may wrap this file, so the load runs inside main.
+const main = async () => {
+  await loadDopplerSecrets(DOPPLER_SECRETS);
+  await ingestPosts();
+};
+
+main();

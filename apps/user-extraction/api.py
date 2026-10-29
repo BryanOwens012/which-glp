@@ -23,9 +23,23 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from user_analyzer import RedditUserAnalyzer
 from shared.config import get_logger
+from shared.doppler_secrets import load_doppler_secrets
 from shared.openai_extractor import DEFAULT_MODEL
 
 logger = get_logger(__name__)
+
+# The secrets this service reads; nothing else is requested from Doppler. Loaded
+# here, before any client that reads one is built.
+DOPPLER_SECRETS = (
+    "INTERNAL_API_KEY",
+    "OPENROUTER_API_KEY",
+    "REDDIT_API_APP_ID",
+    "REDDIT_API_APP_NAME",
+    "REDDIT_API_APP_SECRET",
+    "SUPABASE_SECRET_KEY",
+    "SUPABASE_URL",
+)
+load_doppler_secrets(DOPPLER_SECRETS)
 
 app = FastAPI(
     title="WhichGLP User Extraction API",

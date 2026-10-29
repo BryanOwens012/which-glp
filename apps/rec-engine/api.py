@@ -17,13 +17,23 @@ from pydantic import BaseModel, Field
 from supabase import create_client, Client
 from dotenv import load_dotenv
 from recommender import DrugRecommender, UserProfile, DrugRecommendation
-from supabase_key import install_log_redaction, redact_supabase_secrets, require_supabase_secret_key
+from doppler_secrets import load_doppler_secrets
+from supabase_key import install_log_redaction, redact_secrets, require_supabase_secret_key
 
 # Load environment variables
 load_dotenv()
 install_log_redaction()
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("rec-engine")
+
+# The secrets this service reads; nothing else is requested from Doppler. Loaded
+# here, before any client that reads one is built.
+DOPPLER_SECRETS = (
+    "INTERNAL_API_KEY",
+    "SUPABASE_SECRET_KEY",
+    "SUPABASE_URL",
+)
+load_doppler_secrets(DOPPLER_SECRETS)
 
 # Fail at boot, not at the first /recommend request, on missing Supabase config.
 SUPABASE_SECRET_KEY = require_supabase_secret_key(os.getenv("SUPABASE_SECRET_KEY"))
@@ -206,7 +216,7 @@ async def get_recommendations(request: RecommendationRequest, _: None = Depends(
 
     except Exception as e:
         logger.exception("[ML API] ERROR: %s: %s", type(e).__name__, e)
-        raise HTTPException(status_code=500, detail=redact_supabase_secrets(str(e)))
+        raise HTTPException(status_code=500, detail=redact_secrets(str(e)))
 
 
 @app.get("/api/cache/clear")

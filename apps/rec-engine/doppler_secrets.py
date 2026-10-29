@@ -1,0 +1,1 @@
+../../scripts/legacy-ingestion/shared/doppler_secrets.py

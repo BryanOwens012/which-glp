@@ -15,8 +15,21 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from recent_ingest import ingest_recent_posts, ingest_multiple_subreddits, TIER1_SUBREDDITS, TIER2_SUBREDDITS, TIER3_SUBREDDITS
 from shared.config import get_logger
+from shared.doppler_secrets import load_doppler_secrets
 
 logger = get_logger(__name__)
+
+# The secrets this service reads; nothing else is requested from Doppler. Loaded
+# here, before any client that reads one is built.
+DOPPLER_SECRETS = (
+    "INTERNAL_API_KEY",
+    "REDDIT_API_APP_ID",
+    "REDDIT_API_APP_NAME",
+    "REDDIT_API_APP_SECRET",
+    "SUPABASE_SECRET_KEY",
+    "SUPABASE_URL",
+)
+load_doppler_secrets(DOPPLER_SECRETS)
 
 app = FastAPI(title="WhichGLP Post Ingestion API", version="0.1.0")
 

@@ -1,5 +1,6 @@
 /**
- * Log redaction for Supabase secret keys (`sb_secret_...`).
+ * Log redaction for secrets: Supabase secret keys (`sb_secret_...`) and Doppler
+ * tokens (`dp.<type>.<rest>`; the types are listed in DOPPLER_TOKEN_PATTERN).
  *
  * The Python services apply the same rule in
  * `scripts/legacy-ingestion/shared/supabase_key.py`; keep the two in sync.
@@ -13,11 +14,17 @@ const SECRET_KEY_PATTERN = /sb_secret_\S*/g
 
 const REDACTED = 'sb_secret_[REDACTED]'
 
-export const redactSupabaseSecrets = (text: string): string =>
-  text.replace(SECRET_KEY_PATTERN, REDACTED)
+/** Doppler tokens: service (st), CLI (ct), personal (pt), service account (sa), SCIM and audit. */
+const DOPPLER_TOKEN_PATTERN = /dp\.(?:st|ct|pt|sa|scim|audit)\.\S+/g
+
+const DOPPLER_REDACTED = 'dp.[REDACTED]'
+
+/** Mask every Supabase secret key and Doppler token in `text`. */
+export const redactSecrets = (text: string): string =>
+  text.replace(SECRET_KEY_PATTERN, REDACTED).replace(DOPPLER_TOKEN_PATTERN, DOPPLER_REDACTED)
 
 /**
- * Copy an error with secret keys masked in its message, stack, string-valued
+ * Copy an error with secrets masked in its message, stack, string-valued
  * own fields (e.g. a PostgrestError's `details`), and `cause`. The copy keeps
  * the original's prototype, so its class and `instanceof` still hold. `copies`
  * maps each original to its copy, so a self-referencing `cause` chain points at
@@ -51,7 +58,7 @@ const redactError = (error: Error, copies: Map<Error, Error>): Error => {
  */
 const redactArg = (arg: unknown, copies: Map<Error, Error> = new Map()): unknown => {
   if (typeof arg === 'string') {
-    return redactSupabaseSecrets(arg)
+    return redactSecrets(arg)
   }
 
   if (arg instanceof Error) {
@@ -75,7 +82,7 @@ const installedTargets = new WeakSet<ConsoleLike>()
 
 /**
  * Route each `console` method through the redactor, so no log line from this
- * process (ours or a library's) carries a Supabase secret key. Objects are
+ * process (ours or a library's) carries a Supabase secret key or Doppler token. Objects are
  * passed through untouched: redacting them would mean serializing them here.
  * Idempotent per target.
  */

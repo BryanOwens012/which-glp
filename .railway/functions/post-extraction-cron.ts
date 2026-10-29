@@ -1,3 +1,6 @@
+// The secrets this function reads; loaded from Doppler before it runs.
+const DOPPLER_SECRETS = ["INTERNAL_API_KEY"];
+
 const SERVICE_URL = process.env.POST_EXTRACTION_URL
   ? `https://${process.env.POST_EXTRACTION_URL}`
   : "https://post-extraction.railway.internal";
@@ -50,4 +53,10 @@ const extractPosts = async () => {
   }
 };
 
-extractPosts();
+// No top-level await: the function runner may wrap this file, so the load runs inside main.
+const main = async () => {
+  await loadDopplerSecrets(DOPPLER_SECRETS);
+  await extractPosts();
+};
+
+main();

@@ -1,0 +1,57 @@
+[
+  {
+    "pulled": [],
+    "failed": [],
+    "line": "[doppler] pulled 0 of 0 secrets, 0 failed; pulled=[] failed=[]"
+  },
+  {
+    "pulled": [
+      "A_B",
+      "INTERNAL_API_KEY",
+      "SUPABASE_URL"
+    ],
+    "failed": [
+      {
+        "name": "AB",
+        "reason": "not_found"
+      },
+      {
+        "name": "Z",
+        "reason": "error 503"
+      }
+    ],
+    "line": "[doppler] pulled 3 of 5 secrets, 2 failed; pulled=[\"A_B\",\"INTERNAL_API_KEY\",\"SUPABASE_URL\"] failed=[\"AB (not_found)\",\"Z (error 503)\"]"
+  },
+  {
+    "pulled": [
+      "A"
+    ],
+    "failed": [
+      {
+        "name": "é\"x",
+        "reason": "invalid_name"
+      }
+    ],
+    "line": "[doppler] pulled 1 of 2 secrets, 1 failed; pulled=[\"A\"] failed=[\"é\\\"x (invalid_name)\"]"
+  },
+  {
+    "pulled": [
+      "P"
+    ],
+    "failed": [
+      {
+        "name": "A_X",
+        "reason": "not_found"
+      },
+      {
+        "name": "E",
+        "reason": "empty"
+      },
+      {
+        "name": "b!",
+        "reason": "invalid_name"
+      }
+    ],
+    "line": "[doppler] pulled 1 of 4 secrets, 3 failed; pulled=[\"P\"] failed=[\"A_X (not_found)\",\"E (empty)\",\"b! (invalid_name)\"]"
+  }
+]

@@ -95,6 +95,7 @@ export const SHARED_VARIABLES: ReadonlySet<string> = new Set([
   "DOPPLER_CONFIG",
   "DOPPLER_ENVIRONMENT",
   "DOPPLER_PROJECT",
+  "DOPPLER_TOKEN",
   "INTERNAL_API_KEY",
   "OPENROUTER_API_KEY",
   "POSTHOG_API_KEY",
@@ -108,15 +109,37 @@ export const SHARED_VARIABLES: ReadonlySet<string> = new Set([
   "SUPABASE_URL",
 ]);
 
-/** A service's variables: shared ones as references, the rest preserved. */
-const buildEnv = (shared: SharedVariableRef, names: readonly string[]): Record<string, VariableValue> =>
-  Object.fromEntries(names.map((name) => [name, SHARED_VARIABLES.has(name) ? shared[name] : preserve()]));
+/**
+ * Every backend service gets the environment's Doppler access (one token per
+ * environment) and loads its own enumerated secrets from Doppler at boot; see
+ * apps/api/src/lib/doppler-secrets.ts. These are shared references like any other.
+ */
+const DOPPLER_ACCESS = ["DOPPLER_CONFIG", "DOPPLER_PROJECT", "DOPPLER_TOKEN"] as const;
+
+type ServiceEnv = Record<string, string | VariableValue>;
+
+/** A service's variables (shared ones as references, the rest preserved), plus Doppler access. */
+const buildEnv = (shared: SharedVariableRef, names: readonly string[]): ServiceEnv =>
+  Object.fromEntries(
+    [...new Set([...names, ...DOPPLER_ACCESS])].map((name) => [
+      name,
+      SHARED_VARIABLES.has(name) ? shared[name] : preserve(),
+    ]),
+  );
+
+/**
+ * A Railway Function's source: the shared Doppler loader (functions/_doppler-secrets.ts)
+ * followed by the function's own file, so every function carries one copy of it.
+ */
+export const buildFunctionSource = (file: string): Buffer =>
+  Buffer.concat([
+    readFileSync(join(import.meta.dirname, "functions", "_doppler-secrets.ts")),
+    Buffer.from("\n"),
+    readFileSync(join(import.meta.dirname, "functions", file)),
+  ]);
 
 /** A Railway Function's code ships base64-encoded in its start command. */
-const encodeFunction = (file: string): string => {
-  const source = readFileSync(join(import.meta.dirname, "functions", file));
-  return `./run.sh ${source.toString("base64")}`;
-};
+const encodeFunction = (file: string): string => `./run.sh ${buildFunctionSource(file).toString("base64")}`;
 
 const buildUvicornStart = (dir: string): string =>
   `cd apps/${dir} && uvicorn api:app --host 0.0.0.0 --port $PORT`;
@@ -142,7 +165,7 @@ type PythonServiceOptions = {
   privateEndpoint: string;
   /** Railway-generated public domain. */
   serviceDomain: string;
-  env: Record<string, VariableValue>;
+  env: ServiceEnv;
 };
 
 /** The Python services build from the monorepo root (no root directory) with Railpack. */
@@ -168,7 +191,7 @@ type CronFunctionOptions = {
   /** Standard 5-field cron expression, evaluated in UTC. */
   schedule: string;
   privateEndpoint: string;
-  env: Record<string, VariableValue>;
+  env: ServiceEnv;
 };
 
 const defineCronFunction = (

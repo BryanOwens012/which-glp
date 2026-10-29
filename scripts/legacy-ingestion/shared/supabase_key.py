@@ -1,5 +1,6 @@
 """
-Supabase secret-key validation and log redaction for the Python services.
+Supabase secret-key validation and log redaction (Supabase secret keys and Doppler
+tokens) for the Python services.
 
 Every Python service authenticates to Supabase with a secret key
 (``sb_secret_...``), which maps to the ``service_role`` Postgres role. A
@@ -25,6 +26,10 @@ from typing import Optional
 _VALID_SECRET_KEY = re.compile(r"sb_secret_\S+")
 _SECRET_KEY_PATTERN = re.compile(r"sb_secret_\S*")
 REDACTED = "sb_secret_[REDACTED]"
+
+# Doppler tokens: service (st), CLI (ct), personal (pt), service account (sa), SCIM and audit.
+_DOPPLER_TOKEN_PATTERN = re.compile(r"dp\.(?:st|ct|pt|sa|scim|audit)\.\S+")
+DOPPLER_REDACTED = "dp.[REDACTED]"
 
 
 class SupabaseKeyError(ValueError):
@@ -58,13 +63,13 @@ def require_supabase_secret_key(raw: Optional[str]) -> str:
     return raw
 
 
-def redact_supabase_secrets(text: str) -> str:
-    """Mask every Supabase secret key in ``text``."""
-    return _SECRET_KEY_PATTERN.sub(REDACTED, text)
+def redact_secrets(text: str) -> str:
+    """Mask every Supabase secret key and Doppler token in ``text``."""
+    return _DOPPLER_TOKEN_PATTERN.sub(DOPPLER_REDACTED, _SECRET_KEY_PATTERN.sub(REDACTED, text))
 
 
 def _redact_record(record: logging.LogRecord) -> logging.LogRecord:
-    """Mask secret keys in a record's message, traceback, and stack text."""
+    """Mask secrets (Supabase keys, Doppler tokens) in a record's message, traceback, and stack text."""
     try:
         message = record.getMessage()
     except Exception:
@@ -73,7 +78,7 @@ def _redact_record(record: logging.LogRecord) -> logging.LogRecord:
         message = None
 
     if message is not None:
-        redacted = redact_supabase_secrets(message)
+        redacted = redact_secrets(message)
         if redacted != message:
             record.msg = redacted
             record.args = None
@@ -82,10 +87,10 @@ def _redact_record(record: logging.LogRecord) -> logging.LogRecord:
     # exc_text with the masked traceback is what keeps the key out of it.
     if record.exc_info and not record.exc_text:
         exc_text = "".join(traceback.format_exception(*record.exc_info)).rstrip("\n")
-        record.exc_text = redact_supabase_secrets(exc_text)
+        record.exc_text = redact_secrets(exc_text)
 
     if record.stack_info:
-        record.stack_info = redact_supabase_secrets(record.stack_info)
+        record.stack_info = redact_secrets(record.stack_info)
 
     return record
 
@@ -95,7 +100,7 @@ _is_installed = False
 
 def install_log_redaction() -> None:
     """
-    Mask Supabase secret keys in every log record this process creates.
+    Mask secrets (Supabase secret keys, Doppler tokens) in every log record this process creates.
 
     Installed as a log-record factory rather than a handler filter, so it covers
     records from every logger (httpx, uvicorn, third-party clients), whichever

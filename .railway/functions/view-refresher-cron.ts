@@ -1,6 +1,9 @@
 import pg from "pg";
 import Redis from "ioredis";
 
+// The secrets this function reads; loaded from Doppler before it runs.
+const DOPPLER_SECRETS = ["SUPABASE_DB_PASSWORD", "SUPABASE_URL"];
+
 const REDIS_URL = process.env.REDIS_URL;
 const MV_TIMEOUT_MS = parseInt(process.env.MV_TIMEOUT_MS || "300000", 10);
 
@@ -195,4 +198,10 @@ const refreshCacheAndMaterializedView = async () => {
   }
 };
 
-refreshCacheAndMaterializedView();
+// No top-level await: the function runner may wrap this file, so the load runs inside main.
+const main = async () => {
+  await loadDopplerSecrets(DOPPLER_SECRETS);
+  await refreshCacheAndMaterializedView();
+};
+
+main();

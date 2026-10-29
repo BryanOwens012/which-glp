@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { installConsoleRedaction, redactSupabaseSecrets } from './redact.js'
+import { installConsoleRedaction, redactSecrets } from './redact.js'
 
 const METHODS = ['log', 'info', 'warn', 'error', 'debug'] as const
 
@@ -26,19 +26,24 @@ class PostgrestLikeError extends Error {
   details = 'header apikey=sb_secret_live123'
 }
 
-describe('redactSupabaseSecrets', () => {
+describe('redactSecrets', () => {
   it('masks every secret key in a string', () => {
-    expect(redactSupabaseSecrets('a sb_secret_abc-1_2 b sb_secret_xyz')).toBe(
+    expect(redactSecrets('a sb_secret_abc-1_2 b sb_secret_xyz')).toBe(
       'a sb_secret_[REDACTED] b sb_secret_[REDACTED]',
     )
   })
 
   it('masks the whole of any key the validator accepts', () => {
-    expect(redactSupabaseSecrets('k=sb_secret_ab.c+d/e= end')).toBe('k=sb_secret_[REDACTED] end')
+    expect(redactSecrets('k=sb_secret_ab.c+d/e= end')).toBe('k=sb_secret_[REDACTED] end')
+  })
+
+  it('masks Doppler tokens', () => {
+    expect(redactSecrets('Authorization: Bearer dp.st.prd.abc123XYZ end')).toBe('Authorization: Bearer dp.[REDACTED] end')
+    expect(redactSecrets('dp.ct.x dp.pt.y')).toBe('dp.[REDACTED] dp.[REDACTED]')
   })
 
   it('leaves publishable keys and plain text alone', () => {
-    expect(redactSupabaseSecrets('sb_publishable_abc ok')).toBe('sb_publishable_abc ok')
+    expect(redactSecrets('sb_publishable_abc ok')).toBe('sb_publishable_abc ok')
   })
 })
 

@@ -6,16 +6,19 @@
  * unique resources, every runnable service has a start command, GitHub sources
  * pin the production branch, function bodies round-trip to ./functions, no
  * secret-looking variable is committed as a literal value, a variable named like
- * a shared variable is a `${{shared.NAME}}` reference to it, and every variable a
- * service declares is mentioned somewhere in the code that service runs.
+ * a shared variable is a `${{shared.NAME}}` reference to it, every variable a
+ * service declares is mentioned somewhere in the code that service runs, and every
+ * service loads its enumerated secrets from Doppler at boot.
  *
  * Run from this directory: npm run check
  */
 import { execFileSync } from "node:child_process";
-import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { stripTypeScriptTypes } from "node:module";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createRailwayContext, project, type ResourceNode } from "railway/iac";
-import program, { SHARED_VARIABLES } from "./railway.ts";
+import program, { buildFunctionSource, SHARED_VARIABLES } from "./railway.ts";
 
 const EXPECTED_BRANCH = "develop";
 const SECRET_NAME = /KEY|SECRET|PASSWORD|TOKEN/;
@@ -70,13 +73,79 @@ const readPythonClosure = (entry: string): { text: string; files: number } => {
   return { text: files.map((file) => readFileSync(file, "utf8")).join("\n"), files: files.length };
 };
 
+/** A function's own source file, named after the service. */
+const functionFileOf = (resource: ResourceNode & { type: "service" }): string => `${resource.name.toLowerCase()}.ts`;
+
+/** The absolute path of a function's own source file. */
+const functionPathOf = (resource: ResourceNode & { type: "service" }): string =>
+  join(import.meta.dirname, "functions", functionFileOf(resource));
+
 /** The code a service runs: its function file, or the directory its deploys watch. */
 const codeRootOf = (resource: ResourceNode & { type: "service" }): string | undefined => {
   if (resource.kind === "function") {
-    return join(import.meta.dirname, "functions", `${resource.name.toLowerCase()}.ts`);
+    return functionPathOf(resource);
   }
   const pattern = resource.build?.watchPatterns?.[0];
   return pattern ? join(REPO_ROOT, pattern.replace(/^\//, "").replace(/\/\*\*$/, "")) : undefined;
+};
+
+/**
+ * Best effort: drop comments so a commented-out call never counts. Python loses its
+ * `#` lines (docstrings stay); TS loses block and line comments, keeping a `//` after
+ * `:` (a URL in a string).
+ */
+const stripComments = (text: string, isPython: boolean): string =>
+  isPython
+    ? text.replace(/^\s*#.*$/gm, "")
+    : text.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
+
+/**
+ * How each language's entry point must call its Doppler loader. TS awaits it (or the
+ * server and secret reads race it); a cron awaits it inside `main`, so the TS rule
+ * cannot require top level. Python calls it at module level, not inside a function
+ * that may never run.
+ */
+const LOADER_CALL_RULES = {
+  python: { pattern: /^load_doppler_secrets\(DOPPLER_SECRETS\)/m, rule: "call load_doppler_secrets(DOPPLER_SECRETS) at module level" },
+  typescript: { pattern: /\bawait\s+loadDopplerSecrets\(DOPPLER_SECRETS\)/, rule: "await loadDopplerSecrets(DOPPLER_SECRETS)" },
+} as const;
+
+/** The file whose top-level code starts the service: a function's own file, else index.ts or api.py. */
+const entryPointOf = (resource: ResourceNode & { type: "service" }, codeRoot: string): string => {
+  if (resource.kind === "function") {
+    return functionPathOf(resource);
+  }
+  const pythonEntry = join(codeRoot, "api.py");
+  return existsSync(pythonEntry) ? pythonEntry : join(codeRoot, "src", "index.ts");
+};
+
+/**
+ * The sorted names in an entry point's DOPPLER_SECRETS list or tuple, or null when
+ * there is none. Stopping at the first `)` or `]` is safe: a secret name holds neither.
+ */
+const parseDopplerSecrets = (text: string): string[] | null => {
+  const match = /\bDOPPLER_SECRETS\s*=\s*[[(]([^\])]*)[\])]/.exec(text);
+  return match ? [...match[1].matchAll(/["']([^"']+)["']/g)].map((m) => m[1]).sort() : null;
+};
+
+/**
+ * Parse each function as it ships (loader + file), so a syntax error or a clashing
+ * top-level name (an early SyntaxError) fails here instead of on Railway. Types are
+ * stripped first because `node --check` parses JavaScript only.
+ */
+const checkFunctionParses = (file: string): string | null => {
+  const dir = mkdtempSync(join(tmpdir(), "railway-fn-"));
+  try {
+    const path = join(dir, "function.mjs");
+    writeFileSync(path, stripTypeScriptTypes(buildFunctionSource(file).toString("utf8")));
+    execFileSync(process.execPath, ["--check", path], { stdio: "pipe" });
+    return null;
+  } catch (error) {
+    const stderr = (error as { stderr?: Buffer }).stderr?.toString() ?? "";
+    return stderr.split("\n").find((line) => line.includes("Error")) ?? String(error);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 };
 
 const definition = await program(
@@ -111,13 +180,17 @@ for (const resource of resources) {
   }
   if (resource.kind === "function") {
     const encoded = start?.startsWith("./run.sh ") ? start.slice("./run.sh ".length) : "";
-    const file = `${resource.name.toLowerCase()}.ts`;
-    const expected = readFileSync(join(import.meta.dirname, "functions", file));
+    const file = functionFileOf(resource);
+    const expected = buildFunctionSource(file);
     if (!encoded || Buffer.from(encoded, "base64").compare(expected) !== 0) {
-      fail(`${resource.address} start command does not encode functions/${file}`);
+      fail(`${resource.address} start command does not encode functions/_doppler-secrets.ts + functions/${file}`);
     }
     if (!resource.deploy?.cronSchedule) {
       fail(`${resource.address} has no cron schedule`);
+    }
+    const parseError = checkFunctionParses(file);
+    if (parseError) {
+      fail(`${resource.address} does not parse as shipped (loader + functions/${file}): ${parseError}`);
     }
   }
   for (const [name, value] of Object.entries(resource.variables ?? {})) {
@@ -145,7 +218,12 @@ for (const resource of resources) {
     continue;
   }
   const pythonEntry = join(codeRoot, "api.py");
-  const source = existsSync(pythonEntry) ? readPythonClosure(pythonEntry) : readSourceTree(codeRoot);
+  const source =
+    resource.kind === "function"
+      ? { text: buildFunctionSource(functionFileOf(resource)).toString("utf8"), files: 2 }
+      : existsSync(pythonEntry)
+        ? readPythonClosure(pythonEntry)
+        : readSourceTree(codeRoot);
   if (source.files === 0) {
     fail(`${resource.address} code location ${codeRoot} holds no files`);
     continue;
@@ -154,6 +232,32 @@ for (const resource of resources) {
     if (!RUNTIME_VARIABLES.has(name) && !new RegExp(`\\b${name}\\b`).test(source.text)) {
       fail(`${resource.address} declares ${name}, which its code (${codeRoot}) never reads; remove it`);
     }
+  }
+  // Every backend service loads its own enumerated secrets from Doppler at boot, in
+  // its entry point (comments stripped), with a non-empty DOPPLER_SECRETS list that
+  // equals its shared references, secret or not (minus the Doppler access variables).
+  const entry = entryPointOf(resource, codeRoot);
+  const isPython = entry.endsWith(".py");
+  const entryText = stripComments(readFileSync(entry, "utf8"), isPython);
+  const { pattern, rule } = LOADER_CALL_RULES[isPython ? "python" : "typescript"];
+  const call = pattern.exec(entryText);
+  if (!call) {
+    fail(`${resource.address} must ${rule} (${entry})`);
+  } else if (resource.kind !== "function" && entry.endsWith("index.ts")) {
+    const serverImport = entryText.indexOf("import('./server");
+    if (serverImport === -1 || serverImport < call.index) {
+      fail(`${resource.address} must load its Doppler secrets before importing ./server (${entry})`);
+    }
+  }
+  const listed = parseDopplerSecrets(entryText);
+  const expected = Object.entries(resource.variables ?? {})
+    .filter(([name, value]) => value.type === "sharedReference" && !name.startsWith("DOPPLER_"))
+    .map(([name]) => name)
+    .sort();
+  if (listed === null || listed.length === 0) {
+    fail(`${resource.address} has no non-empty DOPPLER_SECRETS list (${entry})`);
+  } else if (listed.join(",") !== expected.join(",")) {
+    fail(`${resource.address} DOPPLER_SECRETS is [${listed.join(", ")}], expected [${expected.join(", ")}] (its shared references)`);
   }
 }
 
