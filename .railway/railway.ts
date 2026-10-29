@@ -90,7 +90,23 @@ const redditApi = ["REDDIT_API_APP_ID", "REDDIT_API_APP_NAME", "REDDIT_API_APP_S
  * missing from it, so add the name here whenever one is created in Railway. The
  * shared variables themselves are set in Railway and are not managed by this file.
  */
-export const SHARED_VARIABLES: ReadonlySet<string> = new Set(["SUPABASE_SECRET_KEY"]);
+export const SHARED_VARIABLES: ReadonlySet<string> = new Set([
+  "ANTHROPIC_API_KEY",
+  "DOPPLER_CONFIG",
+  "DOPPLER_ENVIRONMENT",
+  "DOPPLER_PROJECT",
+  "INTERNAL_API_KEY",
+  "OPENROUTER_API_KEY",
+  "POSTHOG_API_KEY",
+  "POSTHOG_HOST",
+  "REDDIT_API_APP_ID",
+  "REDDIT_API_APP_NAME",
+  "REDDIT_API_APP_SECRET",
+  "SUPABASE_DB_PASSWORD",
+  "SUPABASE_PUBLISHABLE_KEY",
+  "SUPABASE_SECRET_KEY",
+  "SUPABASE_URL",
+]);
 
 /** A service's variables: shared ones as references, the rest preserved. */
 const buildEnv = (shared: SharedVariableRef, names: readonly string[]): Record<string, VariableValue> =>
