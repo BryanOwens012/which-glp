@@ -20,17 +20,16 @@ const analyzeUsers = async () => {
       `   Body: ${JSON.stringify({ limit: 10, rate_limit_delay: 2.0 })}`
     );
 
-    const response = await fetch(`${SERVICE_URL}${ENDPOINT}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-internal-api-key": process.env.INTERNAL_API_KEY ?? "",
-      },
-      body: JSON.stringify({
-        limit: 100,
-        rate_limit_delay: 2.0,
-      }),
+    const response = await callInternalService(`${SERVICE_URL}${ENDPOINT}`, {
+      limit: 100,
+      rate_limit_delay: 2.0,
     });
+
+    if (response.status === 409) {
+      console.log("⏭️  The service is already running this job; skipping until the next schedule.");
+      process.exit(0);
+      return;
+    }
 
     console.log(
       `📥 Response Status: ${response.status} ${response.statusText}`

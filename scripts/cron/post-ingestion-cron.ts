@@ -27,12 +27,19 @@ const ingestPosts = async () => {
       `   Body: ${JSON.stringify({ all_tiers: true, posts_limit: 100 })}`
     );
 
+    // Fail closed: never call a service without a usable key.
+    const internalApiKey = process.env.INTERNAL_API_KEY;
+    if (!internalApiKey || !/^[\x21-\x7e]+$/.test(internalApiKey)) {
+      throw new Error("INTERNAL_API_KEY is missing or is not printable ASCII without whitespace; refusing to call the service");
+    }
+
     const response = await fetch(`${SERVICE_URL}${ENDPOINT}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-internal-api-key": process.env.INTERNAL_API_KEY ?? "",
+        "x-internal-api-key": internalApiKey,
       },
+      redirect: "error", // never follow a redirect, so the key only goes to the service
       body: JSON.stringify({
         all_tiers: true,
         posts_limit: 100,
@@ -44,6 +51,10 @@ const ingestPosts = async () => {
       `   Headers: ${JSON.stringify(Object.fromEntries(response.headers))}`
     );
 
+    // A 409 means the job is already running: a skip, not a failure.
+    if (!response.ok && response.status !== 409) {
+      throw new Error(`Service responded ${response.status} ${response.statusText}`);
+    }
     const data = await response.json();
 
     console.log("✅ Request successful!");

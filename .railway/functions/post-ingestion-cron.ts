@@ -18,18 +18,17 @@ const ingestPosts = async () => {
   try {
     console.log("📡 Sending request to post-ingestion service...");
 
-    const response = await fetch(`${SERVICE_URL}${ENDPOINT}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-internal-api-key": process.env.INTERNAL_API_KEY ?? "",
-      },
-      body: JSON.stringify({
-        tier1: true,
-        tier2: true,
-        posts_limit: 100,
-      }),
+    const response = await callInternalService(`${SERVICE_URL}${ENDPOINT}`, {
+      tier1: true,
+      tier2: true,
+      posts_limit: 100,
     });
+
+    if (response.status === 409) {
+      console.log("⏭️  The service is already running this job; skipping until the next schedule.");
+      process.exit(0);
+      return;
+    }
 
     const data = await response.json();
 

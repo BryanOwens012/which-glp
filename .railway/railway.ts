@@ -129,15 +129,20 @@ const buildEnv = (shared: SharedVariableRef, names: readonly string[]): ServiceE
   );
 
 /**
- * A Railway Function's source: the shared Doppler loader (functions/_doppler-secrets.ts)
- * followed by the function's own file, so every function carries one copy of it.
+ * A Railway Function's source: the shared preludes, the Doppler loader
+ * (functions/_doppler-secrets.ts) and the fail-closed internal-service caller
+ * (functions/_internal-service.ts), followed by the function's own file, so every
+ * function carries one copy of each.
  */
+export const FUNCTION_PRELUDES = ["_doppler-secrets.ts", "_internal-service.ts"] as const;
+
 export const buildFunctionSource = (file: string): Buffer =>
-  Buffer.concat([
-    readFileSync(join(import.meta.dirname, "functions", "_doppler-secrets.ts")),
-    Buffer.from("\n"),
-    readFileSync(join(import.meta.dirname, "functions", file)),
-  ]);
+  Buffer.concat(
+    [...FUNCTION_PRELUDES, file].flatMap((name, index) => [
+      ...(index > 0 ? [Buffer.from("\n")] : []),
+      readFileSync(join(import.meta.dirname, "functions", name)),
+    ]),
+  );
 
 /** A Railway Function's code ships base64-encoded in its start command. */
 const encodeFunction = (file: string): string => `./run.sh ${buildFunctionSource(file).toString("base64")}`;

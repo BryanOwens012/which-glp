@@ -1,0 +1,1 @@
+../../scripts/legacy-ingestion/shared/internal_api_key.py

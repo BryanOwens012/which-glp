@@ -16,8 +16,8 @@ The stagger gives each stage time to finish before the next one reads its output
 ## How a trigger works
 
 - The three service triggers read their target from `POST_INGESTION_URL`, `POST_EXTRACTION_URL`, or `USER_EXTRACTION_URL` (a bare hostname, prefixed with `https://`), falling back to the service's `.railway.internal` private domain.
-- Requests carry `x-internal-api-key: $INTERNAL_API_KEY`; the services reject calls without it.
-- A `409 Conflict` means the service is already running that job. The trigger does not retry: it logs the response and exits, and the next scheduled run tries again.
+- Requests go through `callInternalService` (`.railway/functions/_internal-service.ts`) and carry `x-internal-api-key: $INTERNAL_API_KEY`; the services reject calls without it. A trigger with no usable key does not call its service and fails the run.
+- A `409 Conflict` means the service is already running that job. The trigger does not retry: it logs the response and exits 0, and the next scheduled run tries again. Any other error response fails the run.
 - Functions use `restartPolicyType: NEVER`, so a failed run is not retried until the next schedule.
 
 ## Changing a schedule or a function

@@ -18,7 +18,7 @@ import { stripTypeScriptTypes } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createRailwayContext, project, type ResourceNode } from "railway/iac";
-import program, { buildFunctionSource, SHARED_VARIABLES } from "./railway.ts";
+import program, { buildFunctionSource, FUNCTION_PRELUDES, SHARED_VARIABLES } from "./railway.ts";
 
 const EXPECTED_BRANCH = "develop";
 const SECRET_NAME = /KEY|SECRET|PASSWORD|TOKEN/;
@@ -110,6 +110,19 @@ const LOADER_CALL_RULES = {
   typescript: { pattern: /\bawait\s+loadDopplerSecrets\(DOPPLER_SECRETS\)/, rule: "await loadDopplerSecrets(DOPPLER_SECRETS)" },
 } as const;
 
+/**
+ * The ways a Python service's routes break the INTERNAL_API_KEY rule, from an ast
+ * scan (python-route-guards.py), so comments, strings and docstrings never count.
+ */
+const findRouteGuardProblems = (entry: string): string[] =>
+  JSON.parse(
+    execFileSync("python3", [join(import.meta.dirname, "python-route-guards.py"), entry], { encoding: "utf8" }),
+  ) as string[];
+
+/** The line that builds a Python service's fail-closed INTERNAL_API_KEY verifier, at module level. */
+const INTERNAL_API_KEY_VERIFIER_LINE =
+  "verify_internal_api_key = make_internal_api_key_verifier(require_internal_api_key())";
+
 /** The file whose top-level code starts the service: a function's own file, else index.ts or api.py. */
 const entryPointOf = (resource: ResourceNode & { type: "service" }, codeRoot: string): string => {
   if (resource.kind === "function") {
@@ -183,7 +196,7 @@ for (const resource of resources) {
     const file = functionFileOf(resource);
     const expected = buildFunctionSource(file);
     if (!encoded || Buffer.from(encoded, "base64").compare(expected) !== 0) {
-      fail(`${resource.address} start command does not encode functions/_doppler-secrets.ts + functions/${file}`);
+      fail(`${resource.address} start command does not encode ${[...FUNCTION_PRELUDES, file].map((name) => `functions/${name}`).join(" + ")}`);
     }
     if (!resource.deploy?.cronSchedule) {
       fail(`${resource.address} has no cron schedule`);
@@ -220,7 +233,7 @@ for (const resource of resources) {
   const pythonEntry = join(codeRoot, "api.py");
   const source =
     resource.kind === "function"
-      ? { text: buildFunctionSource(functionFileOf(resource)).toString("utf8"), files: 2 }
+      ? { text: buildFunctionSource(functionFileOf(resource)).toString("utf8"), files: FUNCTION_PRELUDES.length + 1 }
       : existsSync(pythonEntry)
         ? readPythonClosure(pythonEntry)
         : readSourceTree(codeRoot);
@@ -247,6 +260,26 @@ for (const resource of resources) {
     const serverImport = entryText.indexOf("import('./server");
     if (serverImport === -1 || serverImport < call.index) {
       fail(`${resource.address} must load its Doppler secrets before importing ./server (${entry})`);
+    }
+  }
+  // Every Python service guards its internal endpoints with INTERNAL_API_KEY and fails
+  // closed: it builds the shared verifier at module level, after the Doppler load, so a
+  // missing key stops the boot instead of leaving the endpoints open.
+  if (isPython && call) {
+    const verifierOffset = entryText.indexOf(`\n${INTERNAL_API_KEY_VERIFIER_LINE}\n`);
+    if (verifierOffset === -1 || verifierOffset < call.index) {
+      fail(`${resource.address} must have \`${INTERNAL_API_KEY_VERIFIER_LINE}\` at module level, after its Doppler load (${entry})`);
+    }
+    // ...and every route but GET /health depends on it, so a new endpoint cannot ship open.
+    for (const problem of findRouteGuardProblems(entry)) {
+      fail(`${resource.address} ${problem} (${entry})`);
+    }
+  }
+  // A function that loads INTERNAL_API_KEY calls its service only through the fail-closed
+  // prelude caller, never a bare fetch that could skip the key check (comments count).
+  if (resource.kind === "function" && entryText.includes("INTERNAL_API_KEY")) {
+    if (!/\bcallInternalService\(/.test(entryText) || /\bfetch\s*\(/.test(entryText)) {
+      fail(`${resource.address} must call its service with callInternalService (functions/_internal-service.ts), not fetch (${entry})`);
     }
   }
   const listed = parseDopplerSecrets(entryText);

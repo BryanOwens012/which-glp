@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Optional
 from datetime import datetime
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks, Depends, Header
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -24,6 +24,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from user_analyzer import RedditUserAnalyzer
 from shared.config import get_logger
 from shared.doppler_secrets import load_doppler_secrets
+from shared.internal_api_key import make_internal_api_key_verifier, require_internal_api_key
 from shared.openai_extractor import DEFAULT_MODEL
 
 logger = get_logger(__name__)
@@ -40,6 +41,8 @@ DOPPLER_SECRETS = (
     "SUPABASE_URL",
 )
 load_doppler_secrets(DOPPLER_SECRETS)
+# Fails closed: no usable INTERNAL_API_KEY, no service; a wrong or missing header, a 403.
+verify_internal_api_key = make_internal_api_key_verifier(require_internal_api_key())
 
 app = FastAPI(
     title="WhichGLP User Extraction API",
@@ -73,15 +76,6 @@ async def shutdown_event():
     logger.info("🛑 USER EXTRACTION SERVICE SHUTTING DOWN")
     logger.info(f"   Time: {datetime.now().isoformat()}")
     logger.info("=" * 80)
-
-
-async def verify_internal_api_key(x_internal_api_key: Optional[str] = Header(None)) -> None:
-    expected = os.getenv("INTERNAL_API_KEY")
-    if not expected:
-        print("[Auth] WARNING: INTERNAL_API_KEY not configured - skipping validation")
-        return
-    if not x_internal_api_key or x_internal_api_key != expected:
-        raise HTTPException(status_code=403, detail="Forbidden")
 
 
 # Request/Response models

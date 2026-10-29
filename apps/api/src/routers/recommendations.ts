@@ -1,6 +1,10 @@
 import { router, publicProcedure } from '../lib/trpc.js'
 import { captureEvent } from '../lib/posthog.js'
+import { parseInternalApiKey } from '../lib/config.js'
 import { z } from 'zod'
+
+// Validated at import, so the API refuses to boot without a usable key (fails closed).
+const internalApiKey = parseInternalApiKey(process.env.INTERNAL_API_KEY)
 
 // Input validation schema
 const RecommendationInput = z.object({
@@ -86,9 +90,11 @@ export const recommendationsRouter = router({
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'x-internal-api-key': process.env.INTERNAL_API_KEY ?? '',
+            'x-internal-api-key': internalApiKey,
           },
           body: JSON.stringify(input),
+          // Never follow a redirect, so the key only goes to the rec engine.
+          redirect: 'error',
         })
 
         if (!response.ok) {

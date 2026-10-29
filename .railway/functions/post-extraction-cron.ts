@@ -18,14 +18,13 @@ const extractPosts = async () => {
     console.log(`   Method: POST`);
     console.log(`   Query: limit=1000`);
 
-    const response = await fetch(`${SERVICE_URL}${ENDPOINT}?limit=1000`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-internal-api-key": process.env.INTERNAL_API_KEY ?? "",
-      },
-      body: JSON.stringify({}),
-    });
+    const response = await callInternalService(`${SERVICE_URL}${ENDPOINT}?limit=1000`, {});
+
+    if (response.status === 409) {
+      console.log("⏭️  The service is already running this job; skipping until the next schedule.");
+      process.exit(0);
+      return;
+    }
 
     console.log(
       `📥 Response Status: ${response.status} ${response.statusText}`

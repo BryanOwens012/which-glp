@@ -1,0 +1,102 @@
+/**
+ * The trigger crons in `.railway/functions` fail closed on INTERNAL_API_KEY: without a
+ * usable key they never call their service, and a rejected call is a failed run.
+ *
+ * Each cron runs as Railway ships it, the shared preludes prepended to its own file
+ * (`FUNCTION_PRELUDES` and `buildFunctionSource` in `.railway/railway.ts`),
+ * type-stripped, with `fetch`, `process` and `setTimeout` passed in as stand-ins.
+ */
+import { readFileSync } from 'node:fs'
+import { stripTypeScriptTypes } from 'node:module'
+import { fileURLToPath } from 'node:url'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+
+const FUNCTIONS_DIR = new URL('../../../../.railway/functions/', import.meta.url)
+const CRONS = ['post-ingestion-cron.ts', 'post-extraction-cron.ts', 'user-extraction-cron.ts'] as const
+const PRELUDES = ['_doppler-secrets.ts', '_internal-service.ts'] as const
+
+const readFunction = (file: string): string => readFileSync(fileURLToPath(new URL(file, FUNCTIONS_DIR)), 'utf8')
+
+/** Run one cron with a fake service; resolves with the exit code it chose and the service calls. */
+const runCron = async (file: string, env: Record<string, string>, status: number) => {
+  const source = stripTypeScriptTypes([...PRELUDES, file].map(readFunction).join('\n'))
+  const calls: { url: string; key: string | null; redirect?: RequestRedirect }[] = []
+  const fetchFn = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+    calls.push({ url: String(input), key: new Headers(init?.headers).get('x-internal-api-key'), redirect: init?.redirect })
+    return new Response(JSON.stringify({ ok: status < 400 }), { status })
+  })
+  const exitCode = await new Promise<number>((resolve) => {
+    const fakeProcess = { env, exit: (code: number) => resolve(code) }
+    new Function('fetch', 'process', 'setTimeout', source)(fetchFn, fakeProcess, setTimeout)
+  })
+  return { exitCode, calls }
+}
+
+describe.each(CRONS)('%s', (file) => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  const quiet = () => {
+    for (const level of ['log', 'info', 'warn', 'error'] as const) {
+      vi.spyOn(console, level).mockImplementation(() => {})
+    }
+  }
+
+  it('refuses to call its service without INTERNAL_API_KEY', async () => {
+    quiet()
+    const { exitCode, calls } = await runCron(file, {}, 200)
+
+    expect(exitCode).toBe(1)
+    expect(calls).toEqual([])
+  })
+
+  it.each([
+    ['a trailing newline', 'key\n'],
+    ['a tab', 'ab\tc'],
+    ['a byte-order mark', '\ufeffabc'],
+    ['a control character', 'ab\x1cc'],
+    ['non-ASCII', 'abé'],
+    ['an inner space', 'ab c'],
+    ['DEL', 'ab\x7fc'],
+  ])('refuses a key with %s, the same rule as the API and Python', async (_label, key) => {
+    quiet()
+    const { exitCode, calls } = await runCron(file, { INTERNAL_API_KEY: key }, 200)
+
+    expect(exitCode).toBe(1)
+    expect(calls).toEqual([])
+  })
+
+  it('treats a 409 (the job is already running) as a skip, not a failure', async () => {
+    quiet()
+    const { exitCode, calls } = await runCron(file, { INTERNAL_API_KEY: 'k' }, 409)
+
+    expect(exitCode).toBe(0)
+    expect(calls).toHaveLength(1)
+  })
+
+  it.each([401, 500])('fails the run on a %i', async (status) => {
+    quiet()
+    const { exitCode } = await runCron(file, { INTERNAL_API_KEY: 'k' }, status)
+
+    expect(exitCode).toBe(1)
+  })
+
+  it('fails the run when the service rejects the key', async () => {
+    quiet()
+    const { exitCode, calls } = await runCron(file, { INTERNAL_API_KEY: 'k' }, 403)
+
+    expect(exitCode).toBe(1)
+    expect(calls).toHaveLength(1)
+  })
+
+  it('sends the key and succeeds when the service accepts it', async () => {
+    quiet()
+    const { exitCode, calls } = await runCron(file, { INTERNAL_API_KEY: 'k' }, 200)
+
+    expect(exitCode).toBe(0)
+    expect(calls.map((call) => call.key)).toEqual(['k'])
+    // Never follow a redirect, so the key only goes to the service named.
+    expect(calls.map((call) => call.redirect)).toEqual(['error'])
+  })
+})

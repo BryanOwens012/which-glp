@@ -106,6 +106,27 @@ export const parseSupabaseSecretKey = (raw: string | undefined): string => {
   return raw
 }
 
+/**
+ * Validate `INTERNAL_API_KEY`, the key the API sends as `x-internal-api-key` to the
+ * internal services (loaded from Doppler at boot). The key must be printable ASCII
+ * with no whitespace (a pasted CR, space or BOM would never match); a missing or
+ * malformed key fails the process at boot rather than sending an empty or wrong
+ * header on every call. The Python services apply the
+ * same rule in `scripts/legacy-ingestion/shared/internal_api_key.py`; keep the two
+ * in sync.
+ *
+ * Exported rather than applied here, for the same reason as `parseSupabaseSecretKey`.
+ */
+export const parseInternalApiKey = (raw: string | undefined): string => {
+  if (!raw) {
+    throw new Error('Missing INTERNAL_API_KEY environment variable')
+  }
+  if (!/^[\x21-\x7e]+$/.test(raw)) {
+    throw new Error('Invalid INTERNAL_API_KEY: it must be printable ASCII with no whitespace')
+  }
+  return raw
+}
+
 const isProduction = process.env.NODE_ENV === 'production'
 
 const allowedOrigins = new Set<string>([
