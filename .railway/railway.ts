@@ -213,7 +213,7 @@ export default defineRailway((ctx) => {
     cpu: 4,
     privateEndpoint: "post-ingestion",
     serviceDomain: "whichglp-post-ingestion.up.railway.app",
-    env: env(["INTERNAL_API_KEY", "OPENROUTER_API_KEY", "PYTHONUNBUFFERED", ...redditApi, ...supabaseApi]),
+    env: env(["INTERNAL_API_KEY", "PYTHONUNBUFFERED", ...redditApi, ...supabaseApi]),
   });
 
   const postExtraction = definePythonService("Post-Extraction", {

@@ -6,11 +6,12 @@
  * unique resources, every runnable service has a start command, GitHub sources
  * pin the production branch, function bodies round-trip to ./functions, no
  * secret-looking variable is committed as a literal value, and every variable a
- * service declares is mentioned somewhere in that service's own code.
+ * service declares is mentioned somewhere in the code that service runs.
  *
  * Run from this directory: npm run check
  */
-import { readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { createRailwayContext, project, type ResourceNode } from "railway/iac";
 import program from "./railway.ts";
@@ -52,6 +53,20 @@ const readSourceTree = (root: string): { text: string; files: number } => {
   };
   walk(root);
   return { text: chunks.join("\n"), files: chunks.length };
+};
+
+/**
+ * Source of a Python service: the files its `api.py` entry point imports,
+ * transitively (python-import-closure.py). Scanning the whole directory instead
+ * would count a symlinked shared file the service never imports.
+ */
+const readPythonClosure = (entry: string): { text: string; files: number } => {
+  const files = execFileSync("python3", [join(import.meta.dirname, "python-import-closure.py"), entry], {
+    encoding: "utf8",
+  })
+    .split("\n")
+    .filter((line) => line.length > 0);
+  return { text: files.map((file) => readFileSync(file, "utf8")).join("\n"), files: files.length };
 };
 
 /** The code a service runs: its function file, or the directory its deploys watch. */
@@ -115,7 +130,8 @@ for (const resource of resources) {
     fail(`${resource.address} has no code location (watch pattern or function file) to check its variables against`);
     continue;
   }
-  const source = readSourceTree(codeRoot);
+  const pythonEntry = join(codeRoot, "api.py");
+  const source = existsSync(pythonEntry) ? readPythonClosure(pythonEntry) : readSourceTree(codeRoot);
   if (source.files === 0) {
     fail(`${resource.address} code location ${codeRoot} holds no files`);
     continue;
