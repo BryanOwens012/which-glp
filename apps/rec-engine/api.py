@@ -98,10 +98,15 @@ def get_supabase_client() -> Client:
 
     if _supabase_client is None:
         url = os.getenv("SUPABASE_URL")
-        key = os.getenv("SUPABASE_SERVICE_KEY")
+        key = os.getenv("SUPABASE_SECRET_KEY")
 
         if not url or not key:
-            raise ValueError("Missing SUPABASE_URL or SUPABASE_SERVICE_KEY environment variables")
+            raise ValueError("Missing SUPABASE_URL or SUPABASE_SECRET_KEY environment variables")
+        if not key.startswith("sb_secret_"):
+            raise ValueError(
+                "Invalid SUPABASE_SECRET_KEY: expected a Supabase secret key starting with \"sb_secret_\" "
+                "(not a publishable key or a legacy service_role JWT)"
+            )
 
         _supabase_client = create_client(url, key)
 

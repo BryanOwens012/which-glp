@@ -72,7 +72,11 @@ const buildLimits = (cpu: number, memoryGb: number) => ({
  */
 const DRAINING_SECONDS = 15;
 
-/** Variables every service carries. Values are managed on Railway and preserved as-is. */
+/**
+ * Variables every service carries. Values are managed on Railway and preserved as-is.
+ * SUPABASE_SERVICE_KEY is the legacy service_role JWT that SUPABASE_SECRET_KEY replaces;
+ * nothing reads it once the secret-key code deploys, so drop it then.
+ */
 const sharedSecrets = [
   "ANTHROPIC_API_KEY",
   "INTERNAL_API_KEY",
@@ -82,8 +86,8 @@ const sharedSecrets = [
   "REDDIT_API_APP_NAME",
   "REDDIT_API_APP_SECRET",
   "REDIS_URL",
-  "SUPABASE_ANON_KEY",
   "SUPABASE_DB_PASSWORD",
+  "SUPABASE_SECRET_KEY",
   "SUPABASE_SERVICE_KEY",
   "SUPABASE_URL",
 ] as const;

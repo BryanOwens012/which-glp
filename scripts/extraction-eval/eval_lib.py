@@ -58,7 +58,7 @@ def load_module(name: str, path: Path):
 def supabase_get(table: str, params: Dict[str, str]) -> List[Dict[str, Any]]:
     """GET rows from Supabase's REST API. GET cannot write, so this is read-only."""
     url = os.environ["SUPABASE_URL"].rstrip("/") + f"/rest/v1/{table}?" + urllib.parse.urlencode(params, safe="(),.*:!")
-    key = os.environ["SUPABASE_SERVICE_KEY"]
+    key = os.environ["SUPABASE_SECRET_KEY"]
     request = urllib.request.Request(url, method="GET", headers={"apikey": key, "Authorization": f"Bearer {key}"})
     with urllib.request.urlopen(request, timeout=60) as response:
         return json.loads(response.read())

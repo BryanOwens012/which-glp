@@ -97,7 +97,7 @@ class Database:
             pass
 
         # Validate required environment variables
-        required_vars = ["SUPABASE_URL", "SUPABASE_SERVICE_KEY"]
+        required_vars = ["SUPABASE_URL", "SUPABASE_SECRET_KEY"]
         missing_vars = [var for var in required_vars if var not in os.environ or not os.environ[var]]
 
         if missing_vars:
@@ -106,11 +106,19 @@ class Database:
                 f"{', '.join(missing_vars)}\n"
                 f"Please add these credentials to your environment.\n"
                 f"Get your Supabase credentials from: https://app.supabase.com/project/_/settings/api\n"
-                f"Note: Use SUPABASE_SERVICE_KEY for write operations (not SUPABASE_ANON_KEY)"
+                f"Note: Use the secret key (sb_secret_...), not the publishable key"
             )
 
         supabase_url = os.getenv("SUPABASE_URL")
-        supabase_key = os.getenv("SUPABASE_SERVICE_KEY")
+        supabase_key = os.getenv("SUPABASE_SECRET_KEY")
+
+        # A publishable key maps to the anon role, which has no grants here, and a
+        # legacy service_role JWT (eyJ...) is being retired by Supabase.
+        if not supabase_key or not supabase_key.startswith("sb_secret_"):
+            raise DatabaseConfigurationError(
+                "Invalid SUPABASE_SECRET_KEY: expected a Supabase secret key starting with \"sb_secret_\" "
+                "(not a publishable key or a legacy service_role JWT)"
+            )
 
         # Validate URL format
         if not supabase_url or not supabase_url.startswith("https://") or ".supabase.co" not in supabase_url:

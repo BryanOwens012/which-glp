@@ -78,6 +78,31 @@ const parseExtraOrigins = (raw: string | undefined): string[] => {
     })
 }
 
+/**
+ * Validate `SUPABASE_SECRET_KEY`. It must be a Supabase secret key
+ * (`sb_secret_...`), which maps to the `service_role` Postgres role. A
+ * publishable key would map to `anon` and fail every query with "permission
+ * denied", and a legacy `service_role` JWT (`eyJ...`) is being retired by
+ * Supabase — reject both at boot instead of at the first request.
+ *
+ * Exported rather than applied here: only `supabase.ts` needs the key, and
+ * reading it at this module's import would make every test that imports
+ * `config` supply one.
+ */
+export const parseSupabaseSecretKey = (raw: string | undefined): string => {
+  if (!raw) {
+    throw new Error('Missing SUPABASE_SECRET_KEY environment variable')
+  }
+
+  if (!raw.startsWith('sb_secret_')) {
+    throw new Error(
+      'Invalid SUPABASE_SECRET_KEY: expected a Supabase secret key starting with "sb_secret_" (not a publishable key or a legacy service_role JWT)',
+    )
+  }
+
+  return raw
+}
+
 const isProduction = process.env.NODE_ENV === 'production'
 
 const allowedOrigins = new Set<string>([

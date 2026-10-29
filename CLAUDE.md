@@ -152,8 +152,8 @@ Create `.env` in the repository root:
 ```bash
 # Supabase Database
 SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_ANON_KEY=your-anon-key
-SUPABASE_SERVICE_KEY=your-service-key
+SUPABASE_SECRET_KEY=sb_secret_...            # server-only; maps to service_role
+SUPABASE_PUBLISHABLE_KEY=sb_publishable_...  # browser-safe; no reader yet
 SUPABASE_DB_PASSWORD=your-db-password
 
 # Redis (API cache and rate limiting)
@@ -169,6 +169,8 @@ OPENROUTER_API_KEY=your-api-key
 ```
 
 Get an OpenRouter key at https://openrouter.ai/settings/keys. The extraction model (Muse Spark 1.3 Contributor) trains on prompts, so the OpenRouter account's privacy settings must allow training providers for paid models — otherwise requests fail with "No endpoints found matching your data policy".
+
+**Supabase API keys**: use the `sb_secret_`/`sb_publishable_` keys from Settings > API Keys, never the legacy `anon`/`service_role` JWTs, which Supabase is retiring. The API, rec-engine, and shared Python client refuse a `SUPABASE_SECRET_KEY` that does not start with `sb_secret_`.
 
 **Database Connection**: The code extracts the project reference from `SUPABASE_URL` and constructs the PostgreSQL connection string automatically. See `scripts/legacy-ingestion/shared/database.py` for implementation.
 

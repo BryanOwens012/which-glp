@@ -35,10 +35,10 @@ def main():
 
     # Get Supabase credentials
     supabase_url = os.getenv("SUPABASE_URL")
-    supabase_key = os.getenv("SUPABASE_SERVICE_KEY")
+    supabase_key = os.getenv("SUPABASE_SECRET_KEY")
 
     if not supabase_url or not supabase_key:
-        print("❌ Error: SUPABASE_URL and SUPABASE_SERVICE_KEY must be set")
+        print("❌ Error: SUPABASE_URL and SUPABASE_SECRET_KEY must be set")
         print("   Check your .env file or environment variables")
         sys.exit(1)
 
