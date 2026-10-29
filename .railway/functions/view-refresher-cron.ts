@@ -204,8 +204,4 @@ const main = async () => {
   await refreshCacheAndMaterializedView();
 };
 
-// A failed Doppler load throws before the job's own try/catch; fail the run either way.
-main().catch((error) => {
-  console.error("❌ CRON JOB FAILED:", error instanceof Error ? error.message : error);
-  process.exit(1);
-});
+runCron(main);

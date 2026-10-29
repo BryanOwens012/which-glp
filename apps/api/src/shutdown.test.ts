@@ -238,7 +238,12 @@ describe('API bootstrap on Railway', () => {
       output += String(chunk)
     })
 
-    const code = await waitForExit(child, 20_000)
+    let code: number | null
+    try {
+      code = await waitForExit(child, 20_000)
+    } finally {
+      child.kill('SIGKILL')
+    }
 
     expect(code).not.toBe(0)
     expect(output).toContain('DOPPLER_TOKEN is not set; refusing to start')

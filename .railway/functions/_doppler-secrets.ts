@@ -12,6 +12,8 @@
 // no copy of Doppler's variables, so the run fails closed.
 
 const DOPPLER_SECRET_URL = "https://api.doppler.com/v3/configs/config/secret";
+// Variables Railway sets on every deployment; any one of them means the run is on Railway.
+const RAILWAY_IDENTIFIERS = ["RAILWAY_ENVIRONMENT_NAME", "RAILWAY_ENVIRONMENT_ID", "RAILWAY_PROJECT_ID", "RAILWAY_SERVICE_ID"];
 const DOPPLER_SECRET_NAME_PATTERN = /^[A-Z][A-Z0-9_]*$/;
 const DOPPLER_REQUEST_TIMEOUT_MS = 5_000;
 const DOPPLER_MAX_ATTEMPTS = 3; // 429 and 5xx responses and network errors are retried
@@ -21,10 +23,7 @@ const DOPPLER_MAX_RETRY_AFTER_MS = 5_000; // a Retry-After header is honored up 
 async function loadDopplerSecrets(names: readonly string[]): Promise<void> {
   const token = process.env.DOPPLER_TOKEN;
   // Railway holds no copy of Doppler's variables, so there the load fails closed.
-  // Railway sets these on every deployment; any one of them means the run is on Railway.
-  const isOnRailway = ["RAILWAY_ENVIRONMENT_NAME", "RAILWAY_ENVIRONMENT_ID", "RAILWAY_PROJECT_ID", "RAILWAY_SERVICE_ID"].some(
-    (name) => Boolean(process.env[name]),
-  );
+  const isOnRailway = RAILWAY_IDENTIFIERS.some((name) => Boolean(process.env[name]));
   if (!token) {
     if (isOnRailway) {
       throw new Error("[doppler] DOPPLER_TOKEN is not set; refusing to run without the Doppler variables");
@@ -116,4 +115,18 @@ async function loadDopplerSecrets(names: readonly string[]): Promise<void> {
   } else {
     console.info(line);
   }
+}
+
+/**
+ * Run a cron's main and fail the run on anything it throws, a failed Doppler load
+ * included, which happens before the job's own try/catch.
+ */
+function runCron(main: () => Promise<void>): void {
+  main().catch((error) => {
+    console.error("=".repeat(80));
+    console.error("❌ CRON JOB FAILED");
+    console.error("Error:", error instanceof Error ? error.message : error);
+    console.error("=".repeat(80));
+    process.exit(1);
+  });
 }
