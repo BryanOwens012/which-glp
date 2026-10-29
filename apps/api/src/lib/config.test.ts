@@ -14,6 +14,9 @@ describe('parseSupabaseSecretKey', () => {
     ['a publishable key', 'sb_publishable_abc123'],
     ['a legacy service_role JWT', 'eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIn0.sig'],
     ['a value with leading whitespace', ' sb_secret_abc123'],
+    ['a value with a trailing CR', 'sb_secret_abc123\r'],
+    ['a value with inner whitespace', 'sb_secret_abc 123'],
+    ['the bare prefix', 'sb_secret_'],
   ])('rejects %s', (_label, raw) => {
     expect(() => parseSupabaseSecretKey(raw)).toThrow('Invalid SUPABASE_SECRET_KEY')
   })

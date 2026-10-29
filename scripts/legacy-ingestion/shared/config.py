@@ -14,6 +14,12 @@ import sys
 from pathlib import Path
 from logging.handlers import RotatingFileHandler
 
+from shared.supabase_key import install_log_redaction
+
+# Every service imports this module for its logger, so this masks Supabase
+# secret keys in all of their log output.
+install_log_redaction()
+
 
 def get_monorepo_root() -> Path:
     """

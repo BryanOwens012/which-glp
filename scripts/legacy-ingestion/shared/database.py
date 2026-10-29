@@ -21,6 +21,9 @@ from datetime import datetime
 from dotenv import load_dotenv
 from supabase import create_client, Client
 
+from shared.supabase_key import SupabaseKeyError, install_log_redaction, require_supabase_secret_key
+
+install_log_redaction()
 logger = logging.getLogger(__name__)
 
 # Batch size for bulk inserts
@@ -106,19 +109,14 @@ class Database:
                 f"{', '.join(missing_vars)}\n"
                 f"Please add these credentials to your environment.\n"
                 f"Get your Supabase credentials from: https://app.supabase.com/project/_/settings/api\n"
-                f"Note: Use the secret key (sb_secret_...), not the publishable key"
+                "Note: Use the secret key (sb_secret_...), not the publishable key"
             )
 
         supabase_url = os.getenv("SUPABASE_URL")
-        supabase_key = os.getenv("SUPABASE_SECRET_KEY")
-
-        # A publishable key maps to the anon role, which has no grants here, and a
-        # legacy service_role JWT (eyJ...) is being retired by Supabase.
-        if not supabase_key or not supabase_key.startswith("sb_secret_"):
-            raise DatabaseConfigurationError(
-                "Invalid SUPABASE_SECRET_KEY: expected a Supabase secret key starting with \"sb_secret_\" "
-                "(not a publishable key or a legacy service_role JWT)"
-            )
+        try:
+            supabase_key = require_supabase_secret_key(os.getenv("SUPABASE_SECRET_KEY"))
+        except SupabaseKeyError as e:
+            raise DatabaseConfigurationError(str(e)) from e
 
         # Validate URL format
         if not supabase_url or not supabase_url.startswith("https://") or ".supabase.co" not in supabase_url:

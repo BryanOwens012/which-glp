@@ -16,9 +16,14 @@ from pydantic import BaseModel, Field
 from supabase import create_client, Client
 from dotenv import load_dotenv
 from recommender import DrugRecommender, UserProfile, DrugRecommendation
+from supabase_key import install_log_redaction, require_supabase_secret_key
 
 # Load environment variables
 load_dotenv()
+install_log_redaction()
+
+# Fail at boot, not at the first /recommend request, on a missing or wrong key.
+SUPABASE_SECRET_KEY = require_supabase_secret_key(os.getenv("SUPABASE_SECRET_KEY"))
 
 app = FastAPI(title="WhichGLP ML API", version="0.1.0")
 
@@ -98,17 +103,11 @@ def get_supabase_client() -> Client:
 
     if _supabase_client is None:
         url = os.getenv("SUPABASE_URL")
-        key = os.getenv("SUPABASE_SECRET_KEY")
 
-        if not url or not key:
-            raise ValueError("Missing SUPABASE_URL or SUPABASE_SECRET_KEY environment variables")
-        if not key.startswith("sb_secret_"):
-            raise ValueError(
-                "Invalid SUPABASE_SECRET_KEY: expected a Supabase secret key starting with \"sb_secret_\" "
-                "(not a publishable key or a legacy service_role JWT)"
-            )
+        if not url:
+            raise ValueError("Missing SUPABASE_URL environment variable")
 
-        _supabase_client = create_client(url, key)
+        _supabase_client = create_client(url, SUPABASE_SECRET_KEY)
 
     return _supabase_client
 
