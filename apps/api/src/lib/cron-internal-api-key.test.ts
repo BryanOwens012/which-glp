@@ -57,6 +57,8 @@ describe.each(CRONS)('%s', (file) => {
     ['a byte-order mark', '\ufeffabc'],
     ['a control character', 'ab\x1cc'],
     ['non-ASCII', 'abé'],
+    ['an inner space', 'ab c'],
+    ['DEL', 'ab\x7fc'],
   ])('refuses a key with %s, the same rule as the API and Python', async (_label, key) => {
     quiet()
     const { exitCode, calls } = await runCron(file, { INTERNAL_API_KEY: key }, 200)

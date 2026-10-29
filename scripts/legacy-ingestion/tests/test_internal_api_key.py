@@ -41,6 +41,7 @@ class TestParseInternalApiKey:
             ("\ufeffabc", "printable ASCII"),
             ("ab\x1cc", "printable ASCII"),
             ("abé", "printable ASCII"),
+            ("ab\x7fc", "printable ASCII"),
         ],
     )
     def test_refuses_an_unusable_key(self, raw, message):

@@ -38,6 +38,7 @@ describe('parseInternalApiKey', () => {
     ['a byte-order mark', '\ufeffabc', 'printable ASCII'],
     ['a control character', 'ab\x1cc', 'printable ASCII'],
     ['non-ASCII', 'abé', 'printable ASCII'],
+    ['DEL', 'ab\x7fc', 'printable ASCII'],
   ])('refuses a key that is %s', (_label, raw, message) => {
     expect(() => parseInternalApiKey(raw)).toThrow(message)
   })
