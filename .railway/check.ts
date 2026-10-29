@@ -8,7 +8,10 @@
  * secret-looking variable is committed as a literal value, a variable named like
  * a shared variable is a `${{shared.NAME}}` reference to it, every variable a
  * service declares is mentioned somewhere in the code that service runs, and every
- * service loads its enumerated secrets from Doppler at boot.
+ * service loads its enumerated variables from Doppler at boot. Doppler is the only
+ * source of the names it holds (DOPPLER_NAMES): a service lists every one its code
+ * reads, lists nothing Doppler lacks, and declares none of them on Railway. Python
+ * services also guard every route with INTERNAL_API_KEY (python-route-guards.py).
  *
  * Run from this directory: npm run check
  */
@@ -18,7 +21,7 @@ import { stripTypeScriptTypes } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createRailwayContext, project, type ResourceNode } from "railway/iac";
-import program, { buildFunctionSource, FUNCTION_PRELUDES, SHARED_VARIABLES } from "./railway.ts";
+import program, { buildFunctionSource, DOPPLER_NAMES, FUNCTION_PRELUDES, SHARED_VARIABLES } from "./railway.ts";
 
 const EXPECTED_BRANCH = "develop";
 const SECRET_NAME = /KEY|SECRET|PASSWORD|TOKEN/;
@@ -246,9 +249,8 @@ for (const resource of resources) {
       fail(`${resource.address} declares ${name}, which its code (${codeRoot}) never reads; remove it`);
     }
   }
-  // Every backend service loads its own enumerated secrets from Doppler at boot, in
-  // its entry point (comments stripped), with a non-empty DOPPLER_SECRETS list that
-  // equals its shared references, secret or not (minus the Doppler access variables).
+  // Every backend service loads its own enumerated variables from Doppler at boot, in
+  // its entry point (comments stripped), with a non-empty DOPPLER_SECRETS list.
   const entry = entryPointOf(resource, codeRoot);
   const isPython = entry.endsWith(".py");
   const entryText = stripComments(readFileSync(entry, "utf8"), isPython);
@@ -282,15 +284,26 @@ for (const resource of resources) {
       fail(`${resource.address} must call its service with callInternalService (functions/_internal-service.ts), not fetch (${entry})`);
     }
   }
+  // Doppler is the only source of the names it holds (DOPPLER_NAMES): a service
+  // lists every one its code reads in DOPPLER_SECRETS, lists nothing Doppler lacks, and
+  // declares none of them on Railway. A function's preludes are shared, so only its own
+  // file counts as what it reads.
   const listed = parseDopplerSecrets(entryText);
-  const expected = Object.entries(resource.variables ?? {})
-    .filter(([name, value]) => value.type === "sharedReference" && !name.startsWith("DOPPLER_"))
-    .map(([name]) => name)
-    .sort();
+  const readText = resource.kind === "function" ? entryText : source.text;
   if (listed === null || listed.length === 0) {
     fail(`${resource.address} has no non-empty DOPPLER_SECRETS list (${entry})`);
-  } else if (listed.join(",") !== expected.join(",")) {
-    fail(`${resource.address} DOPPLER_SECRETS is [${listed.join(", ")}], expected [${expected.join(", ")}] (its shared references)`);
+  } else {
+    for (const name of listed.filter((name) => !DOPPLER_NAMES.has(name))) {
+      fail(`${resource.address} lists ${name} in DOPPLER_SECRETS, but Doppler does not hold it (DOPPLER_NAMES)`);
+    }
+    for (const name of [...DOPPLER_NAMES].filter((name) => new RegExp(`\\b${name}\\b`).test(readText))) {
+      if (!listed.includes(name)) {
+        fail(`${resource.address} reads ${name}, which Doppler holds, but does not list it in DOPPLER_SECRETS (${entry})`);
+      }
+    }
+  }
+  for (const name of Object.keys(resource.variables ?? {}).filter((name) => DOPPLER_NAMES.has(name))) {
+    fail(`${resource.address} declares ${name} on Railway, but Doppler holds it; load it from Doppler instead`);
   }
 }
 

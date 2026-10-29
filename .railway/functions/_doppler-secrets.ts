@@ -8,8 +8,12 @@
 // Fetches only the enumerated names, one request each, with DOPPLER_TOKEN (a service
 // token, bound to one project and config, so none is sent); writes pulled values into
 // process.env for this run only; logs pulled and failed names with reasons, never a value.
+// On Railway a missing or non-service token, or any failed name, throws: Railway holds
+// no copy of Doppler's variables, so the run fails closed.
 
 const DOPPLER_SECRET_URL = "https://api.doppler.com/v3/configs/config/secret";
+// Variables Railway sets on every deployment; any one of them means the run is on Railway.
+const RAILWAY_IDENTIFIERS = ["RAILWAY_ENVIRONMENT_NAME", "RAILWAY_ENVIRONMENT_ID", "RAILWAY_PROJECT_ID", "RAILWAY_SERVICE_ID"];
 const DOPPLER_SECRET_NAME_PATTERN = /^[A-Z][A-Z0-9_]*$/;
 const DOPPLER_REQUEST_TIMEOUT_MS = 5_000;
 const DOPPLER_MAX_ATTEMPTS = 3; // 429 and 5xx responses and network errors are retried
@@ -18,18 +22,21 @@ const DOPPLER_MAX_RETRY_AFTER_MS = 5_000; // a Retry-After header is honored up 
 
 async function loadDopplerSecrets(names: readonly string[]): Promise<void> {
   const token = process.env.DOPPLER_TOKEN;
+  // Railway holds no copy of Doppler's variables, so there the load fails closed.
+  const isOnRailway = RAILWAY_IDENTIFIERS.some((name) => Boolean(process.env[name]));
   if (!token) {
-    // On Railway every service is given DOPPLER_TOKEN, so its absence is a misconfiguration.
-    if (process.env.RAILWAY_ENVIRONMENT_NAME) {
-      console.warn("[doppler] DOPPLER_TOKEN is not set; skipping the Doppler load (running on existing environment values)");
-    } else {
-      console.info("[doppler] DOPPLER_TOKEN is not set; skipping the Doppler load (local .env applies)");
+    if (isOnRailway) {
+      throw new Error("[doppler] DOPPLER_TOKEN is not set; refusing to run without the Doppler variables");
     }
+    console.info("[doppler] DOPPLER_TOKEN is not set; skipping the Doppler load (local .env applies)");
     return;
   }
   // We send no project or config, so only a service token, which is bound to one, can name what to read.
   if (!token.startsWith("dp.st.")) {
-    console.warn("[doppler] DOPPLER_TOKEN is not a service token (dp.st.); skipping the Doppler load (running on existing environment values)");
+    if (isOnRailway) {
+      throw new Error("[doppler] DOPPLER_TOKEN is not a service token (dp.st.); refusing to run without the Doppler variables");
+    }
+    console.warn("[doppler] DOPPLER_TOKEN is not a service token (dp.st.); skipping the Doppler load (local .env applies)");
     return;
   }
 
@@ -86,7 +93,10 @@ async function loadDopplerSecrets(names: readonly string[]): Promise<void> {
     failed.push({ name, reason: "invalid_name" });
     return false;
   });
-  for (const outcome of await Promise.all(requested.map(fetchSecret))) {
+  const outcomes = await Promise.all(requested.map(fetchSecret));
+  // The token reads the whole Doppler config; nothing after the load needs it, so drop it.
+  delete process.env.DOPPLER_TOKEN;
+  for (const outcome of outcomes) {
     if (outcome.value !== undefined) {
       process.env[outcome.name] = outcome.value;
       pulled.push(outcome.name);
@@ -99,7 +109,24 @@ async function loadDopplerSecrets(names: readonly string[]): Promise<void> {
   const line = `[doppler] pulled ${pulled.length} of ${pulled.length + failed.length} secrets, ${failed.length} failed; pulled=${JSON.stringify(pulled)} failed=${JSON.stringify(failed.map(({ name, reason }) => `${name} (${reason})`))}`;
   if (failed.length > 0) {
     console.warn(line);
+    if (isOnRailway) {
+      throw new Error(`[doppler] ${failed.length} variable(s) failed to load; refusing to run without them`);
+    }
   } else {
     console.info(line);
   }
+}
+
+/**
+ * Run a cron's main and fail the run on anything it throws, a failed Doppler load
+ * included, which happens before the job's own try/catch.
+ */
+function runCron(main: () => Promise<void>): void {
+  main().catch((error) => {
+    console.error("=".repeat(80));
+    console.error("❌ CRON JOB FAILED");
+    console.error("Error:", error instanceof Error ? error.message : error);
+    console.error("=".repeat(80));
+    process.exit(1);
+  });
 }

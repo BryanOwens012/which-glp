@@ -58,4 +58,4 @@ const main = async () => {
   await extractPosts();
 };
 
-main();
+runCron(main);

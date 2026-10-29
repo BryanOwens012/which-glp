@@ -204,4 +204,4 @@ const main = async () => {
   await refreshCacheAndMaterializedView();
 };
 
-main();
+runCron(main);

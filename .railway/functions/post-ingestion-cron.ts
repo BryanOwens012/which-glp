@@ -54,4 +54,4 @@ const main = async () => {
   await ingestPosts();
 };
 
-main();
+runCron(main);

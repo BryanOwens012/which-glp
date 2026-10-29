@@ -7,8 +7,12 @@
  * values are written into `process.env` for this process only, overriding any
  * Railway-provided copy; nothing outside the enumerated list is requested or
  * accepted. The boot log gives how many were pulled and how many failed,
- * with both name lists and a reason per failure, never a value. Without
- * DOPPLER_TOKEN (local development) the load is skipped and `.env` applies as before.
+ * with both name lists and a reason per failure, never a value.
+ *
+ * On Railway the load fails closed: Railway holds no copy of Doppler's variables, so
+ * a missing or non-service token, or any name that fails to load, throws and the
+ * service does not start. Locally, without DOPPLER_TOKEN, the load is skipped and
+ * `.env` applies.
  *
  * Backend only: the frontend reads public `NEXT_PUBLIC_*` config from ordinary
  * environment variables and never talks to Doppler.
@@ -32,6 +36,9 @@ const REQUEST_TIMEOUT_MS = 5_000
 const MAX_ATTEMPTS = 3
 
 const RETRY_BASE_DELAY_MS = 250
+
+/** Variables Railway sets on every deployment; any one of them means the process runs on Railway. */
+const RAILWAY_IDENTIFIERS = ['RAILWAY_ENVIRONMENT_NAME', 'RAILWAY_ENVIRONMENT_ID', 'RAILWAY_PROJECT_ID', 'RAILWAY_SERVICE_ID']
 
 /** A Retry-After header is honored up to this cap. */
 const MAX_RETRY_AFTER_MS = 5_000
@@ -129,18 +136,21 @@ export const loadDopplerSecrets = async (
 ): Promise<DopplerLoadReport | null> => {
   const resolved: LoadDeps = { ...defaultDeps, ...deps }
   const token = resolved.env.DOPPLER_TOKEN
+  // Railway holds no copy of Doppler's variables, so there the load fails closed.
+  const isOnRailway = RAILWAY_IDENTIFIERS.some((name) => Boolean(resolved.env[name]))
   if (!token) {
-    // On Railway every service is given DOPPLER_TOKEN, so its absence is a misconfiguration.
-    if (resolved.env.RAILWAY_ENVIRONMENT_NAME) {
-      console.warn('[doppler] DOPPLER_TOKEN is not set; skipping the Doppler load (running on existing environment values)')
-    } else {
-      console.info('[doppler] DOPPLER_TOKEN is not set; skipping the Doppler load (local .env applies)')
+    if (isOnRailway) {
+      throw new Error('[doppler] DOPPLER_TOKEN is not set; refusing to start without the Doppler variables')
     }
+    console.info('[doppler] DOPPLER_TOKEN is not set; skipping the Doppler load (local .env applies)')
     return null
   }
   // We send no project or config, so only a service token, which is bound to one, can name what to read.
   if (!token.startsWith('dp.st.')) {
-    console.warn('[doppler] DOPPLER_TOKEN is not a service token (dp.st.); skipping the Doppler load (running on existing environment values)')
+    if (isOnRailway) {
+      throw new Error('[doppler] DOPPLER_TOKEN is not a service token (dp.st.); refusing to start without the Doppler variables')
+    }
+    console.warn('[doppler] DOPPLER_TOKEN is not a service token (dp.st.); skipping the Doppler load (local .env applies)')
     return null
   }
 
@@ -155,6 +165,8 @@ export const loadDopplerSecrets = async (
   })
 
   const outcomes = await Promise.all(requested.map((name) => fetchSecret(name, token, resolved)))
+  // The token reads the whole Doppler config; nothing after boot needs it, so drop it.
+  delete resolved.env.DOPPLER_TOKEN
   for (const outcome of outcomes) {
     if ('value' in outcome) {
       resolved.env[outcome.name] = outcome.value
@@ -169,6 +181,9 @@ export const loadDopplerSecrets = async (
   const line = formatDopplerReport(report)
   if (report.failed.length > 0) {
     console.warn(line)
+    if (isOnRailway) {
+      throw new Error(`[doppler] ${report.failed.length} variable(s) failed to load; refusing to start without them`)
+    }
   } else {
     console.info(line)
   }

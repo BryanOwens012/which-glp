@@ -193,13 +193,53 @@ class TestLoaderHardening:
         assert "not a service token" in caplog.text
         assert LOADED_MARKER not in env
 
-    def test_missing_token_on_railway_warns(self, caplog):
+    @pytest.mark.parametrize(
+        ("env", "message"),
+        [
+            ({"RAILWAY_ENVIRONMENT_NAME": "production"}, "DOPPLER_TOKEN is not set; refusing to start"),
+            (
+                {"RAILWAY_ENVIRONMENT_NAME": "production", "DOPPLER_TOKEN": "dp.pt.personal"},
+                "not a service token \\(dp.st.\\); refusing to start",
+            ),
+        ],
+        ids=["no-token", "non-service-token"],
+    )
+    def test_refuses_to_start_on_railway_without_a_usable_token(self, env, message):
         fetch, requests = make_fetch({})
-        with caplog.at_level(logging.INFO, logger=LOGGER.name):
-            load_doppler_secrets(["A"], LOGGER, {"RAILWAY_ENVIRONMENT_NAME": "production"}, fetch, skip_sleep)
-
+        with pytest.raises(RuntimeError, match=message):
+            load_doppler_secrets(["A"], LOGGER, env, fetch, skip_sleep)
         assert requests == []
-        assert [r.levelno for r in caplog.records] == [logging.WARNING]
+        assert LOADED_MARKER not in env
+
+    def test_logs_then_refuses_to_start_on_railway_when_any_variable_fails(self, caplog):
+        env = base_env(RAILWAY_ENVIRONMENT_NAME="production")
+        fetch, _ = make_fetch({"A": [ok("a")], "B": [(404, None)]})
+        with caplog.at_level(logging.INFO, logger=LOGGER.name):
+            with pytest.raises(RuntimeError, match="1 variable\\(s\\) failed to load; refusing to start"):
+                load_doppler_secrets(["A", "B"], LOGGER, env, fetch, skip_sleep)
+        assert '[doppler] pulled 1 of 2 secrets, 1 failed; pulled=["A"] failed=["B (not_found)"]' in caplog.text
+
+    def test_starts_on_railway_when_every_variable_loads_and_drops_the_token(self):
+        env = base_env(RAILWAY_ENVIRONMENT_NAME="production")
+        fetch, _ = make_fetch({"A": [ok("a")]})
+        assert load_doppler_secrets(["A"], LOGGER, env, fetch, skip_sleep).pulled == ["A"]
+        assert env["A"] == "a"
+        assert "DOPPLER_TOKEN" not in env
+        assert env[LOADED_MARKER] == "1"
+
+    @pytest.mark.parametrize("identifier", ["RAILWAY_ENVIRONMENT_ID", "RAILWAY_PROJECT_ID", "RAILWAY_SERVICE_ID"])
+    def test_any_railway_identifier_means_railway(self, identifier):
+        with pytest.raises(RuntimeError, match="refusing to start"):
+            load_doppler_secrets(["A"], LOGGER, {identifier: "x"}, make_fetch({})[0], skip_sleep)
+
+    def test_a_failed_load_on_railway_leaves_no_loaded_marker(self):
+        env = base_env(RAILWAY_ENVIRONMENT_NAME="production")
+        with pytest.raises(RuntimeError):
+            load_doppler_secrets(["A"], LOGGER, env, make_fetch({})[0], skip_sleep)
+        assert LOADED_MARKER not in env
+        # ...so a caller that caught the first refusal is refused again, never waved through.
+        with pytest.raises(RuntimeError):
+            load_doppler_secrets(["A"], LOGGER, env, make_fetch({})[0], skip_sleep)
 
     def test_redirects_are_refused(self):
         from shared.doppler_secrets import _RefuseRedirects

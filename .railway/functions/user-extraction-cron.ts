@@ -63,4 +63,4 @@ const main = async () => {
   await analyzeUsers();
 };
 
-main();
+runCron(main);

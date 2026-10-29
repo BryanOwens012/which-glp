@@ -246,17 +246,102 @@ describe('cron Doppler loader', () => {
 
     expect(requests).toEqual([])
     expect(warn.mock.calls).toEqual([
-      ['[doppler] DOPPLER_TOKEN is not a service token (dp.st.); skipping the Doppler load (running on existing environment values)'],
+      ['[doppler] DOPPLER_TOKEN is not a service token (dp.st.); skipping the Doppler load (local .env applies)'],
     ])
   })
 
-  it('warns when the token is missing on Railway', async () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
-    const { load, requests } = buildLoader({}, { RAILWAY_ENVIRONMENT_NAME: 'production' })
+  it.each([
+    ['without a token', { RAILWAY_ENVIRONMENT_NAME: 'production' }, 'DOPPLER_TOKEN is not set'],
+    [
+      'with a non-service token',
+      { RAILWAY_ENVIRONMENT_NAME: 'production', DOPPLER_TOKEN: 'dp.pt.personal' },
+      'not a service token',
+    ],
+  ])('refuses to run on Railway %s', async (_label, env, message) => {
+    const { load, requests } = buildLoader({}, env)
+
+    await expect(load(['A'])).rejects.toThrow(message)
+    expect(requests).toEqual([])
+  })
+
+  it.each(['RAILWAY_ENVIRONMENT_ID', 'RAILWAY_PROJECT_ID', 'RAILWAY_SERVICE_ID'])(
+    'treats %s alone as running on Railway',
+    async (identifier) => {
+      const { load } = buildLoader({}, { [identifier]: 'x' })
+
+      await expect(load(['A'])).rejects.toThrow('refusing to run')
+    },
+  )
+
+  it('drops the token once the load finishes', async () => {
+    captureLog()
+    const { load, env } = buildLoader({ A: [{ status: 200, computed: 'a' }] })
 
     await load(['A'])
 
-    expect(requests).toEqual([])
-    expect(warn).toHaveBeenCalledOnce()
+    expect(env.A).toBe('a')
+    expect(env.DOPPLER_TOKEN).toBeUndefined()
+  })
+
+  it('logs the report, then refuses to run on Railway when any variable fails to load', async () => {
+    const { lines } = captureLog()
+    const { load } = buildLoader({ A: [{ status: 404 }] }, { ...baseEnv(), RAILWAY_ENVIRONMENT_NAME: 'production' })
+
+    await expect(load(['A'])).rejects.toThrow('1 variable(s) failed to load')
+    expect(lines).toEqual(['[doppler] pulled 0 of 1 secrets, 1 failed; pulled=[] failed=["A (not_found)"]'])
+  })
+})
+
+describe('Railway detection stays in sync across the three loaders', () => {
+  const readRepoFile = (path: string): string =>
+    readFileSync(fileURLToPath(new URL(`../../../../${path}`, import.meta.url)), 'utf8')
+
+  /** The quoted RAILWAY_* names in a loader's RAILWAY_IDENTIFIERS declaration. */
+  const identifiersIn = (source: string): string[] => {
+    const declaration = /RAILWAY_IDENTIFIERS\s*=\s*[[(]([^\])]*)[\])]/.exec(source)
+    return declaration ? [...declaration[1].matchAll(/["'](RAILWAY_[A-Z_]+)["']/g)].map((match) => match[1]).sort() : []
+  }
+
+  it('declares the same Railway identifiers in the API, cron and Python loaders', () => {
+    const api = identifiersIn(readRepoFile('apps/api/src/lib/doppler-secrets.ts'))
+    const cron = identifiersIn(readRepoFile('.railway/functions/_doppler-secrets.ts'))
+    const python = identifiersIn(readRepoFile('scripts/legacy-ingestion/shared/doppler_secrets.py'))
+
+    expect(api.length).toBeGreaterThanOrEqual(4)
+    expect(cron).toEqual(api)
+    expect(python).toEqual(api)
+  })
+})
+
+describe('cron entry points fail the run on a thrown main', () => {
+  const FUNCTIONS = new URL('../../../../.railway/functions/', import.meta.url)
+  const CRONS = ['post-ingestion-cron.ts', 'post-extraction-cron.ts', 'user-extraction-cron.ts', 'view-refresher-cron.ts']
+
+  it.each(CRONS)('%s hands main to runCron', (file) => {
+    const source = readFileSync(fileURLToPath(new URL(file, FUNCTIONS)), 'utf8')
+    expect(source.trimEnd().endsWith('runCron(main);')).toBe(true)
+    expect(/^main\(\)/m.test(source)).toBe(false)
+  })
+
+  it('runCron logs the failure and exits 1 when main rejects, a failed Doppler load included', async () => {
+    const lines: string[] = []
+    vi.spyOn(console, 'error').mockImplementation((...parts: unknown[]) => {
+      lines.push(parts.map(String).join(' '))
+    })
+    const exitCode = await new Promise<number>((resolve) => {
+      const runCron = new Function('fetch', 'process', 'setTimeout', `${LOADER_SOURCE}\nreturn runCron;`)(
+        fetch,
+        { env: {}, exit: resolve },
+        setTimeout,
+      ) as (main: () => Promise<void>) => void
+      runCron(async () => {
+        throw new Error('[doppler] DOPPLER_TOKEN is not set; refusing to run without the Doppler variables')
+      })
+    })
+
+    expect(exitCode).toBe(1)
+    expect(lines).toContain('❌ CRON JOB FAILED')
+    expect(lines.some((line) => line.includes('refusing to run'))).toBe(true)
+    vi.restoreAllMocks()
   })
 })
