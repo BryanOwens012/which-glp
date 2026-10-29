@@ -37,6 +37,7 @@ import {
   volume,
   type DatabaseNode,
   type ServiceNetworking,
+  type SharedVariableRef,
   type VariableValue,
 } from "railway/iac";
 
@@ -87,7 +88,6 @@ const sharedSecrets = [
   "REDDIT_API_APP_SECRET",
   "REDIS_URL",
   "SUPABASE_DB_PASSWORD",
-  "SUPABASE_SECRET_KEY",
   "SUPABASE_SERVICE_KEY",
   "SUPABASE_URL",
 ] as const;
@@ -105,8 +105,21 @@ const extractionSecrets = [
   "OPENROUTER_API_KEY",
 ] as const;
 
+/**
+ * Variables every service takes from the environment's shared variables. Each
+ * service gets a `${{shared.NAME}}` reference; the shared variable itself is set
+ * in Railway and is not managed by this file.
+ */
+const sharedVariableReferences = ["SUPABASE_SECRET_KEY"] as const;
+
 const preserveAll = (names: readonly string[]): Record<string, VariableValue> =>
   Object.fromEntries(names.map((name) => [name, preserve()]));
+
+/** A service's variables: the named ones preserved, plus every shared reference. */
+const buildEnv = (shared: SharedVariableRef, names: readonly string[]): Record<string, VariableValue> => ({
+  ...preserveAll(names),
+  ...Object.fromEntries(sharedVariableReferences.map((name) => [name, shared[name]])),
+});
 
 /** A Railway Function's code ships base64-encoded in its start command. */
 const encodeFunction = (file: string): string => {
@@ -138,7 +151,7 @@ type PythonServiceOptions = {
   privateEndpoint: string;
   /** Railway-generated public domain. */
   serviceDomain: string;
-  env: readonly string[];
+  env: Record<string, VariableValue>;
 };
 
 /** The Python services build from the monorepo root (no root directory) with Railpack. */
@@ -155,7 +168,7 @@ const definePythonService = (
     deploy: { ...buildLimits(cpu, 8), drainingSeconds: DRAINING_SECONDS },
     replicas: { [US_EAST]: 1 },
     networking: buildNetworking(privateEndpoint, serviceDomain),
-    env: preserveAll(env),
+    env,
   });
 
 type CronFunctionOptions = {
@@ -164,7 +177,7 @@ type CronFunctionOptions = {
   /** Standard 5-field cron expression, evaluated in UTC. */
   schedule: string;
   privateEndpoint: string;
-  env: readonly string[];
+  env: Record<string, VariableValue>;
 };
 
 const defineCronFunction = (
@@ -177,7 +190,7 @@ const defineCronFunction = (
     deploy: { cronSchedule: schedule, restartPolicyType: "NEVER", ...buildLimits(4, 4) },
     replicas: { [US_EAST]: 1 },
     networking: buildNetworking(privateEndpoint),
-    env: preserveAll(env),
+    env,
   });
 
 /**
@@ -205,7 +218,9 @@ const defineRedisDatabase = (name: string): DatabaseNode => {
   };
 };
 
-export default defineRailway(() => {
+export default defineRailway((ctx) => {
+  const env = (names: readonly string[]) => buildEnv(ctx.shared, names);
+
   // Node.js tRPC API. Serves api.whichglp.com from two regions.
   const api = service("API", {
     source: github(REPO, { branch: BRANCH, rootDirectory: "apps/api" }),
@@ -215,7 +230,7 @@ export default defineRailway(() => {
     replicas: { [US_EAST]: 1, [US_WEST]: 1 },
     domains: [{ domain: "api.whichglp.com", port: 8080 }],
     networking: buildNetworking("which-glp", "backend-production-71c7.up.railway.app"),
-    env: preserveAll([...sharedSecrets, "REC_ENGINE_URL"]),
+    env: env([...sharedSecrets, "REC_ENGINE_URL"]),
   });
 
   const postIngestion = definePythonService("Post-Ingestion", {
@@ -225,7 +240,7 @@ export default defineRailway(() => {
     cpu: 4,
     privateEndpoint: "post-ingestion",
     serviceDomain: "whichglp-post-ingestion.up.railway.app",
-    env: [...sharedSecrets, ...extractionSecrets, "PYTHONUNBUFFERED"],
+    env: env([...sharedSecrets, ...extractionSecrets, "PYTHONUNBUFFERED"]),
   });
 
   const postExtraction = definePythonService("Post-Extraction", {
@@ -235,7 +250,7 @@ export default defineRailway(() => {
     cpu: 8,
     privateEndpoint: "post-extraction",
     serviceDomain: "whichglp-post-extraction.up.railway.app",
-    env: [...sharedSecrets, ...extractionSecrets],
+    env: env([...sharedSecrets, ...extractionSecrets]),
   });
 
   const userExtraction = definePythonService("User-Extraction", {
@@ -245,7 +260,7 @@ export default defineRailway(() => {
     cpu: 8,
     privateEndpoint: "which-glp-4741320e",
     serviceDomain: "whichglp-user-extraction.up.railway.app",
-    env: [...sharedSecrets, ...extractionSecrets],
+    env: env([...sharedSecrets, ...extractionSecrets]),
   });
 
   // FastAPI recommendation engine. The 300-second healthcheck window carries over from its railway.json.
@@ -256,7 +271,7 @@ export default defineRailway(() => {
     cpu: 8,
     privateEndpoint: "ml",
     serviceDomain: "whichglp-rec-engine.up.railway.app",
-    env: sharedSecrets,
+    env: env(sharedSecrets),
   });
 
   // Redis cache used by the API. The volume is declared alongside so Railway keeps
@@ -275,21 +290,21 @@ export default defineRailway(() => {
     file: "post-ingestion-cron.ts",
     schedule: "0 0 * * *",
     privateEndpoint: "post-ingestion-cron",
-    env: [...sharedSecrets, ...extractionSecrets, "POST_INGESTION_URL"],
+    env: env([...sharedSecrets, ...extractionSecrets, "POST_INGESTION_URL"]),
   });
 
   const postExtractionCron = defineCronFunction("Post-Extraction-Cron", {
     file: "post-extraction-cron.ts",
     schedule: "0 6 * * *",
     privateEndpoint: "post-extraction-cron",
-    env: [...sharedSecrets, ...extractionSecrets, "POST_EXTRACTION_URL"],
+    env: env([...sharedSecrets, ...extractionSecrets, "POST_EXTRACTION_URL"]),
   });
 
   const userExtractionCron = defineCronFunction("User-Extraction-Cron", {
     file: "user-extraction-cron.ts",
     schedule: "0 17 * * *",
     privateEndpoint: "user-extraction-cron",
-    env: [...sharedSecrets, ...extractionSecrets, "USER_EXTRACTION_URL"],
+    env: env([...sharedSecrets, ...extractionSecrets, "USER_EXTRACTION_URL"]),
   });
 
   // Refreshes the denormalized materialized view straight against Postgres.
@@ -297,7 +312,7 @@ export default defineRailway(() => {
     file: "view-refresher-cron.ts",
     schedule: "0 18 * * *",
     privateEndpoint: "function-bun",
-    env: [...sharedSecrets, ...extractionSecrets],
+    env: env([...sharedSecrets, ...extractionSecrets]),
   });
 
   return project("WhichGLP", {
