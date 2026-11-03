@@ -17,7 +17,7 @@ export const Footer = () => {
         {/* Footer Links */}
         <div className="flex flex-col items-center justify-between gap-4 md:flex-row border-t border-border/40 pt-6">
           <div className="text-sm text-muted-foreground">
-            © 2025 WhichGLP. All rights reserved.
+            © 2026 WhichGLP. All rights reserved.
           </div>
           <div className="flex gap-6">
             <Link
